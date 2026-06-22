@@ -1,0 +1,234 @@
+import  { useState } from 'react';
+
+export default function ControlModal({ mccb, onClose, onUpdate, onDelete, isAdmin, rooms, categories }) {
+  const [isPowerOff, setIsPowerOff] = useState(mccb.isPowerOff);
+  const [room, setRoom] = useState(mccb.room);
+  const [category, setCategory] = useState(mccb.category);
+  const [name, setName] = useState(mccb.name);
+
+  // 子札の個別返却処理
+  const handleReturnCard = (cardId) => {
+    const updatedCards = mccb.childCards.map(card => 
+      card.id === cardId ? { ...card, isBorrowed: false, workerName: '' } : card
+    );
+    onUpdate({ ...mccb, childCards: updatedCards });
+  };
+
+  // 子札の個別手動貸出処理
+  const handleBorrowCard = (cardId, workerName) => {
+    if (!workerName.trim()) {
+      alert('作業者名を入力してください。');
+      return;
+    }
+    const updatedCards = mccb.childCards.map(card => 
+      card.id === cardId ? { ...card, isBorrowed: true, workerName: workerName.trim() } : card
+    );
+    onUpdate({ ...mccb, childCards: updatedCards });
+  };
+
+  // 設備マスタ自体の更新
+  const handleSaveMaster = () => {
+    if (!name.trim()) {
+      alert('設備名称を入力してください。');
+      return;
+    }
+    onUpdate({ ...mccb, room, category, name: name.trim(), isPowerOff });
+    alert('設備情報を更新しました。');
+  };
+
+  return (
+    /* 💡 改善ポイント①：背景の黒い遮光幕（外枠）に onClick={onClose} を配置。
+       内部の白いダイアログボックスには e.stopPropagation() を設定して、枠外をクリックしたときだけ閉じるように制御。 */
+    <div 
+      onClick={onClose}
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 print:hidden"
+    >
+      <div 
+        onClick={(e) => e.stopPropagation()} // 💡 白い画面内をクリックした時は閉じないようにガード
+        className="bg-white rounded-2xl border border-gray-200 shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] transition-all transform scale-100"
+      >
+        
+        {/* 🔝 モーダルヘッダー */}
+        <div className="bg-gray-50 border-b p-4 flex justify-between items-center shrink-0">
+          <div>
+            <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-md mr-2">
+              {mccb.room}
+            </span>
+            <h2 className="text-base font-black text-gray-800 inline-block">
+              {mccb.name} <span className="text-xs font-normal text-gray-500 font-mono">({mccb.id})</span>
+            </h2>
+          </div>
+
+          {/* 💡 改善ポイント②：閉じる「×」ボタンを特大化（p-2 w-10 h-10 text-xl font-black）して、押しやすさを大幅向上 */}
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded-full w-10 h-10 flex items-center justify-center text-3xl font-black transition-all cursor-pointer focus:outline-none"
+            title="閉じる"
+          >
+           ×
+          </button>
+        </div>
+
+        {/* 📜 モーダルボディ（スクロール領域） */}
+        <div className="p-6 overflow-y-auto space-y-6 flex-1 text-sm text-gray-700">
+          
+          {/* ⚡ 停電・送電ステータス切り替えトグル */}
+          <div className="bg-gray-50 p-4 rounded-xl border flex items-center justify-between shadow-sm">
+            <div>
+              <p className="font-black text-gray-800">⚡ 設備停電ステータス</p>
+              <p className="text-xs text-gray-400 mt-0.5">※依頼発行とは別に、主幹の開閉状態を直接操作ロックします</p>
+            </div>
+            <button
+              onClick={() => {
+                const nextStatus = !isPowerOff;
+                setIsPowerOff(nextStatus);
+                onUpdate({ ...mccb, isPowerOff: nextStatus });
+              }}
+              className={`px-5 py-2 rounded-xl text-xs font-black shadow transition-all cursor-pointer border ${
+                isPowerOff
+                  ? 'bg-red-600 text-white border-red-700 hover:bg-red-700'
+                  : 'bg-green-600 text-white border-green-700 hover:bg-green-700'
+              }`}
+            >
+              {isPowerOff ? '🛑 現在：操作禁止（停電中）' : '🟢 現在：通常運用（送電中）'}
+            </button>
+          </div>
+
+          {/* 🔖 子札マスタ（5枚セット）の個別貸出状況・手動返却エリア */}
+          <div className="space-y-3">
+            <h3 className="font-black text-gray-800 flex items-center gap-1.5 border-b pb-1">
+              🔖 現場用マスター子札 貸出個別管理 <span className="text-xs font-normal text-gray-400">(全5枚)</span>
+            </h3>
+            
+            <div className="grid grid-cols-1 gap-2">
+              {mccb.childCards.map((card) => {
+                // 個別手動貸出用のローカル入力状態を管理するためのインナースイッチコンポーネント風処理
+                return (
+                  <CardRow 
+                    key={card.id} 
+                    card={card} 
+                    onBorrow={(name) => handleBorrowCard(card.id, name)} 
+                    onReturn={() => handleReturnCard(card.id)} 
+                  />
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ⚙️ 管理者専用：設備マスタ編集エリア */}
+          {isAdmin && (
+            <div className="border-t pt-4 space-y-4">
+              <h3 className="font-black text-red-700 text-xs tracking-wider uppercase border-b pb-1">
+                🔒 管理者用：マスタ情報直接編集
+              </h3>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">設置エリア（電気室）</label>
+                  <select 
+                    value={room} 
+                    onChange={(e) => setRoom(e.target.value)} 
+                    className="border p-2 rounded text-xs w-full bg-gray-50"
+                  >
+                    {rooms.map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">区分カテゴリ</label>
+                  <select 
+                    value={category} 
+                    onChange={(e) => setCategory(e.target.value)} 
+                    className="border p-2 rounded text-xs w-full bg-gray-50"
+                  >
+                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-gray-500 mb-1">設備名称</label>
+                  <input 
+                    type="text" 
+                    value={name} 
+                    onChange={(e) => setName(e.target.value)} 
+                    className="border p-2 rounded text-xs w-full bg-gray-50 focus:bg-white focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center pt-2">
+                <button
+                  onClick={() => onDelete(mccb.id)}
+                  className="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-4 py-2 rounded-lg text-xs border border-red-200 cursor-pointer transition-all"
+                >
+                  🗑️ 設備マスタを完全削除
+                </button>
+                <button
+                  onClick={handleSaveMaster}
+                  className="bg-gray-800 hover:bg-gray-900 text-white font-black px-5 py-2 rounded-lg text-xs shadow cursor-pointer transition-all"
+                >
+                  💾 マスタ変更内容を保存
+                </button>
+              </div>
+            </div>
+          )}
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 💡 子札の1行ずつの挙動を安全に制御するための内部サブパーツ
+function CardRow({ card, onBorrow, onReturn }) {
+  const [inputName, setInputName] = useState('');
+
+  return (
+    <div className={`p-3 rounded-xl border flex flex-wrap items-center justify-between gap-2 text-xs transition-colors ${
+      card.isBorrowed ? 'bg-amber-50/40 border-amber-200' : 'bg-gray-50/50 border-gray-200'
+    }`}>
+      <div className="flex items-center gap-2">
+        <span className={`font-mono px-1.5 py-0.5 rounded text-[10px] font-black ${
+          card.isBorrowed ? 'bg-amber-600 text-white' : 'bg-gray-200 text-gray-500'
+        }`}>
+          No.{card.id}
+        </span>
+        {card.isBorrowed ? (
+          <span className="font-black text-gray-800">
+            👷 使用者: <span className="text-sm text-blue-800 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded font-black">{card.workerName}</span>
+          </span>
+        ) : (
+          <span className="text-gray-400 font-medium">保管中（フリー空き札）</span>
+        )}
+      </div>
+
+      <div>
+        {card.isBorrowed ? (
+          <button
+            onClick={() => {
+              onReturn();
+              setInputName('');
+            }}
+            className="bg-white hover:bg-gray-100 text-gray-700 font-bold px-3 py-1 rounded border border-gray-300 shadow-sm cursor-pointer transition-all"
+          >
+            ↩️ 札を返却（フリーに戻す）
+          </button>
+        ) : (
+          <div className="flex items-center gap-1">
+            <input 
+              type="text"
+              placeholder="手動使用者名"
+              value={inputName}
+              onChange={(e) => setInputName(e.target.value)}
+              className="border p-1.5 rounded text-[11px] w-28 bg-white focus:outline-none"
+            />
+            <button
+              onClick={() => onBorrow(inputName)}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-black px-3 py-1.5 rounded shadow-sm cursor-pointer transition-all"
+            >
+              🔖 貸出
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
