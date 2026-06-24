@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useDeferredValue, useRef } from 'react';
+import { useState, useMemo, useCallback, useDeferredValue } from 'react';
 import { useMccbData } from './hooks/useMccbData';
 import Header from './components/Header';
 import AdminPanel from './components/AdminPanel';
@@ -27,7 +27,7 @@ function AppContent() {
   const [filterFavorite, setFilterFavorite] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [selectedMccbId, setSelectedMccbId] = useState(null);
-  const selectedMccbCacheRef = useRef(null);
+  const [selectedMccbCache, setSelectedMccbCache] = useState(null);
 
   // --- 3. ルーティング情報 ---
   const location = useLocation();
@@ -109,30 +109,30 @@ function AppContent() {
   // ポーリング更新の瞬間に対象が一時的に見つからない場合も、キャッシュでモーダルを維持する
   const currentMccb = useMemo(() => {
     if (!selectedMccbId) {
-      selectedMccbCacheRef.current = null;
       return null;
     }
 
     const found = mccbList.find((m) => m.id === selectedMccbId);
     if (found) {
-      selectedMccbCacheRef.current = found;
       return found;
     }
 
-    if (selectedMccbCacheRef.current?.id === selectedMccbId) {
-      return selectedMccbCacheRef.current;
+    if (selectedMccbCache?.id === selectedMccbId) {
+      return selectedMccbCache;
     }
 
     return null;
-  }, [mccbList, selectedMccbId]);
+  }, [mccbList, selectedMccbId, selectedMccbCache]);
 
   // --- 6. 安定化したコールバック関数 (useCallback) ---
   const handleSelect = useCallback((id) => { 
+    const selected = mccbList.find((m) => m.id === id) ?? null;
+    setSelectedMccbCache(selected);
     setSelectedMccbId(id); 
-  }, []);
+  }, [mccbList]);
 
   const handleCloseModal = useCallback(() => {
-    selectedMccbCacheRef.current = null;
+    setSelectedMccbCache(null);
     setSelectedMccbId(null);
   }, []);
 

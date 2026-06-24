@@ -268,7 +268,7 @@ export function useMccbData() {
         }
 
         if (changeDetails.length > 0) {
-          logType = logType === '札貸出' ? '札貸出' : 'マスタ変更';
+          // logType = logType === '操作' ? '札貸出' : 'マスタ変更';
           logMsg = `【${oldMccb.room} / ${oldMccb.name}】${changeDetails.join(' / ')}`;
         }
       }
