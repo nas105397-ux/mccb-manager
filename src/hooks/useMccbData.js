@@ -235,7 +235,7 @@ export function useMccbData() {
       
       const oldMccb = latest.mccbList.find(m => m.id === updatedMccb.id);
       let logMsg = '';
-      let logType = '操作';
+      let logType = 'マスタ変更';
 
       if (oldMccb) {
         const changeDetails = [];
@@ -252,12 +252,15 @@ export function useMccbData() {
           changeDetails.push(`設備名: ${oldMccb.name} → ${updatedMccb.name}`);
         }
 
-        if (oldMccb.isPowerOff !== updatedMccb.isPowerOff) {
-          changeDetails.push(`状態: ${oldMccb.isPowerOff ? '停電中' : '送電中'} → ${updatedMccb.isPowerOff ? '停電中' : '送電中'}`);
+        if (oldMccb.isFavorite !== updatedMccb.isFavorite) {
+        //  changeDetails.push(`お気に入り: ${oldMccb.isFavorite ? 'ON' : 'OFF'} → ${updatedMccb.isFavorite ? 'ON' : 'OFF'}`);
+        changeDetails.push(`お気に入り: ${updatedMccb.isFavorite ? '登録しました' : '解除しました'}`);
         }
 
-        if (oldMccb.isFavorite !== updatedMccb.isFavorite) {
-          changeDetails.push(`お気に入り: ${oldMccb.isFavorite ? 'ON' : 'OFF'} → ${updatedMccb.isFavorite ? 'ON' : 'OFF'}`);
+        if (oldMccb.isPowerOff !== updatedMccb.isPowerOff) {
+        //  changeDetails.push(`状態: ${oldMccb.isPowerOff ? '停電中' : '送電中'} → ${updatedMccb.isPowerOff ? '停電中' : '送電中'}`);
+        changeDetails.push(`状態: ${updatedMccb.isPowerOff ? '🔴停電しました' : '🟢送電しました'}`);
+          logType = '操作';
         }
 
         const oldBorrowed = oldMccb.childCards.filter(c => c.isBorrowed).length;
@@ -268,7 +271,6 @@ export function useMccbData() {
         }
 
         if (changeDetails.length > 0) {
-          // logType = logType === '操作' ? '札貸出' : 'マスタ変更';
           logMsg = `【${oldMccb.room} / ${oldMccb.name}】${changeDetails.join(' / ')}`;
         }
       }
