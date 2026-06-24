@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useDeferredValue } from 'react';
+import { useState, useMemo, useCallback, useDeferredValue, useRef } from 'react';
 import { useMccbData } from './hooks/useMccbData';
 import Header from './components/Header';
 import AdminPanel from './components/AdminPanel';
@@ -27,6 +27,7 @@ function AppContent() {
   const [filterFavorite, setFilterFavorite] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [selectedMccbId, setSelectedMccbId] = useState(null);
+  const selectedMccbCacheRef = useRef(null);
 
   // --- 3. ルーティング情報 ---
   const location = useLocation();
@@ -105,11 +106,34 @@ function AppContent() {
   }, [mccbList]);
 
   // 現在モーダルで選択中の設備データ
-  const currentMccb = useMemo(() => mccbList.find((m) => m.id === selectedMccbId), [mccbList, selectedMccbId]);
+  // ポーリング更新の瞬間に対象が一時的に見つからない場合も、キャッシュでモーダルを維持する
+  const currentMccb = useMemo(() => {
+    if (!selectedMccbId) {
+      selectedMccbCacheRef.current = null;
+      return null;
+    }
+
+    const found = mccbList.find((m) => m.id === selectedMccbId);
+    if (found) {
+      selectedMccbCacheRef.current = found;
+      return found;
+    }
+
+    if (selectedMccbCacheRef.current?.id === selectedMccbId) {
+      return selectedMccbCacheRef.current;
+    }
+
+    return null;
+  }, [mccbList, selectedMccbId]);
 
   // --- 6. 安定化したコールバック関数 (useCallback) ---
   const handleSelect = useCallback((id) => { 
     setSelectedMccbId(id); 
+  }, []);
+
+  const handleCloseModal = useCallback(() => {
+    selectedMccbCacheRef.current = null;
+    setSelectedMccbId(null);
   }, []);
 
   const handleToggleFavorite = useCallback((id, current) => {
@@ -194,7 +218,7 @@ function AppContent() {
               </div>
 
               {currentMccb && (
-                <ControlModal mccb={currentMccb} borrowedCount={borrowedCountMap[currentMccb.id] ?? 0} onClose={() => setSelectedMccbId(null)} onUpdate={updateMccb} onDelete={deleteMccb} isAdmin={isAdmin} rooms={rooms} categories={categories} />
+                <ControlModal key={currentMccb.id} mccb={currentMccb} borrowedCount={borrowedCountMap[currentMccb.id] ?? 0} onClose={handleCloseModal} onUpdate={updateMccb} onDelete={deleteMccb} isAdmin={isAdmin} rooms={rooms} categories={categories} />
               )}
             </>
           } />

@@ -10,22 +10,14 @@ export default function ControlModal({ mccb, onClose, onUpdate, onDelete, isAdmi
   const [category, setCategory] = useState(mccb.category);
   const [name, setName] = useState(mccb.name);
 
-  // 💡 【エラー解消の核心】
-  // useEffectを使わずに、Propsの変更をレンダリング中に検知してStateを直接調整（React公式の正規手法）
-  // これにより、画面への描画（コミット）が走る前に裏側で1発でStateが同期され、カスケード描画を防ぎます
-  const [prevMccb, setPrevMccb] = useState(mccb);
-  if (mccb !== prevMccb) {
-    setPrevMccb(mccb);
-    setIsPowerOff(mccb.isPowerOff);
-    setRoom(mccb.room);
-    setCategory(mccb.category);
-    setName(mccb.name);
-  }
-
   // --- ハンドラ関数群 ---
 
   /** ⚡ 設備停電ステータス（送電・停電）のトグル切り替え */
+  const hasBorrowedCards = mccb.childCards.some(card => card.isBorrowed);
+  const isSendingBlocked = isPowerOff && hasBorrowedCards;
+
   const handleTogglePower = () => {
+    if (isSendingBlocked) return;
     const nextStatus = !isPowerOff;
     setIsPowerOff(nextStatus);
     onUpdate({ ...mccb, isPowerOff: nextStatus });
@@ -100,13 +92,22 @@ export default function ControlModal({ mccb, onClose, onUpdate, onDelete, isAdmi
             <div>
               <p className="font-black text-gray-800">⚡ 設備停電ステータス</p>
               <p className="text-xs text-gray-400 mt-0.5">※依頼発行とは別に、主幹の開閉状態を直接操作ロックします</p>
+              {isSendingBlocked && (
+                <p className="text-xs text-orange-600 font-bold mt-1">
+                  ⚠️ 未返却の子札があるため、送電操作はできません
+                </p>
+              )}
             </div>
             <button
               onClick={handleTogglePower}
-              className={`px-5 py-2 rounded-xl text-xs font-black shadow transition-all cursor-pointer border ${
-                isPowerOff
-                  ? 'bg-red-600 text-white border-red-700 hover:bg-red-700'
-                  : 'bg-green-600 text-white border-green-700 hover:bg-green-700'
+              disabled={isSendingBlocked}
+              title={isSendingBlocked ? '未返却の子札があるため送電できません' : undefined}
+              className={`px-5 py-2 rounded-xl text-xs font-black shadow transition-all border ${
+                isSendingBlocked
+                  ? 'bg-gray-300 text-gray-500 border-gray-400 cursor-not-allowed opacity-60'
+                  : isPowerOff
+                    ? 'bg-red-600 text-white border-red-700 hover:bg-red-700 cursor-pointer'
+                    : 'bg-green-600 text-white border-green-700 hover:bg-green-700 cursor-pointer'
               }`}
             >
               {isPowerOff ? '🔴 現在：操作禁止（停電中）' : '🟢 現在：通常運用（送電中）'}
@@ -122,7 +123,7 @@ export default function ControlModal({ mccb, onClose, onUpdate, onDelete, isAdmi
             <div className="grid grid-cols-1 gap-2">
               {mccb.childCards.map((card) => (
                 <CardRow 
-                  key={card.id} 
+                  key={`${card.id}-${card.isBorrowed ? 'borrowed' : 'free'}`} 
                   card={card} 
                   onBorrow={(name) => handleBorrowCard(card.id, name)} 
                   onReturn={() => handleReturnCard(card.id)} 
@@ -198,16 +199,6 @@ export default function ControlModal({ mccb, onClose, onUpdate, onDelete, isAdmi
 // ==========================================
 function CardRow({ card, onBorrow, onReturn }) {
   const [inputName, setInputName] = useState('');
-
-  // 💡 【こちらも同様にエラー回避改修】
-  // useEffectを使わず、貸出フラグの切り替わりをレンダリング中に検知して文字入力をクリア
-  const [prevIsBorrowed, setPrevIsBorrowed] = useState(card.isBorrowed);
-  if (card.isBorrowed !== prevIsBorrowed) {
-    setPrevIsBorrowed(card.isBorrowed);
-    if (card.isBorrowed) {
-      setInputName('');
-    }
-  }
 
   return (
     <div className={`p-3 rounded-xl border flex flex-wrap items-center justify-between gap-2 text-xs transition-colors ${

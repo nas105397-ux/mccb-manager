@@ -167,7 +167,7 @@ export default function RequestListPanel({ requests = [], requestHistory = [], m
                         </span>
                       </div>
                       <h4 className="text-sm font-black text-gray-700 mt-1.5">
-                        Constructed by 👷 {req.workerName} <span className="text-xs font-normal text-gray-500">氏の作業履歴</span>
+                        作業完了 👷 {req.workerName} <span className="text-xs font-normal text-gray-500">氏の作業履歴</span>
                       </h4>
                       {req.workContent && (
                         <p className="text-xs text-gray-400 mt-0.5 font-medium">内容: {req.workContent}</p>

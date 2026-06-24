@@ -118,15 +118,20 @@ export function useMccbData() {
   // 同期タスクキューおよびタイマー制御用のRef
   const syncQueue = useRef(Promise.resolve());
   const pauseTimer = useRef(0);
+  const syncInProgress = useRef(false);
 
   /** 非同期サーバー書き込み処理をキューイングし、自動ポーリングと衝突させない制御ラッパー */
   const runSyncTask = useCallback((taskFn) => {
-    pauseTimer.current = Date.now() + 3000; // 手動操作後3秒間は自動巡回を一時停止
+    pauseTimer.current = Date.now() + 5000; // 手動操作後は自動巡回を一時停止
     syncQueue.current = syncQueue.current.then(async () => {
+      syncInProgress.current = true;
       try { 
         await taskFn(); 
       } catch (e) { 
         console.error("サーバー同期エラー:", e); 
+      } finally {
+        syncInProgress.current = false;
+        pauseTimer.current = Date.now() + 1000;
       }
     });
   }, []);
@@ -134,7 +139,7 @@ export function useMccbData() {
   // --- 定期自動同期ポーリング設定 (useEffect) ---
   useEffect(() => {
     const fetchData = () => {
-      if (Date.now() < pauseTimer.current) return;
+      if (Date.now() < pauseTimer.current || syncInProgress.current) return;
       fetch(API_URL)
         .then(res => res.json())
         .then(data => {
@@ -233,19 +238,38 @@ export function useMccbData() {
       let logType = '操作';
 
       if (oldMccb) {
+        const changeDetails = [];
+
+        if (oldMccb.room !== updatedMccb.room) {
+          changeDetails.push(`電気室: ${oldMccb.room} → ${updatedMccb.room}`);
+        }
+
+        if (oldMccb.category !== updatedMccb.category) {
+          changeDetails.push(`区分: ${oldMccb.category} → ${updatedMccb.category}`);
+        }
+
+        if (oldMccb.name !== updatedMccb.name) {
+          changeDetails.push(`設備名: ${oldMccb.name} → ${updatedMccb.name}`);
+        }
+
         if (oldMccb.isPowerOff !== updatedMccb.isPowerOff) {
-          logMsg = `【${updatedMccb.room}】${updatedMccb.name} が「${updatedMccb.isPowerOff ? '🔴 停電中' : '🟢 送電中'}」に。`;
-        } else if (oldMccb.isFavorite !== updatedMccb.isFavorite) {
-          logMsg = `【${updatedMccb.room}】${updatedMccb.name} を「${updatedMccb.isFavorite ? '⭐ お気に入り登録' : 'お気に入り解除'}」しました。`;
-        } else {
-          const oldB = oldMccb.childCards.filter(c => c.isBorrowed).length;
-          const newB = updatedMccb.childCards.filter(c => c.isBorrowed).length;
-          if (oldB !== newB) {
-            logType = '札貸出';
-            logMsg = newB > oldB 
-              ? `【${updatedMccb.room}】${updatedMccb.name} の札が貸出されました。` 
-              : `【${updatedMccb.room}】${updatedMccb.name} の札が返却されました。`;
-          }
+          changeDetails.push(`状態: ${oldMccb.isPowerOff ? '停電中' : '送電中'} → ${updatedMccb.isPowerOff ? '停電中' : '送電中'}`);
+        }
+
+        if (oldMccb.isFavorite !== updatedMccb.isFavorite) {
+          changeDetails.push(`お気に入り: ${oldMccb.isFavorite ? 'ON' : 'OFF'} → ${updatedMccb.isFavorite ? 'ON' : 'OFF'}`);
+        }
+
+        const oldBorrowed = oldMccb.childCards.filter(c => c.isBorrowed).length;
+        const newBorrowed = updatedMccb.childCards.filter(c => c.isBorrowed).length;
+        if (oldBorrowed !== newBorrowed) {
+          logType = '札貸出';
+          changeDetails.push(`貸出札: ${oldBorrowed}枚 → ${newBorrowed}枚`);
+        }
+
+        if (changeDetails.length > 0) {
+          logType = logType === '札貸出' ? '札貸出' : 'マスタ変更';
+          logMsg = `【${oldMccb.room} / ${oldMccb.name}】${changeDetails.join(' / ')}`;
         }
       }
 
