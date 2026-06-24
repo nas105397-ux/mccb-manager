@@ -1,7 +1,81 @@
 import { useMemo } from 'react';
 
-// 💡 Props に dummyNames = {} を追加して手動入力の代替名称を受け取れる状態を維持
+// ==========================================
+// 1. フック外の共通シミュレーションヘルパー関数群
+// ==========================================
+
+/** 過去の確定リクエスト情報から、現在のすべての札の貸出状態をマージ同期する */
+const syncPastRequests = (mccbList, requests) => {
+  const cloned = JSON.parse(JSON.stringify(mccbList));
+  return cloned.map(mccb => {
+    const updatedCards = mccb.childCards?.map(card => {
+      let isBorrowed = card.isBorrowed;
+      let workerName = card.workerName;
+
+      requests.forEach(req => {
+        if (!req.reservedCards) return;
+        Object.keys(req.reservedCards).forEach(tId => {
+          const resInfo = req.reservedCards[tId];
+          if (resInfo && resInfo.actualMccbId === mccb.id && resInfo.cardNo === card.id) {
+            isBorrowed = true;
+            workerName = req.workerName;
+          }
+        });
+      });
+      return { ...card, isBorrowed, workerName };
+    }) || [];
+    return { ...mccb, childCards: updatedCards };
+  });
+};
+
+/** 対象のダミー設備カードが、他の依頼や手動操作によって占有されているかを厳密に検証する */
+const isDummyOccupiedForSim = (dummy, targetId, requests, localReserved) => {
+  let isOccupied = false;
+
+  // ① 過去の確定リクエストからの逆引き検証
+  requests.forEach(req => {
+    if (!req.reservedCards) return;
+    Object.keys(req.reservedCards).forEach(origId => {
+      const resInfo = req.reservedCards[origId];
+      if (resInfo && resInfo.actualMccbId === dummy.id && origId !== targetId) {
+        isOccupied = true;
+      }
+    });
+  });
+
+  // ② 今回の印刷プレビューのループ内で、既に他の設備に割り当て済みか検証
+  Object.keys(localReserved).forEach(origId => {
+    const resInfo = localReserved[origId];
+    if (resInfo && resInfo.actualMccbId === dummy.id && origId !== targetId) {
+      isOccupied = true;
+    }
+  });
+
+  // ③ 依頼履歴にない、完全手動貸出で使用中のダミー札を検知
+  dummy.childCards?.forEach(card => {
+    if (!card.isBorrowed) return;
+    let isMyPastReservation = false;
+    requests.forEach(req => {
+      if (req.reservedCards && req.reservedCards[targetId]) {
+        const resInfo = req.reservedCards[targetId];
+        if (resInfo && resInfo.actualMccbId === dummy.id && resInfo.cardNo === card.id) {
+          isMyPastReservation = true;
+        }
+      }
+    });
+    if (!isMyPastReservation) {
+      isOccupied = true;
+    }
+  });
+
+  return isOccupied;
+};
+
+// ==========================================
+// 2. メインコンポーネント
+// ==========================================
 export default function PrintPreviewForm({ workerName, workContent, selectedMccbIds, mccbList, requests = [], dummyNames = {} }) {
+  
   // 🗓️ 日付・申請No用コードの算出
   const { now, dateCode } = useMemo(() => {
     const currentDate = new Date();
@@ -9,33 +83,10 @@ export default function PrintPreviewForm({ workerName, workContent, selectedMccb
     return { now: currentDate, dateCode: code };
   }, []);
 
-  // 💡 バックエンド（useMccbData.js）の手動貸出回避ロジックと100%完全同期した精密計算シミュレーション
+  // 💡 バックエンドの手動貸出回避ロジックと100%完全同期した精密シミュレーション
   const selectedMccbsWithAssignedCards = useMemo(() => {
-    let simulatedMccbList = JSON.parse(JSON.stringify(mccbList));
-
-    // 1. 過去の確定リクエストからすべての札の状態をマージ同期
-    simulatedMccbList = simulatedMccbList.map(mccb => {
-      const updatedCards = mccb.childCards?.map(card => {
-        let isBorrowed = card.isBorrowed;
-        let workerNameAttr = card.workerName;
-
-        requests.forEach(req => {
-          if (req.reservedCards) {
-            Object.keys(req.reservedCards).forEach(tId => {
-              const resInfo = req.reservedCards[tId];
-              if (resInfo && resInfo.actualMccbId === mccb.id && resInfo.cardNo === card.id) {
-                isBorrowed = true;
-                workerNameAttr = req.workerName;
-              }
-            });
-          }
-        });
-        return { ...card, isBorrowed, workerName: workerNameAttr };
-      }) || [];
-      return { ...mccb, childCards: updatedCards };
-    });
-
-    // 今回の印刷プレビューのループ内での仮確保状況を追跡するローカルコンテキスト
+    // 過去リクエストの状態を初期マージ
+    const simulatedMccbList = syncPastRequests(mccbList, requests);
     const localReserved = {};
 
     return selectedMccbIds.map((id) => {
@@ -46,7 +97,6 @@ export default function PrintPreviewForm({ workerName, workContent, selectedMccb
       let finalTargetMccb = originalMccb;
       let isAllocatedFromDummy = false;
       
-      // 判定：選択された設備自体が「ダミー設備」かどうか
       const isOriginalDummy = originalMccb.isDummy || originalMccb.name?.includes('ダミー');
 
       // 通常設備で空き札がない場合のみ、ダミースライド探索を実行
@@ -55,6 +105,7 @@ export default function PrintPreviewForm({ workerName, workContent, selectedMccb
           m.name?.includes('ダミー') || m.id?.includes('DUMMY') || m.isDummy
         );
 
+        // 同じ部屋のダミーを最優先し、名称順にソート
         dummyCandidates.sort((a, b) => {
           const aSameRoom = a.room === originalMccb.room ? 1 : 0;
           const bSameRoom = b.room === originalMccb.room ? 1 : 0;
@@ -62,53 +113,13 @@ export default function PrintPreviewForm({ workerName, workContent, selectedMccb
           return (a.name || '').localeCompare(b.name || '', 'ja');
         });
 
+        // 段階 1: 同じ電気室内を基準に空きダミーを探索
         let foundDummy = null;
         let dummyCardIdx = -1;
 
         for (const dummy of dummyCandidates) {
-          let isOccupiedByOtherDevice = false;
+          if (isDummyOccupiedForSim(dummy, id, requests, localReserved)) continue;
 
-          // ① 過去の確定リクエスト(requests)からの逆引き検証
-          requests.forEach(req => {
-            if (!req.reservedCards) return;
-            Object.keys(req.reservedCards).forEach(origId => {
-              const resInfo = req.reservedCards[origId];
-              if (resInfo && resInfo.actualMccbId === dummy.id && origId !== id) {
-                isOccupiedByOtherDevice = true;
-              }
-            });
-          });
-
-          // ② 今回の印刷プレビューのループ内で、既に「他の通常設備」へ割り当て済みかどうかの検証
-          Object.keys(localReserved).forEach(origId => {
-            const resInfo = localReserved[origId];
-            if (resInfo && resInfo.actualMccbId === dummy.id && origId !== id) {
-              isOccupiedByOtherDevice = true;
-            }
-          });
-
-          // 💡 ③ 【新設完全同期】依頼履歴にない、ダッシュボード等での完全手動貸出や手動入力で使用中のダミー札を検知
-          dummy.childCards?.forEach(card => {
-            if (card.isBorrowed) {
-              let isMyPastReservation = false;
-              requests.forEach(req => {
-                if (req.reservedCards && req.reservedCards[id]) {
-                  const resInfo = req.reservedCards[id];
-                  if (resInfo && resInfo.actualMccbId === dummy.id && resInfo.cardNo === card.id) {
-                    isMyPastReservation = true;
-                  }
-                }
-              });
-              if (!isMyPastReservation) {
-                isOccupiedByOtherDevice = true; // 自分用の過去予約でない貸出（＝完全手動の占有札）があればこのダミーを迂回
-              }
-            }
-          });
-
-          // 他設備占有、または手動操作で既に使用されているダミーは完全に除外してスキップ！
-          if (isOccupiedByOtherDevice) continue;
-
-          // 自分自身の設備による連続確保、または完全空き状態の場合のみ子札を確保
           const idx = dummy.childCards?.findIndex(c => !c.isBorrowed) ?? -1;
           if (idx !== -1) {
             foundDummy = dummy;
@@ -117,56 +128,18 @@ export default function PrintPreviewForm({ workerName, workContent, selectedMccb
           }
         }
 
-        // 例外フォールバック：同じ電気室内が全滅の場合、他電気室も含めて同様に手動貸出を厳密スクリーニング
+        // 段階 2: 例外フォールバック（全エリアのダミーからダミー0最優先で再探索）
         if (!foundDummy) {
           const allDummies = simulatedMccbList.filter(m => 
             m.name?.includes('ダミー') || m.id?.includes('DUMMY') || m.isDummy
-          );
-          allDummies.sort((a, b) => {
+          ).sort((a, b) => {
             if (a.name === 'ダミー0' && b.name !== 'ダミー0') return -1;
             if (a.name !== 'ダミー0' && b.name === 'ダミー0') return 1;
             return (a.name || '').localeCompare(b.name || '', 'ja');
           });
 
           for (const dummy of allDummies) {
-            let isOccupiedByOtherDevice = false;
-
-            requests.forEach(req => {
-              if (!req.reservedCards) return;
-              Object.keys(req.reservedCards).forEach(origId => {
-                const resInfo = req.reservedCards[origId];
-                if (resInfo && resInfo.actualMccbId === dummy.id && origId !== id) {
-                  isOccupiedByOtherDevice = true;
-                }
-              });
-            });
-
-            Object.keys(localReserved).forEach(origId => {
-              const resInfo = localReserved[origId];
-              if (resInfo && resInfo.actualMccbId === dummy.id && origId !== id) {
-                isOccupiedByOtherDevice = true;
-              }
-            });
-
-            // フォールバック側でも手動操作札の厳密チェック
-            dummy.childCards?.forEach(card => {
-              if (card.isBorrowed) {
-                let isMyPastReservation = false;
-                requests.forEach(req => {
-                  if (req.reservedCards && req.reservedCards[id]) {
-                    const resInfo = req.reservedCards[id];
-                    if (resInfo && resInfo.actualMccbId === dummy.id && resInfo.cardNo === card.id) {
-                      isMyPastReservation = true;
-                    }
-                  }
-                });
-                if (!isMyPastReservation) {
-                  isOccupiedByOtherDevice = true;
-                }
-              }
-            });
-
-            if (isOccupiedByOtherDevice) continue;
+            if (isDummyOccupiedForSim(dummy, id, requests, localReserved)) continue;
 
             const idx = dummy.childCards?.findIndex(c => !c.isBorrowed) ?? -1;
             if (idx !== -1) {
@@ -184,9 +157,9 @@ export default function PrintPreviewForm({ workerName, workContent, selectedMccb
         }
       }
 
+      // シミュレーション上の仮確保を確定ロック
       let finalCardNo = 1;
       if (availableIdx !== -1 && finalTargetMccb.childCards) {
-        // シミュレーション上の札状態をロックし、プレビュー内での仮確保履歴にマーク
         finalTargetMccb.childCards[availableIdx].isBorrowed = true;
         finalCardNo = finalTargetMccb.childCards[availableIdx].id;
 
@@ -196,7 +169,7 @@ export default function PrintPreviewForm({ workerName, workContent, selectedMccb
         };
       }
 
-      // 手動入力または自動代替された設備名称の美しく正確な結合
+      // 名称の美しく正確な結合処理
       let finalName = originalMccb.name;
       if (isOriginalDummy) {
         if (dummyNames[id]) {
@@ -224,13 +197,9 @@ export default function PrintPreviewForm({ workerName, workContent, selectedMccb
   }, [selectedMccbIds, mccbList, requests, dateCode, dummyNames]);
 
   return (
-    /* 💡 画面サイズ構造をそのまま維持するための外枠クラス 
-        print:w-[80mm] print:p-0 print:border-0 を指定することで、
-        印刷の瞬間だけレシート幅に完全自動変形します。幅58mmのプリンタでもブラウザ側が自動縮小フィットしてくれます。
-    */
     <div className="w-full lg:w-2/3 bg-white p-6 rounded-xl shadow-sm border border-gray-200 print:border-0 print:shadow-none print:p-0 print:w-[78mm] print:mx-auto">
       
-      {/* レシート外枠：モノクロかつ高コントラストな現場専用デザイン */}
+      {/* レシート外枠：高コントラスト現場用デザイン */}
       <div className="border border-gray-300 p-4 space-y-4 text-black bg-white print:border-0 print:p-1 font-mono text-xs">
         
         {/* 🔝 レシートヘッダー */}
@@ -238,7 +207,7 @@ export default function PrintPreviewForm({ workerName, workContent, selectedMccb
           <h1 className="text-base font-black tracking-tighter">操作禁止（停電）依頼表</h1>
           <p className="text-[9px] text-gray-500 print:text-black mt-0.5">※作業終了後、管理室へ返却</p>
           <div className="flex justify-between text-[10px] mt-2 border-t border-dashed border-gray-400 pt-1">
-            <span>日: {now.getFullYear()}/{(now.getMonth()+1)}/{now.getDate()}</span>
+            <span>日付: {now.getFullYear()}/{(now.getMonth() + 1)}/{now.getDate()}</span>
             <span>No: REQ-{dateCode}</span>
           </div>
         </div>
@@ -272,18 +241,18 @@ export default function PrintPreviewForm({ workerName, workContent, selectedMccb
           </div>
         </div>
 
-        {/* ✂️ 切り取り式 現物ポケット子札エリア */}
+{/*        {/* ✂️ 切り取り式 現物ポケット子札エリア 
         {selectedMccbsWithAssignedCards.length > 0 && (
           <div className="space-y-4 pt-2">
             {selectedMccbsWithAssignedCards.map((mccb, index) => (
               <div key={`${mccb.id}-ticket-${index}`} className="space-y-1">
                 
-                {/* ミシン目（切り取り線）デザイン */}
+                {/* ミシン目（切り取り線）デザイン 
                 <div className="text-center text-[9px] font-bold text-gray-400 print:text-black tracking-widest my-2 select-none">
                   ✂️ - - - - - - - - - - - - - - -
                 </div>
 
-                {/* 現場のポケットに差し込む実物カード本体 */}
+                {/* 現場のポケットに差し込む実物カード本体 
                 <div className="border-2 border-black p-2.5 bg-white space-y-1 flex flex-col justify-between rounded shadow-sm print:shadow-none min-h-[120px] page-break-inside-avoid">
                   <div className="flex justify-between items-center border-b border-black pb-0.5">
                     <span className="font-black bg-black text-white px-1 rounded text-[9px] tracking-tighter">
@@ -314,13 +283,13 @@ export default function PrintPreviewForm({ workerName, workContent, selectedMccb
               </div>
             ))}
             
-            {/* レシート最下部のマージン（オートカット対応用） */}
+            {/* レシート最下部のマージン（オートカット対応用） 
             <div className="text-center text-[9px] font-bold text-gray-400 print:text-black tracking-widest my-2 select-none border-t border-black pt-2">
               ▲ ─── 印刷終了 ─── ▲
             </div>
             <div className="h-8 print:h-12"></div>
           </div>
-        )}
+        )} */}
 
       </div>
     </div>

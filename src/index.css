@@ -11,10 +11,8 @@
   --shadow:
     rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
 
-  /* 💡 【修正】system-uiを排除し、完全オフラインでPCとラズパイが最も美しく揃う共通フォントを設定 */
-  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, 
-          "Noto Sans JP", "Noto Sans CJK JP", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
-  --heading: var(--sans); /* 💡 ヘッダーも共通化して統一感を出す */
+  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
 
   font: 18px/145% var(--sans);
@@ -24,8 +22,6 @@
   background: var(--bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  
-  /* 💡 ラズパイ5側の文字のぼやけを消し、エッジをクッキリ引き締める設定をルートにも適用 */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
@@ -56,9 +52,6 @@
 
 body {
   margin: 0;
-  font-family: var(--sans); /* 💡 上記で定義した統一フォントを適用 */
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
 #root {
@@ -75,7 +68,7 @@ body {
 
 h1,
 h2 {
-  font-family: var(--heading); /* 💡 変数経由で完全統一 */
+  font-family: var(--heading);
   font-weight: 500;
   color: var(--text-h);
 }
@@ -116,8 +109,8 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
-
-/* 💡 Tailwindのインポートは干渉を防ぐため最後にまとめて記述 */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+

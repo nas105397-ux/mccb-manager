@@ -5,7 +5,6 @@ export default function Header({
   setFilterStatus,
   filterRoom,
   setFilterRoom,
-  // 💡 独立したお気に入りフィルター用のpropsを受け取る
   filterFavorite,
   setFilterFavorite,
   totalCount,
@@ -16,20 +15,30 @@ export default function Header({
   return (
     <div className="bg-white p-4 rounded-xl shadow-sm mb-4 border border-gray-200">
       
+      {/* 🔝 SECTION 1: システムタイトル & ステータスカウンター */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-3 border-b border-gray-100">
         <div className="flex items-center gap-3">
           <h1 className="text-lg font-extrabold text-gray-850 tracking-wider flex items-center gap-1.5">
             📋 操作禁止札管理システム
           </h1>
           <div className="flex items-center gap-1.5 text-xs font-bold">
-            <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded">登録: {totalCount}</span>
-            <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded">🟢 送電: {onCount}</span>
-            <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded">🛑 停電: {offCount}</span>
+            <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+              登録: {totalCount}
+            </span>
+            <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded">
+              🟢 送電: {onCount}
+            </span>
+            <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded">
+              🔴 停電: {offCount}
+            </span>
           </div>
         </div>
       </div>
 
+      {/* 🔍 SECTION 2: 検索 & 絞り込みフィルターコントロール */}
       <div className="flex flex-wrap items-center gap-4 mt-3">
+        
+        {/* 設備名称検索インプット */}
         <div className="flex-1 min-w-[200px]">
           <input
             type="text"
@@ -40,13 +49,13 @@ export default function Header({
           />
         </div>
 
-        {/* 電気室フィルター */}
+        {/* 電気室選択セレクトボックス */}
         <div className="flex items-center gap-1">
           <span className="text-xs text-gray-500 font-bold whitespace-nowrap">電気室:</span>
           <select
             value={filterRoom}
             onChange={(e) => setFilterRoom(e.target.value)}
-            className="border border-gray-300 p-1.5 rounded-lg text-sm bg-white focus:outline-none"
+            className="border border-gray-300 p-1.5 rounded-lg text-sm bg-white focus:outline-none cursor-pointer"
           >
             <option value="すべて">すべて表示</option>
             {rooms.map((roomName) => (
@@ -55,21 +64,21 @@ export default function Header({
           </select>
         </div>
 
-        {/* 状態フィルター */}
+        {/* 送電・停電状態セレクトボックス */}
         <div className="flex items-center gap-1">
           <span className="text-xs text-gray-500 font-bold whitespace-nowrap">状態:</span>
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="border border-gray-300 p-1.5 rounded-lg text-sm bg-white focus:outline-none"
+            className="border border-gray-300 p-1.5 rounded-lg text-sm bg-white focus:outline-none cursor-pointer"
           >
             <option value="すべて">すべて表示</option>
             <option value="送電中">🟢 送電中のみ</option>
-            <option value="停電中">🛑 停電中のみ</option>
+            <option value="停電中">🔴 停電中のみ</option>
           </select>
         </div>
 
-        {/* 💡 修正ポイント：独立した「⭐ お気に入り」トグルボタンを設置 */}
+        {/* お気に入りトグルボタン */}
         <div className="flex items-center">
           <button
             onClick={() => setFilterFavorite(!filterFavorite)}
@@ -82,6 +91,7 @@ export default function Header({
             {filterFavorite ? '★ お気に入りのみ抽出中' : '☆ お気に入りで絞り込み'}
           </button>
         </div>
+
       </div>
     </div>
   );
