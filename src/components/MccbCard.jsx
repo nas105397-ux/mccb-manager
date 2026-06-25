@@ -54,8 +54,8 @@ function MccbCard({ mccb, borrowedCount = 0, onSelect, onToggleFavorite, request
   return (
     <div
       onClick={() => onSelect && onSelect(mccbId)}
-      className={`bg-white p-4 rounded-xl border shadow-sm relative flex flex-col justify-between min-h-[140px] transition-all duration-200 hover:shadow-md hover:border-gray-400 cursor-pointer will-change-transform ${
-        isPowerOff ? 'border-red-500 bg-red-50/10' : 'border-gray-200'
+      className={`bg-white p-4 rounded-xl border shadow-sm relative flex flex-col justify-between min-h-[140px] transition-all duration-200 hover:shadow-md cursor-pointer will-change-transform ${
+        isPowerOff ? 'border-red-500 bg-red-50/10 hover:border-red-500' : 'border-gray-200 hover:border-gray-400'
       }`}
       role="button"
       tabIndex={0}

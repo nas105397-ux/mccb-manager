@@ -253,13 +253,11 @@ export function useMccbData() {
         }
 
         if (oldMccb.isFavorite !== updatedMccb.isFavorite) {
-        //  changeDetails.push(`お気に入り: ${oldMccb.isFavorite ? 'ON' : 'OFF'} → ${updatedMccb.isFavorite ? 'ON' : 'OFF'}`);
-        changeDetails.push(`お気に入り: ${updatedMccb.isFavorite ? '登録しました' : '解除しました'}`);
+          changeDetails.push(`お気に入り${updatedMccb.isFavorite ? '登録しました' : '解除しました'}`);
         }
 
         if (oldMccb.isPowerOff !== updatedMccb.isPowerOff) {
-        //  changeDetails.push(`状態: ${oldMccb.isPowerOff ? '停電中' : '送電中'} → ${updatedMccb.isPowerOff ? '停電中' : '送電中'}`);
-        changeDetails.push(`状態: ${updatedMccb.isPowerOff ? '🔴停電しました' : '🟢送電しました'}`);
+          changeDetails.push(`${updatedMccb.isPowerOff ? '🔴停電しました' : '🟢送電しました'}`);
           logType = '操作';
         }
 

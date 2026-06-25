@@ -6,9 +6,11 @@ import PrintPreviewForm from './PrintPreviewForm';
 // ====================================================
 const RequestMccbRow = React.memo(({ mccb, isSelected, onToggle, dummyName, onDummyNameChange }) => {
   const isDummy = mccb.isDummy || (mccb.name && mccb.name.includes('ダミー'));
+  const tooltipText = mccb.name ? `禁止札名: ${mccb.name}` : '禁止札名: 未設定';
   
   return (
     <div 
+      title={tooltipText}
       className={`p-2 rounded border transition-all duration-150 will-change-transform ${
         isSelected 
           ? 'bg-blue-50/30 border-blue-200 text-blue-900 shadow-sm' 
@@ -208,7 +210,7 @@ export default function RequestFormPanel({ mccbList, onAddRequest, requests = []
             className="border p-2 rounded text-xs w-full focus:outline-none mb-2 focus:border-blue-500" 
           />
           
-          <div className="max-h-56 overflow-y-auto border rounded-lg p-2 bg-gray-50 space-y-1">
+          <div className="max-h-56 overflow-y-auto border rounded-lg p-2 bg-gray-50 space-y-1 text-left">
             {filteredMccbList.map(mccb => (
               <RequestMccbRow
                 key={mccb.id}

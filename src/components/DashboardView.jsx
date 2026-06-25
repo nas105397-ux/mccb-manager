@@ -16,6 +16,17 @@ const CATEGORY_COLORS = {
   '共通': 'bg-gray-100 text-gray-700 border-gray-300',
 };
 
+/** ログメッセージを「見出し行 + 詳細行」で表示できる形に整形 */
+const formatActivityMessage = (message) => {
+  if (!message) return '';
+  if (message.includes('\n')) return message;
+
+  const matched = message.match(/^(【[^】]+】)(.+)$/);
+  if (!matched) return message;
+
+  return `${matched[1]}\n${matched[2].trim()}`;
+};
+
 // ==========================================
 // 2. メインコンポーネント
 // ==========================================
@@ -157,7 +168,7 @@ export default function DashboardView({ onClose }) {
           <h1 className={`text-3xl lg:text-4xl font-black tracking-widest ${
             isDarkMode ? 'text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-teal-400' : 'text-blue-900'
           }`}>
-            🏢 RCC 禁止札監視モニター
+            🏢 禁止札管理ダッシュボード
           </h1>
           <p className={`text-sm mt-0.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
             ※本画面は {POLL_INTERVAL / 1000}秒 間隔で自動同期されています
@@ -166,7 +177,7 @@ export default function DashboardView({ onClose }) {
 
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-3 flex-wrap">
-            {/* 💡 【新設】監視モード終了ボタンをここに集約 */}
+            {/* 監視モード終了ボタン */}
             {onClose && (
               <button
                 onClick={onClose}
@@ -381,7 +392,9 @@ export default function DashboardView({ onClose }) {
             </h2>
             <div className="flex-1 overflow-y-auto space-y-2 pr-1 text-[11px] font-mono min-h-0">
               {data.logs && Array.isArray(data.logs) && data.logs.slice(0, 40).map((log) => {
-                const isOff = log.message && (log.message.includes('🔴') || log.message.includes('停電'));
+                const hasGreen = log.message?.includes('🟢');
+                const hasRed = log.message?.includes('🔴');
+                const formattedMessage = formatActivityMessage(log.message);
                 return (
                   <div 
                     key={log.id} 
@@ -395,12 +408,14 @@ export default function DashboardView({ onClose }) {
                       <span className="font-bold">[{log.type}]</span>
                       <span>{log.timestamp ? (log.timestamp.split(' ')[1] || log.timestamp) : ''}</span>
                     </div>
-                    <p className={`font-black leading-relaxed text-xs ${
-                      isOff 
-                        ? (isDarkMode ? 'text-red-300' : 'text-red-700') 
-                        : (isDarkMode ? 'text-gray-300' : 'text-gray-700')
+                    <p className={`font-black leading-relaxed text-xs whitespace-pre-line ${
+                      hasRed
+                        ? (isDarkMode ? 'text-red-300' : 'text-red-700')
+                        : hasGreen
+                          ? (isDarkMode ? 'text-green-300' : 'text-green-700')
+                          : (isDarkMode ? 'text-gray-300' : 'text-gray-700')
                     }`}>
-                      {log.message}
+                      {formattedMessage}
                     </p>
                   </div>
                 );
