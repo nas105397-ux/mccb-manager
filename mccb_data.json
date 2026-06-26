@@ -5,33 +5,33 @@
       "category": "共通",
       "name": "33KV受電 VCB",
       "id": "MCCB-1782288115869-0",
-      "isPowerOff": false,
+      "isPowerOff": true,
       "isFavorite": false,
       "childCards": [
         {
           "id": 1,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "A"
         },
         {
           "id": 2,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "B"
         },
         {
           "id": 3,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "C"
         },
         {
           "id": 4,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "D"
         },
         {
           "id": 5,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "E"
         }
       ]
     },
@@ -40,33 +40,33 @@
       "category": "共通",
       "name": "3300V常用受電 VCB",
       "id": "MCCB-1782288115869-1",
-      "isPowerOff": false,
+      "isPowerOff": true,
       "isFavorite": false,
       "childCards": [
         {
           "id": 1,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "AA"
         },
         {
           "id": 2,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "BB"
         },
         {
           "id": 3,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "CC"
         },
         {
           "id": 4,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "DD"
         },
         {
           "id": 5,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "EE"
         }
       ]
     },
@@ -80,8 +80,8 @@
       "childCards": [
         {
           "id": 1,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "AAA"
         },
         {
           "id": 2,
@@ -115,8 +115,8 @@
       "childCards": [
         {
           "id": 1,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "EEE"
         },
         {
           "id": 2,
@@ -3435,28 +3435,28 @@
       "category": "共通",
       "name": "ダミー0",
       "id": "MCCB-1782288115870-98",
-      "isPowerOff": false,
+      "isPowerOff": true,
       "isFavorite": false,
       "childCards": [
         {
           "id": 1,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "F"
         },
         {
           "id": 2,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "G"
         },
         {
           "id": 3,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "FF"
         },
         {
           "id": 4,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "AAA"
         },
         {
           "id": 5,
@@ -3470,18 +3470,18 @@
       "category": "共通",
       "name": "ダミー1",
       "id": "MCCB-1782288115870-99",
-      "isPowerOff": false,
+      "isPowerOff": true,
       "isFavorite": false,
       "childCards": [
         {
           "id": 1,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "FF"
         },
         {
           "id": 2,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "AAA"
         },
         {
           "id": 3,
@@ -14405,6 +14405,156 @@
   ],
   "logs": [
     {
+      "id": "LOG-1782397768095-klu60",
+      "timestamp": "2026-06-25 23:29:28",
+      "type": "操作",
+      "message": "👷 EEE氏の停電依頼を発行し\n子札を予約ロックしました。"
+    },
+    {
+      "id": "LOG-1782397731909-bopf0",
+      "timestamp": "2026-06-25 23:28:51",
+      "type": "操作",
+      "message": "👷 BBB氏の作業完了に伴い\n子札が返却されました"
+    },
+    {
+      "id": "LOG-1782397242195-wgtu8",
+      "timestamp": "2026-06-25 23:20:42",
+      "type": "操作",
+      "message": "👷 BBB氏の停電依頼を発行し\n子札を予約ロックしました。"
+    },
+    {
+      "id": "LOG-1782397228777-5yhbz",
+      "timestamp": "2026-06-25 23:20:28",
+      "type": "操作",
+      "message": "依頼削除に伴い、使用されていた通常/ダミー子札が解放されました。"
+    },
+    {
+      "id": "LOG-1782397155643-n8w00",
+      "timestamp": "2026-06-25 23:19:15",
+      "type": "操作",
+      "message": "👷 BBB氏の停電依頼を発行し、子札を予約ロックしました。"
+    },
+    {
+      "id": "LOG-1782395472974-0ar5t",
+      "timestamp": "2026-06-25 22:51:12",
+      "type": "操作",
+      "message": "👷 AAA氏の停電依頼を発行し、子札を予約ロックしました。"
+    },
+    {
+      "id": "LOG-1782389030097-q7niu",
+      "timestamp": "2026-06-25 21:03:50",
+      "type": "操作",
+      "message": "【1階高圧電気室 / ダミー1】🔴停電しました"
+    },
+    {
+      "id": "LOG-1782389019741-qxnw5",
+      "timestamp": "2026-06-25 21:03:39",
+      "type": "操作",
+      "message": "👷 FF氏の停電依頼を発行し、子札を予約ロックしました。"
+    },
+    {
+      "id": "LOG-1782388987202-1zjno",
+      "timestamp": "2026-06-25 21:03:07",
+      "type": "操作",
+      "message": "【1階高圧電気室 / 3300V常用受電 VCB】🔴停電しました"
+    },
+    {
+      "id": "LOG-1782388986559-xcp2u",
+      "timestamp": "2026-06-25 21:03:06",
+      "type": "札貸出",
+      "message": "【1階高圧電気室 / 3300V常用受電 VCB】貸出札: 4枚 → 5枚"
+    },
+    {
+      "id": "LOG-1782388986215-fgm3x",
+      "timestamp": "2026-06-25 21:03:06",
+      "type": "札貸出",
+      "message": "【1階高圧電気室 / 3300V常用受電 VCB】貸出札: 3枚 → 4枚"
+    },
+    {
+      "id": "LOG-1782388985876-qmu01",
+      "timestamp": "2026-06-25 21:03:05",
+      "type": "札貸出",
+      "message": "【1階高圧電気室 / 3300V常用受電 VCB】貸出札: 2枚 → 3枚"
+    },
+    {
+      "id": "LOG-1782388985553-sbfbe",
+      "timestamp": "2026-06-25 21:03:05",
+      "type": "札貸出",
+      "message": "【1階高圧電気室 / 3300V常用受電 VCB】貸出札: 1枚 → 2枚"
+    },
+    {
+      "id": "LOG-1782388985197-hu0vy",
+      "timestamp": "2026-06-25 21:03:05",
+      "type": "札貸出",
+      "message": "【1階高圧電気室 / 3300V常用受電 VCB】貸出札: 0枚 → 1枚"
+    },
+    {
+      "id": "LOG-1782388955192-crcho",
+      "timestamp": "2026-06-25 21:02:35",
+      "type": "操作",
+      "message": "【1階高圧電気室 / ダミー0】🔴停電しました"
+    },
+    {
+      "id": "LOG-1782388742089-12rd1",
+      "timestamp": "2026-06-25 20:59:02",
+      "type": "操作",
+      "message": "👷 G氏の停電依頼を発行し、子札を予約ロックしました。"
+    },
+    {
+      "id": "LOG-1782388609345-n8zjz",
+      "timestamp": "2026-06-25 20:56:49",
+      "type": "操作",
+      "message": "👷 F氏の停電依頼を発行し、子札を予約ロックしました。"
+    },
+    {
+      "id": "LOG-1782388564898-ew9fi",
+      "timestamp": "2026-06-25 20:56:04",
+      "type": "操作",
+      "message": "【1階高圧電気室 / 33KV受電 VCB】🔴停電しました"
+    },
+    {
+      "id": "LOG-1782388564308-3ffmr",
+      "timestamp": "2026-06-25 20:56:04",
+      "type": "札貸出",
+      "message": "【1階高圧電気室 / 33KV受電 VCB】貸出札: 4枚 → 5枚"
+    },
+    {
+      "id": "LOG-1782388564070-uq6lk",
+      "timestamp": "2026-06-25 20:56:04",
+      "type": "札貸出",
+      "message": "【1階高圧電気室 / 33KV受電 VCB】貸出札: 3枚 → 4枚"
+    },
+    {
+      "id": "LOG-1782388563451-1uuip",
+      "timestamp": "2026-06-25 20:56:03",
+      "type": "札貸出",
+      "message": "【1階高圧電気室 / 33KV受電 VCB】貸出札: 2枚 → 3枚"
+    },
+    {
+      "id": "LOG-1782388563149-23ow8",
+      "timestamp": "2026-06-25 20:56:03",
+      "type": "札貸出",
+      "message": "【1階高圧電気室 / 33KV受電 VCB】貸出札: 1枚 → 2枚"
+    },
+    {
+      "id": "LOG-1782388562766-4wjc0",
+      "timestamp": "2026-06-25 20:56:02",
+      "type": "札貸出",
+      "message": "【1階高圧電気室 / 33KV受電 VCB】貸出札: 0枚 → 1枚"
+    },
+    {
+      "id": "LOG-1782388278817-wiryq",
+      "timestamp": "2026-06-25 20:51:18",
+      "type": "操作",
+      "message": "【1階高圧電気室 / 33KV受電 VCB】🟢送電しました"
+    },
+    {
+      "id": "LOG-1782388275684-v7pjv",
+      "timestamp": "2026-06-25 20:51:15",
+      "type": "操作",
+      "message": "【1階高圧電気室 / 33KV受電 VCB】🔴停電しました"
+    },
+    {
       "id": "LOG-1782335768455-63l9q",
       "timestamp": "2026-06-25 06:16:08",
       "type": "操作",
@@ -16088,9 +16238,174 @@
   "logSettings": {
     "maxSize": 500
   },
-  "requests": [],
+  "requests": [
+    {
+      "id": "REQ-1782397766070",
+      "timestamp": "2026/6/25 23:29:26",
+      "workerName": "EEE",
+      "workContent": "EEE",
+      "targetMccbIds": [
+        "MCCB-1782288115869-3"
+      ],
+      "dummyNames": {},
+      "reservedCards": {
+        "MCCB-1782288115869-3": {
+          "actualMccbId": "MCCB-1782288115869-3",
+          "cardNo": 1,
+          "displayName": "CCM本体設備電源 VCB",
+          "customDummyName": null
+        }
+      }
+    },
+    {
+      "id": "REQ-1782395470215",
+      "timestamp": "2026/6/25 22:51:10",
+      "workerName": "AAA",
+      "workContent": "AAA",
+      "targetMccbIds": [
+        "MCCB-1782288115869-0",
+        "MCCB-1782288115869-1",
+        "MCCB-1782288115869-2"
+      ],
+      "dummyNames": {},
+      "reservedCards": {
+        "MCCB-1782288115869-0": {
+          "actualMccbId": "MCCB-1782288115870-98",
+          "cardNo": 4,
+          "displayName": "ダミー0",
+          "customDummyName": null
+        },
+        "MCCB-1782288115869-1": {
+          "actualMccbId": "MCCB-1782288115870-99",
+          "cardNo": 2,
+          "displayName": "ダミー1",
+          "customDummyName": null
+        },
+        "MCCB-1782288115869-2": {
+          "actualMccbId": "MCCB-1782288115869-2",
+          "cardNo": 1,
+          "displayName": "3300V非常受電 VCB",
+          "customDummyName": null
+        }
+      }
+    },
+    {
+      "id": "REQ-1782389016214",
+      "timestamp": "2026/6/25 21:03:36",
+      "workerName": "FF",
+      "workContent": "FF",
+      "targetMccbIds": [
+        "MCCB-1782288115869-0",
+        "MCCB-1782288115869-1"
+      ],
+      "dummyNames": {},
+      "reservedCards": {
+        "MCCB-1782288115869-0": {
+          "actualMccbId": "MCCB-1782288115870-98",
+          "cardNo": 3,
+          "displayName": "ダミー0",
+          "customDummyName": null
+        },
+        "MCCB-1782288115869-1": {
+          "actualMccbId": "MCCB-1782288115870-99",
+          "cardNo": 1,
+          "displayName": "ダミー1",
+          "customDummyName": null
+        }
+      }
+    },
+    {
+      "id": "REQ-1782388738305",
+      "timestamp": "2026/6/25 20:58:58",
+      "workerName": "G",
+      "workContent": "G",
+      "targetMccbIds": [
+        "MCCB-1782288115869-0"
+      ],
+      "dummyNames": {},
+      "reservedCards": {
+        "MCCB-1782288115869-0": {
+          "actualMccbId": "MCCB-1782288115870-98",
+          "cardNo": 2,
+          "displayName": "ダミー0",
+          "customDummyName": null
+        }
+      }
+    },
+    {
+      "id": "REQ-1782388604930",
+      "timestamp": "2026/6/25 20:56:44",
+      "workerName": "F",
+      "workContent": "F",
+      "targetMccbIds": [
+        "MCCB-1782288115869-0"
+      ],
+      "dummyNames": {},
+      "reservedCards": {
+        "MCCB-1782288115869-0": {
+          "actualMccbId": "MCCB-1782288115870-98",
+          "cardNo": 1,
+          "displayName": "ダミー0",
+          "customDummyName": null
+        }
+      }
+    }
+  ],
   "deviceGroups": [],
-  "requestHistory": [],
+  "requestHistory": [
+    {
+      "id": "REQ-1782397239879",
+      "timestamp": "2026/6/25 23:20:39",
+      "workerName": "BBB",
+      "workContent": "BBB",
+      "targetMccbIds": [
+        "MCCB-1782288115869-0"
+      ],
+      "dummyNames": {},
+      "reservedCards": {
+        "MCCB-1782288115869-0": {
+          "actualMccbId": "MCCB-1782288115870-98",
+          "cardNo": 5,
+          "displayName": "ダミー0",
+          "customDummyName": null
+        }
+      },
+      "completedTimestamp": "2026-06-25 23:28:51"
+    },
+    {
+      "id": "REQ-1782397153225",
+      "timestamp": "2026/6/25 23:19:13",
+      "workerName": "BBB",
+      "workContent": "BBB",
+      "targetMccbIds": [
+        "MCCB-1782288115869-0",
+        "MCCB-1782288115869-1",
+        "MCCB-1782288115869-2"
+      ],
+      "dummyNames": {},
+      "reservedCards": {
+        "MCCB-1782288115869-0": {
+          "actualMccbId": "MCCB-1782288115870-98",
+          "cardNo": 5,
+          "displayName": "ダミー0",
+          "customDummyName": null
+        },
+        "MCCB-1782288115869-1": {
+          "actualMccbId": "MCCB-1782288115870-99",
+          "cardNo": 3,
+          "displayName": "ダミー1",
+          "customDummyName": null
+        },
+        "MCCB-1782288115869-2": {
+          "actualMccbId": "MCCB-1782288115869-2",
+          "cardNo": 2,
+          "displayName": "3300V非常受電 VCB",
+          "customDummyName": null
+        }
+      },
+      "completedTimestamp": "2026-06-25 23:20:28"
+    }
+  ],
   "historySettings": {
     "maxSize": 500
   }

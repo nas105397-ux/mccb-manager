@@ -212,7 +212,7 @@ function AppContent() {
                     borrowedCount={borrowedCountMap[mccb.id] ?? 0}
                     onSelect={handleSelect}
                     onToggleFavorite={handleToggleFavorite}
-                    requestsCount={requests.length}
+                    requests={requests}
                   />
                 ))}
               </div>

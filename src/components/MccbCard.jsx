@@ -19,30 +19,19 @@ const CATEGORY_COLORS = {
 function MccbCard({ mccb, borrowedCount = 0, onSelect, onToggleFavorite, requests = [] }) {
   const { id: mccbId, isPowerOff, room, category, name, isFavorite } = mccb || {};
 
-  // 💡 停電中でなければ作業者は存在しないため無駄な計算をせず早期リターン
-  const activeWorkers = React.useMemo(() => {
-    if (!isPowerOff || !requests?.length) return [];
+  // 依頼発行中の設備かどうかを判定し、カード見た目の強調に使用
+  const hasActiveRequest = React.useMemo(() => {
+    if (!requests?.length) return false;
 
-    const workersMap = new Map();
-    requests.forEach(({ reservedCards, workerName }) => {
-      if (!reservedCards || !workerName) return;
+    return requests.some(({ reservedCards }) => {
+      if (!reservedCards) return false;
 
-      Object.entries(reservedCards).forEach(([originalMccbId, resInfo]) => {
-        if (!resInfo) return;
-
-        // 対象設備、または代替先として紐付いているかチェック
-        if (originalMccbId === mccbId || resInfo.actualMccbId === mccbId) {
-          workersMap.set(`${workerName}-${resInfo.cardNo}`, {
-            id: resInfo.cardNo,
-            workerName,
-            isAlternative: resInfo.actualMccbId !== originalMccbId
-          });
-        }
+      return Object.entries(reservedCards).some(([originalMccbId, resInfo]) => {
+        if (!resInfo) return false;
+        return originalMccbId === mccbId || resInfo.actualMccbId === mccbId;
       });
     });
-
-    return Array.from(workersMap.values());
-  }, [mccbId, isPowerOff, requests]);
+  }, [mccbId, requests]);
 
   const badgeColor = CATEGORY_COLORS[category] || 'bg-gray-50 text-gray-600 border-gray-200';
 
@@ -55,7 +44,11 @@ function MccbCard({ mccb, borrowedCount = 0, onSelect, onToggleFavorite, request
     <div
       onClick={() => onSelect && onSelect(mccbId)}
       className={`bg-white p-4 rounded-xl border shadow-sm relative flex flex-col justify-between min-h-[140px] transition-all duration-200 hover:shadow-md cursor-pointer will-change-transform ${
-        isPowerOff ? 'border-red-500 bg-red-50/10 hover:border-red-500' : 'border-gray-200 hover:border-gray-400'
+        isPowerOff
+          ? 'border-red-500 bg-red-50/20 hover:border-red-500 ring-2 ring-red-200/70'
+          : hasActiveRequest
+            ? 'border-amber-500 bg-amber-50/20 hover:border-amber-500 ring-2 ring-amber-200/70'
+            : 'border-gray-300 bg-gray-50/20 hover:border-gray-400 ring-2 ring-gray-200/70'
       }`}
       role="button"
       tabIndex={0}
@@ -100,6 +93,13 @@ function MccbCard({ mccb, borrowedCount = 0, onSelect, onToggleFavorite, request
               子札: {borrowedCount} 枚
             </span>
           </>
+        ) : hasActiveRequest ? (
+          <>
+            <span className="text-amber-700 flex items-center gap-1 shrink-0">🟠 依頼発行中</span>
+            <span className="text-amber-800 bg-amber-100 px-2 py-0.5 rounded border border-amber-300 font-mono">
+              子札: {borrowedCount} 枚
+            </span>
+          </>
         ) : (
           <>
             <span className="text-green-600 flex items-center gap-1">🟢 通常送電</span>
@@ -107,28 +107,6 @@ function MccbCard({ mccb, borrowedCount = 0, onSelect, onToggleFavorite, request
           </>
         )}
       </div>
-
-      {/* 🛠️ 現在現場で紐付いている作業者一覧 */}
-      {activeWorkers.length > 0 && (
-        <div className="mt-2.5 pt-2 border-t border-dashed border-gray-200">
-          <p className="text-[10px] text-gray-400 font-bold mb-1">🛠️ 現在の作業者:</p>
-          <div className="flex flex-wrap gap-1">
-            {activeWorkers.map((card, idx) => (
-              <span
-                key={`${card.workerName}-${card.id ?? idx}`}
-                className={`text-[10px] px-2 py-0.5 rounded font-medium flex items-center gap-1 ${
-                  card.isAlternative 
-                    ? 'bg-amber-50 text-amber-800 border border-amber-200' 
-                    : 'bg-gray-100 text-gray-700 border border-gray-200'
-                }`}
-              >
-                <span className="font-mono text-[9px] opacity-60">No.{card.id}</span>
-                {card.workerName}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -143,6 +121,6 @@ export default React.memo(MccbCard, (prevProps, nextProps) => {
     prevProps?.mccb?.isFavorite === nextProps?.mccb?.isFavorite &&
     prevProps?.mccb?.name === nextProps?.mccb?.name &&
     prevProps?.borrowedCount === nextProps?.borrowedCount &&
-    (prevProps?.requests?.length ?? 0) === (nextProps?.requests?.length ?? 0)
+    prevProps?.requests === nextProps?.requests
   );
 });

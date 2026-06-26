@@ -481,7 +481,7 @@ export function useMccbData() {
 
       const finalRequest = { ...newRequest, reservedCards };
       const nextRequests = [finalRequest, ...currentRequests];
-      const nextLogs = createUpdatedLogs('操作', `👷 ${newRequest.workerName}氏の停電依頼を発行し、子札を予約ロックしました。`, latest.logs, latest.logSettings.maxSize);
+      const nextLogs = createUpdatedLogs('操作', `👷 ${newRequest.workerName}氏の停電依頼を発行し\n子札を貸出予約しました。`, latest.logs, latest.logSettings.maxSize);
       
       await fetch(API_URL, { 
         method: 'POST', 
@@ -539,7 +539,8 @@ export function useMccbData() {
       
       const maxSize = latest.historySettings?.maxSize || 500;
       const nextHistory = completedRequest ? [completedRequest, ...currentHistory].slice(0, maxSize) : currentHistory;
-      const nextLogs = createUpdatedLogs('操作', `依頼削除に伴い、使用されていた通常/ダミー子札が解放されました。`, latest.logs, latest.logSettings.maxSize);
+      const completedWorkerName = reqToDelete?.workerName || '作業者';
+      const nextLogs = createUpdatedLogs('操作', `👷 ${completedWorkerName}氏の作業完了に伴い\n子札が返却されました`, latest.logs, latest.logSettings.maxSize);
       
       await fetch(API_URL, { 
         method: 'POST', 
