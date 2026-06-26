@@ -73,18 +73,29 @@ export function useAppController() {
   const filteredMccbList = useMemo(() => {
     const lowerSearch = deferredSearch.toLowerCase();
 
+    // 依頼発行中のMCCBを特定するためのセット
+    const requestedMccbIds = new Set();
+    requests.forEach((req) => {
+      if (req.reservedCards) {
+        Object.keys(req.reservedCards).forEach((mccbId) => {
+          requestedMccbIds.add(mccbId);
+        });
+      }
+    });
+
     return processedMccbList.filter((mccb) => {
       const matchesSearch = mccb.name.toLowerCase().includes(lowerSearch);
       const matchesRoom = filterRoom === 'すべて' || mccb.room === filterRoom;
       const matchesStatus =
         filterStatus === 'すべて' ||
         (filterStatus === '送電中' && !mccb.isPowerOff) ||
-        (filterStatus === '停電中' && mccb.isPowerOff);
+        (filterStatus === '停電中' && mccb.isPowerOff) ||
+        (filterStatus === '依頼発行中' && requestedMccbIds.has(mccb.id));
       const matchesFavorite = !filterFavorite || mccb.isFavorite;
 
       return matchesSearch && matchesRoom && matchesStatus && matchesFavorite;
     });
-  }, [processedMccbList, deferredSearch, filterRoom, filterStatus, filterFavorite]);
+  }, [processedMccbList, deferredSearch, filterRoom, filterStatus, filterFavorite, requests]);
 
   const borrowedCountMap = useMemo(() => {
     const map = {};

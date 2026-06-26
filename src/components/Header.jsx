@@ -75,6 +75,7 @@ export default function Header({
             <option value="すべて">すべて表示</option>
             <option value="送電中">🟢 送電中のみ</option>
             <option value="停電中">🔴 停電中のみ</option>
+            <option value="依頼発行中">📋 依頼発行中のみ</option>
           </select>
         </div>
 
