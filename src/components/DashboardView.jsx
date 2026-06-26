@@ -1,11 +1,11 @@
-import { useEffect, useState, useMemo } from 'react';
-
-const API_URL = '/api/mccb';
-const POLL_INTERVAL = 15000; // 15秒ごとに自動更新
+import { useEffect, useState } from 'react';
+import { useDashboardController, POLL_INTERVAL } from '../hooks/useDashboardController';
 
 // ==========================================
-// 1. コンポーネント外の定数・スタイル定義 (純粋データ)
+// 定数定義
 // ==========================================
+
+/** 区分バッジの色クラス */
 const CATEGORY_COLORS = {
   '1スト': 'bg-white text-gray-900 border-gray-300 shadow-sm',
   '2スト': 'bg-black text-white border-gray-700',
@@ -13,7 +13,48 @@ const CATEGORY_COLORS = {
   '4スト': 'bg-blue-600 text-white border-blue-600',
   '5スト': 'bg-yellow-400 text-gray-900 border-yellow-400',
   '6スト': 'bg-green-600 text-white border-green-600',
-  '共通': 'bg-gray-100 text-gray-700 border-gray-300',
+  共通: 'bg-gray-100 text-gray-700 border-gray-300',
+};
+
+/** 列数選択のグリッドクラス */
+const COL_LAYOUT_CLASS = {
+  auto: 'grid-cols-[repeat(auto-fill,minmax(330px,1fr))]',
+  3: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3',
+  4: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
+  5: 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5',
+};
+
+/** テーマ別スタイル（ダーク） */
+const DARK_STYLES = {
+  root:          'bg-gray-950 text-gray-100',
+  headerBorder:  'border-gray-800',
+  leftPanel:     'bg-gray-900/60 border-gray-850',
+  sidePanel:     'bg-gray-900 border-gray-800',
+  summaryPanel:  'bg-gray-850 border-gray-800',
+};
+
+/** テーマ別スタイル（ライト） */
+const LIGHT_STYLES = {
+  root:          'bg-gray-100 text-gray-800',
+  headerBorder:  'border-gray-300',
+  leftPanel:     'bg-white border-gray-200',
+  sidePanel:     'bg-white border-gray-200',
+  summaryPanel:  'bg-gray-50 border-gray-200',
+};
+
+// ==========================================
+// スタイルヘルパー
+// ==========================================
+
+const getColLayoutClass = (colLayout) => COL_LAYOUT_CLASS[colLayout] ?? COL_LAYOUT_CLASS.auto;
+
+const getThemeStyle = (isDarkMode, key) => (isDarkMode ? DARK_STYLES : LIGHT_STYLES)[key] ?? '';
+
+const getCategoryBadgeClass = (category, isDarkMode) => {
+  if (CATEGORY_COLORS[category]) return `border ${CATEGORY_COLORS[category]}`;
+  return isDarkMode
+    ? 'border bg-gray-800 text-gray-300 border-gray-700'
+    : 'border bg-gray-50 text-gray-600 border-gray-200';
 };
 
 /** ログメッセージを「見出し行 + 詳細行」で表示できる形に整形 */
@@ -27,34 +68,9 @@ const formatActivityMessage = (message) => {
   return `${matched[1]}\n${matched[2].trim()}`;
 };
 
-// ==========================================
-// 2. メインコンポーネント
-// ==========================================
-export default function DashboardView({ onClose }) {
-  // --- 状態管理 (States) ---
-  const [data, setData] = useState({ mccbList: [], logs: [], requests: [] });
-  const [loading, setLoading] = useState(true);
+function CurrentTimeClock({ isDarkMode }) {
   const [timeStr, setTimeStr] = useState('');
 
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    const savedMode = localStorage.getItem('dashboard_is_dark_mode');
-    return savedMode !== null ? savedMode === 'true' : true;
-  });
-
-  const [colLayout, setColLayout] = useState(() => {
-    return localStorage.getItem('dashboard_col_layout') || 'auto';
-  });
-
-  // --- 永続化同期 (LocalStorage) ---
-  useEffect(() => {
-    localStorage.setItem('dashboard_is_dark_mode', isDarkMode);
-  }, [isDarkMode]);
-
-  useEffect(() => {
-    localStorage.setItem('dashboard_col_layout', colLayout);
-  }, [colLayout]);
-
-  // --- リアルタイム時計更新 (1秒周期) ---
   useEffect(() => {
     const updateTime = () => {
       setTimeStr(new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
@@ -64,87 +80,34 @@ export default function DashboardView({ onClose }) {
     return () => clearInterval(clockTimer);
   }, []);
 
-  // --- データ自動ポーリング (15秒周期) ---
-  useEffect(() => {
-    const fetchData = () => {
-      fetch(API_URL)
-        .then((res) => res.json())
-        .then((latest) => {
-          if (latest) {
-            setData({
-              mccbList: latest.mccbList || [],
-              logs: latest.logs || [],
-              requests: latest.requests || []
-            });
-          }
-          setLoading(false);
-        })
-        .catch((err) => console.error("監視データ同期エラー:", err));
-    };
+  return (
+    <div className={`border px-6 py-2 rounded-xl text-right shadow-lg transition-colors shrink-0 ${
+      isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+    }`}>
+      <span className="text-xs text-gray-500 font-bold block tracking-wider">CURRENT TIME</span>
+      <span className={`font-mono text-3xl font-black tracking-wider transition-colors ${
+        isDarkMode ? 'text-teal-400' : 'text-blue-600'
+      }`}>
+        {timeStr}
+      </span>
+    </div>
+  );
+}
 
-    fetchData();
-    const timer = setInterval(fetchData, POLL_INTERVAL);
-    return () => clearInterval(timer);
-  }, []);
-
-  // --- 3. 【劇的軽量化】データ計算のキャッシュ化・1秒更新時の負荷をゼロ化 ---
-  const { processedOffMccbs, stats } = useMemo(() => {
-    const nameOverlayMap = new Map();
-
-    // 代替名マッピング用の一元マップを事前生成
-    if (data.requests && Array.isArray(data.requests)) {
-      data.requests.forEach(req => {
-        if (!req.reservedCards) return;
-        Object.entries(req.reservedCards).forEach(([originalId, resInfo]) => {
-          if (!resInfo || !resInfo.actualMccbId) return;
-
-          if (originalId !== resInfo.actualMccbId) {
-            const originalMccb = data.mccbList.find(m => m.id === originalId);
-            if (originalMccb) {
-              nameOverlayMap.set(resInfo.actualMccbId, ` (${originalMccb.name})`);
-            }
-          } else if (resInfo.customDummyName) {
-            nameOverlayMap.set(resInfo.actualMccbId, ` (${resInfo.customDummyName})`);
-          }
-        });
-      });
-    }
-
-    // 1回の単一ループで「停電一覧抽出」「名称合成」「各メーターのカウンター集計」をすべて完結
-    let onCount = 0;
-    let totalBorrowedCards = 0;
-    const offMccbs = [];
-
-    data.mccbList.forEach((mccb) => {
-      const borrowedCount = mccb.childCards?.filter(c => c.isBorrowed).length || 0;
-      totalBorrowedCards += borrowedCount;
-
-      if (mccb.isPowerOff) {
-        const suffix = nameOverlayMap.get(mccb.id);
-        offMccbs.push(suffix ? { ...mccb, name: `${mccb.name}${suffix}` } : mccb);
-      } else {
-        onCount++;
-      }
-    });
-
-    return {
-      processedOffMccbs: offMccbs,
-      stats: {
-        totalCount: data.mccbList.length,
-        onCount,
-        offCount: offMccbs.length,
-        totalBorrowedCards
-      }
-    };
-  }, [data.mccbList, data.requests]);
-
-  /** 区分カラーバッジクラス決定ヘルパー */
-  const getCategoryBadgeClass = (category) => {
-    if (CATEGORY_COLORS[category]) return `border ${CATEGORY_COLORS[category]}`;
-    return isDarkMode 
-      ? 'border bg-gray-800 text-gray-300 border-gray-700' 
-      : 'border bg-gray-50 text-gray-600 border-gray-200';
-  };
+// ==========================================
+// 2. メインコンポーネント
+// ==========================================
+export default function DashboardView({ onClose }) {
+  const {
+    loading,
+    isDarkMode,
+    setIsDarkMode,
+    colLayout,
+    setColLayout,
+    processedOffMccbs,
+    stats,
+    recentLogs,
+  } = useDashboardController();
 
   // --- ローディング画面 ---
   if (loading) {
@@ -157,12 +120,12 @@ export default function DashboardView({ onClose }) {
 
   return (
     <div className={`fixed inset-0 h-screen w-screen p-5 font-sans flex flex-col overflow-hidden box-border select-none m-0 transition-colors duration-300 ${
-      isDarkMode ? 'bg-gray-950 text-gray-100' : 'bg-gray-100 text-gray-800'
+      getThemeStyle(isDarkMode, 'root')
     }`}>
       
       {/* 🔝 1. ヘッダーエリア */}
       <div className={`flex justify-between items-center border-b-2 pb-3 mb-4 shrink-0 ${
-        isDarkMode ? 'border-gray-800' : 'border-gray-300'
+        getThemeStyle(isDarkMode, 'headerBorder')
       }`}>
         <div>
           <h1 className={`text-3xl lg:text-4xl font-black tracking-widest ${
@@ -223,16 +186,7 @@ export default function DashboardView({ onClose }) {
             </div>
           </div>
 
-          <div className={`border px-6 py-2 rounded-xl text-right shadow-lg transition-colors shrink-0 ${
-            isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-          }`}>
-            <span className="text-xs text-gray-500 font-bold block tracking-wider">CURRENT TIME</span>
-            <span className={`font-mono text-3xl font-black tracking-wider transition-colors ${
-              isDarkMode ? 'text-teal-400' : 'text-blue-600'
-            }`}>
-              {timeStr}
-            </span>
-          </div>
+          <CurrentTimeClock isDarkMode={isDarkMode} />
         </div>
       </div>
 
@@ -241,7 +195,7 @@ export default function DashboardView({ onClose }) {
         
         {/* 🔴 左側：現在操作禁止（停電対応中）設備一覧 */}
         <div className={`flex-1 border rounded-2xl p-5 flex flex-col min-h-0 overflow-hidden shadow-2xl transition-colors ${
-          isDarkMode ? 'bg-gray-900/60 border-gray-850' : 'bg-white border-gray-200'
+          getThemeStyle(isDarkMode, 'leftPanel')
         }`}>
           <div className="flex justify-between items-center mb-3 shrink-0">
             <h2 className={`text-2xl font-black flex items-center gap-3 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
@@ -268,10 +222,7 @@ export default function DashboardView({ onClose }) {
               </div>
             ) : (
               <div className={`grid gap-4 pb-2 transition-all duration-300 ${
-                colLayout === 'auto' ? 'grid-cols-[repeat(auto-fill,minmax(330px,1fr))]' :
-                colLayout === '3'    ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' :
-                colLayout === '4'    ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' :
-                                       'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
+                getColLayoutClass(colLayout)
               }`}>
                 {processedOffMccbs.map((mccb) => {
                   const workers = mccb.childCards?.filter(c => c.isBorrowed) || [];
@@ -293,7 +244,7 @@ export default function DashboardView({ onClose }) {
                           }`}>
                             {mccb.room}
                           </span>
-                          <span className={`text-xs px-2.5 py-0.5 rounded font-black shrink-0 ${getCategoryBadgeClass(mccb.category)}`}>
+                          <span className={`text-xs px-2.5 py-0.5 rounded font-black shrink-0 ${getCategoryBadgeClass(mccb.category, isDarkMode)}`}>
                             {mccb.category}
                           </span>
                         </div>
@@ -359,19 +310,19 @@ export default function DashboardView({ onClose }) {
           
           {/* サマリーメーター */}
           <div className={`border rounded-2xl p-4 grid grid-cols-2 gap-3 shrink-0 shadow-lg transition-colors will-change-transform ${
-            isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
+            getThemeStyle(isDarkMode, 'sidePanel')
           }`}>
-            <div className={`p-3 rounded-xl border text-center ${isDarkMode ? 'bg-gray-850 border-gray-800' : 'bg-gray-50 border-gray-200'}`}>
+            <div className={`p-3 rounded-xl border text-center ${getThemeStyle(isDarkMode, 'summaryPanel')}`}>
               <span className={`text-xs font-black block mb-0.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>🟢 送電中</span>
               <span className="text-3xl font-mono font-black text-green-500 tracking-tight">{stats.onCount}</span>
               <span className="text-[10px] text-gray-500 block mt-0.5">/ 全 {stats.totalCount} 面</span>
             </div>
-            <div className={`p-3 rounded-xl border text-center ${isDarkMode ? 'bg-gray-850 border-gray-800' : 'bg-gray-50 border-gray-200'}`}>
+            <div className={`p-3 rounded-xl border text-center ${getThemeStyle(isDarkMode, 'summaryPanel')}`}>
               <span className={`text-xs font-black block mb-0.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>🔴 停電中</span>
               <span className="text-3xl font-mono font-black text-red-500 tracking-tight">{stats.offCount}</span>
               <span className="text-[10px] text-gray-500 block mt-0.5">/ 全 {stats.totalCount} 面</span>
             </div>
-            <div className={`p-3 rounded-xl border text-center col-span-2 ${isDarkMode ? 'bg-gray-850 border-gray-800' : 'bg-gray-50 border-gray-200'}`}>
+            <div className={`p-3 rounded-xl border text-center col-span-2 ${getThemeStyle(isDarkMode, 'summaryPanel')}`}>
               <span className={`text-xs font-black block mb-1 tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                 🔖 発行中の子札総数
               </span>
@@ -383,7 +334,7 @@ export default function DashboardView({ onClose }) {
 
           {/* 操作ログ履歴タイムライン */}
           <div className={`border rounded-2xl p-4 flex flex-col min-h-0 overflow-hidden shadow-lg transition-colors ${
-            isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
+            getThemeStyle(isDarkMode, 'sidePanel')
           }`}>
             <h2 className={`text-xs font-black mb-2 border-b pb-1.5 flex items-center gap-2 tracking-wider ${
               isDarkMode ? 'text-gray-400 border-gray-800' : 'text-gray-600 border-gray-200'
@@ -391,7 +342,7 @@ export default function DashboardView({ onClose }) {
               📜 直近のアクティビティ
             </h2>
             <div className="flex-1 overflow-y-auto space-y-2 pr-1 text-[11px] font-mono min-h-0">
-              {data.logs && Array.isArray(data.logs) && data.logs.slice(0, 40).map((log) => {
+              {recentLogs.map((log) => {
                 const hasGreen = log.message?.includes('🟢');
                 const hasRed = log.message?.includes('🔴');
                 const formattedMessage = formatActivityMessage(log.message);
