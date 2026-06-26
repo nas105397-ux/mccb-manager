@@ -21,17 +21,16 @@ const UI_STYLES = {
   // ボタン
   btnPrimary: 'bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded text-sm shadow-sm transition-all whitespace-nowrap cursor-pointer',
   btnSecondary: 'bg-gray-600 hover:bg-gray-700 text-white text-xs font-bold px-3 py-1.5 rounded cursor-pointer shrink-0',
-  btnSmall: 'text-xs font-bold px-3 py-1.5 rounded cursor-pointer',
-  btnDanger: 'bg-white hover:bg-red-50 text-red-600 border border-gray-200 hover:border-red-200 px-3 py-1.5 rounded-lg font-bold shadow-sm transition-all cursor-pointer whitespace-nowrap',
+  btnCsvAction: 'bg-gray-600 hover:bg-gray-700 text-white font-bold px-4 py-2 rounded text-sm shadow-sm transition-all flex items-center gap-1.5 cursor-pointer',
+  btnClearAction: 'bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg font-bold shadow-sm transition-all cursor-pointer whitespace-nowrap',
   btnDangerSmall: 'text-red-600 hover:bg-red-50 px-1.5 py-0.5 rounded font-bold cursor-pointer',
   btnTextSmall: 'text-blue-600 hover:bg-blue-50 px-1.5 py-0.5 rounded font-bold cursor-pointer',
-  btnLogClear: 'bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-2.5 py-1 rounded font-bold transition-all cursor-pointer',
   
   // 入力フォーム
   input: 'border p-2 rounded text-sm w-full bg-white focus:outline-none focus:ring-1 focus:ring-blue-400',
   inputSmall: 'border p-1.5 rounded text-xs flex-1 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400',
   select: 'border p-2 rounded text-sm w-full bg-white focus:outline-none focus:ring-1 focus:ring-blue-400',
-  selectSmall: 'border rounded px-1 py-0.5 bg-white text-gray-700 font-bold focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer',
+  selectMaxSize: 'bg-transparent text-gray-700 font-black focus:outline-none cursor-pointer',
   
   // セクション
   sectionContainer: 'pt-5 border-t border-gray-150',
@@ -275,7 +274,7 @@ export default function AdminPanel({
             <div className="flex flex-wrap items-center justify-between gap-4">
               <button
                 onClick={handleCSVButtonClick}
-                className="bg-gray-600 hover:bg-gray-700 text-white font-bold px-4 py-2 rounded text-sm shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+                className={UI_STYLES.btnCsvAction}
               >
                 📤 CSVファイルから取り込み（データ上書き）
               </button>
@@ -288,7 +287,7 @@ export default function AdminPanel({
               />
               <button 
                 onClick={handleExportCSV} 
-                className="bg-gray-600 hover:bg-gray-700 text-white font-bold px-4 py-2 rounded text-sm shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+                className={UI_STYLES.btnCsvAction}
               >
                 📥 現在のデータをCSVエクスポート
               </button>
@@ -465,7 +464,7 @@ export default function AdminPanel({
                 <select
                   value={historySettings?.maxSize || 500}
                   onChange={(e) => onChangeMaxHistorySize(Number(e.target.value))}
-                  className="bg-transparent text-gray-700 font-black focus:outline-none cursor-pointer"
+                  className={UI_STYLES.selectMaxSize}
                 >
                   <option value="50">50 件</option>
                   <option value="100">100 件</option>
@@ -475,7 +474,7 @@ export default function AdminPanel({
               </div>
               <button
                 onClick={onClearRequestHistory}
-                className={UI_STYLES.btnDanger}
+                className={UI_STYLES.btnClearAction}
               >
                 🗑️ 依頼履歴全クリア
               </button>
@@ -488,12 +487,12 @@ export default function AdminPanel({
             <h3 className={UI_STYLES.labelSubsection}>システム操作ログ履歴 (直近の操作から順に表示)</h3>
 
           <div className="flex flex-wrap items-center justify-end gap-3 text-xs">
-            <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded border border-gray-200">
-              <span className="text-gray-500 font-semibold">最大保持件数:</span>
+            <div className="flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-lg border border-gray-200 shadow-sm">
+              <span className="text-gray-500 font-black">最大保持件数:</span>
               <select
                 value={logSettings.maxSize}
                 onChange={(e) => onChangeMaxLogSize(Number(e.target.value))}
-                className={UI_STYLES.selectSmall}
+                className={UI_STYLES.selectMaxSize}
               >
                 <option value="100">100 件</option>
                 <option value="300">300 件</option>
@@ -503,7 +502,7 @@ export default function AdminPanel({
             </div>
             <button
               onClick={onClearAllLogs}
-              className={UI_STYLES.btnLogClear}
+              className={UI_STYLES.btnClearAction}
             >
               🗑️ ログ履歴クリア
             </button>

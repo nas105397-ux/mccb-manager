@@ -540,7 +540,7 @@ export function useMccbData() {
       const maxSize = latest.historySettings?.maxSize || 500;
       const nextHistory = completedRequest ? [completedRequest, ...currentHistory].slice(0, maxSize) : currentHistory;
       const completedWorkerName = reqToDelete?.workerName || '作業者';
-      const nextLogs = createUpdatedLogs('操作', `👷 ${completedWorkerName}氏の作業完了に伴い\n子札が返却されました`, latest.logs, latest.logSettings.maxSize);
+      const nextLogs = createUpdatedLogs('操作', `👷 ${completedWorkerName}氏の作業完了に伴い\n子札が返却されました。`, latest.logs, latest.logSettings.maxSize);
       
       await fetch(API_URL, { 
         method: 'POST', 
