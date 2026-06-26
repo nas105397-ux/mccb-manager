@@ -1,8 +1,11 @@
 import React from 'react';
+import { useMccbCardController } from '../hooks/useMccbCardController';
 
 // ==========================================
-// 1. コンポーネント外の定数定義 (メモリ節約)
+// 定数定義
 // ==========================================
+
+/** 区分バッジの色クラス */
 const CATEGORY_COLORS = {
   '1スト': 'bg-white text-gray-900 border-gray-350 shadow-sm',
   '2スト': 'bg-black text-white border-black',
@@ -10,61 +13,46 @@ const CATEGORY_COLORS = {
   '4スト': 'bg-blue-600 text-white border-blue-600',
   '5スト': 'bg-yellow-400 text-gray-900 border-yellow-400',
   '6スト': 'bg-green-600 text-white border-green-600',
-  '共通': 'bg-gray-100 text-gray-700 border-gray-300',
+  '共通':  'bg-gray-100 text-gray-700 border-gray-300',
+};
+
+/** カード状態別ボーダー・背景クラス */
+const CARD_STATUS_CLASS = {
+  powerOff:      'border-red-500   bg-red-50/20   hover:border-red-500   ring-2 ring-red-200/70',
+  activeRequest: 'border-amber-500 bg-amber-50/20 hover:border-amber-500 ring-2 ring-amber-200/70',
+  normal:        'border-gray-300  bg-gray-50/20  hover:border-gray-400  ring-2 ring-gray-200/70',
 };
 
 // ==========================================
-// 2. メインコンポーネント
+// メインコンポーネント
 // ==========================================
 function MccbCard({ mccb, borrowedCount = 0, onSelect, onToggleFavorite, requests = [] }) {
   const { id: mccbId, isPowerOff, room, category, name, isFavorite } = mccb || {};
 
-  // 依頼発行中の設備かどうかを判定し、カード見た目の強調に使用
-  const hasActiveRequest = React.useMemo(() => {
-    if (!requests?.length) return false;
+  const { hasActiveRequest, handleSelect, handleKeyDown, handleToggleFavorite } =
+    useMccbCardController({ mccbId, isFavorite, onSelect, onToggleFavorite, requests });
 
-    return requests.some(({ reservedCards }) => {
-      if (!reservedCards) return false;
-
-      return Object.entries(reservedCards).some(([originalMccbId, resInfo]) => {
-        if (!resInfo) return false;
-        return originalMccbId === mccbId || resInfo.actualMccbId === mccbId;
-      });
-    });
-  }, [mccbId, requests]);
-
-  const badgeColor = CATEGORY_COLORS[category] || 'bg-gray-50 text-gray-600 border-gray-200';
-
-  // キーボードでのエンターキー押下ハンドラ
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && onSelect) onSelect(mccbId);
-  };
+  const badgeColor    = CATEGORY_COLORS[category] ?? 'bg-gray-50 text-gray-600 border-gray-200';
+  const cardStatusCls = isPowerOff ? CARD_STATUS_CLASS.powerOff
+                      : hasActiveRequest ? CARD_STATUS_CLASS.activeRequest
+                      : CARD_STATUS_CLASS.normal;
 
   return (
     <div
-      onClick={() => onSelect && onSelect(mccbId)}
-      className={`bg-white p-4 rounded-xl border shadow-sm relative flex flex-col justify-between min-h-[140px] transition-all duration-200 hover:shadow-md cursor-pointer will-change-transform ${
-        isPowerOff
-          ? 'border-red-500 bg-red-50/20 hover:border-red-500 ring-2 ring-red-200/70'
-          : hasActiveRequest
-            ? 'border-amber-500 bg-amber-50/20 hover:border-amber-500 ring-2 ring-amber-200/70'
-            : 'border-gray-300 bg-gray-50/20 hover:border-gray-400 ring-2 ring-gray-200/70'
-      }`}
+      onClick={handleSelect}
+      onKeyDown={handleKeyDown}
+      className={`bg-white p-4 rounded-xl border shadow-sm relative flex flex-col justify-between min-h-[140px] transition-all duration-200 hover:shadow-md cursor-pointer will-change-transform ${cardStatusCls}`}
       role="button"
       tabIndex={0}
-      onKeyDown={handleKeyDown}
     >
       {/* ⭐ お気に入りトグルボタン */}
       <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggleFavorite?.(mccbId, isFavorite);
-        }}
+        onClick={handleToggleFavorite}
         className={`absolute top-3 right-3 text-lg transition-transform duration-200 transform hover:scale-125 focus:outline-none will-change-transform cursor-pointer z-10 ${
           isFavorite ? 'text-amber-500 font-bold drop-shadow-sm' : 'text-gray-300 hover:text-amber-400'
         }`}
-        title={isFavorite ? "お気に入り解除" : "お気に入り登録"}
-        aria-label={isFavorite ? "お気に入りを外す" : "お気に入りに追加"}
+        title={isFavorite ? 'お気に入り解除' : 'お気に入り登録'}
+        aria-label={isFavorite ? 'お気に入りを外す' : 'お気に入りに追加'}
       >
         {isFavorite ? '★' : '☆'}
       </button>
@@ -112,15 +100,13 @@ function MccbCard({ mccb, borrowedCount = 0, onSelect, onToggleFavorite, request
 }
 
 // ==========================================
-// 3. メモ化コンポーネントのエクスポート (差分レンダリング最適化)
+// メモ化エクスポート（差分レンダリング最適化）
 // ==========================================
-export default React.memo(MccbCard, (prevProps, nextProps) => {
-  return (
-    prevProps?.mccb?.id === nextProps?.mccb?.id &&
-    prevProps?.mccb?.isPowerOff === nextProps?.mccb?.isPowerOff &&
-    prevProps?.mccb?.isFavorite === nextProps?.mccb?.isFavorite &&
-    prevProps?.mccb?.name === nextProps?.mccb?.name &&
-    prevProps?.borrowedCount === nextProps?.borrowedCount &&
-    prevProps?.requests === nextProps?.requests
-  );
-});
+export default React.memo(MccbCard, (prev, next) =>
+  prev?.mccb?.id        === next?.mccb?.id        &&
+  prev?.mccb?.isPowerOff === next?.mccb?.isPowerOff &&
+  prev?.mccb?.isFavorite === next?.mccb?.isFavorite &&
+  prev?.mccb?.name      === next?.mccb?.name      &&
+  prev?.borrowedCount   === next?.borrowedCount   &&
+  prev?.requests        === next?.requests
+);
