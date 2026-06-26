@@ -83,7 +83,7 @@ export default function Header({
         <div className="flex items-center">
           <button
             onClick={() => setFilterFavorite(!filterFavorite)}
-            className={`flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-sm ${
+            className={`flex items-center gap-1 text-sm font-bold p-1.5 rounded-lg border transition-all cursor-pointer shadow-sm ${
               filterFavorite
                 ? 'bg-amber-400 text-gray-900 border-amber-400 hover:bg-amber-500 font-black scale-102'
                 : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'

@@ -110,7 +110,7 @@ export default function RequestFormPanel({ mccbList, onAddRequest, requests = []
           </div>
           <div>
             <label className="block text-xs text-gray-500 font-bold mb-1">
-              作業内容・目的
+              作業内容・目的 <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
