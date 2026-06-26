@@ -4,6 +4,22 @@ const API_URL = '/api/mccb';
 const DEFAULT_ROOMS = ['1階高圧電気室', '1階電気室', '2階電気室', '2次トーチ電気室', 'LT-UT電気室', '水処理電気室'];
 const DEFAULT_CATEGORIES = ['1スト', '2スト', '3スト', '4スト', '5スト', '6スト', '共通'];
 const POLL_INTERVAL = 3000;
+const DEFAULT_MAX_SIZE = 500;
+const CHILD_CARD_COUNT = 5;
+const LOG_TYPES = Object.freeze({
+  OPERATION: '操作',
+  CARD_LOAN: '札貸出',
+  MASTER_CREATE: 'マスタ登録',
+  MASTER_UPDATE: 'マスタ編集',
+  MASTER_DELETE: 'マスタ削除',
+  SYSTEM: 'システム'
+});
+
+const LEGACY_LOG_TYPE_MAP = Object.freeze({
+  マスタ変更: LOG_TYPES.MASTER_UPDATE,
+  設定変更: LOG_TYPES.SYSTEM
+});
+const LOG_TYPE_VALUES = new Set(Object.values(LOG_TYPES));
 
 // ==========================================
 // 1. フック外の共通ユーティリティ関数群 (純粋関数)
@@ -26,18 +42,47 @@ const createUpdatedLogs = (type, message, currentLogs, maxSize) => {
   return [newLog, ...currentLogs].slice(0, maxSize);
 };
 
+/** MCCB共通ID生成 */
+const createMccbId = (suffix = '') => `MCCB-${Date.now()}${suffix !== '' ? `-${suffix}` : ''}`;
+
+/** 子札初期配列を生成 */
+const createDefaultChildCards = () => {
+  return Array.from({ length: CHILD_CARD_COUNT }, (_, i) => ({
+    id: i + 1,
+    isBorrowed: false,
+    workerName: ''
+  }));
+};
+
+/** 旧バージョンのログタイプを現在の分類へ正規化 */
+const normalizeLogType = (type) => {
+  if (LEGACY_LOG_TYPE_MAP[type]) return LEGACY_LOG_TYPE_MAP[type];
+  return LOG_TYPE_VALUES.has(type) ? type : LOG_TYPES.SYSTEM;
+};
+
+const normalizeLogs = (logs) => {
+  if (!Array.isArray(logs)) return [];
+  return logs.map((log) => ({
+    ...log,
+    type: normalizeLogType(log.type)
+  }));
+};
+
 /** サーバー受信データのパース・デフォルト値マージ */
 const parseServerData = (data) => {
+  const source = data && typeof data === 'object' ? data : {};
+  const isArrayPayload = Array.isArray(data);
+
   return {
-    mccbList: data.mccbList || (Array.isArray(data) ? data : []),
-    rooms: data.rooms || DEFAULT_ROOMS,
-    categories: data.categories || DEFAULT_CATEGORIES,
-    logs: data.logs || [],
-    logSettings: data.logSettings || { maxSize: 500 },
-    requests: data.requests || [],
-    deviceGroups: data.deviceGroups || [],
-    requestHistory: data.requestHistory || [],
-    historySettings: data.historySettings || { maxSize: 500 }
+    mccbList: source.mccbList || (isArrayPayload ? data : []),
+    rooms: source.rooms || DEFAULT_ROOMS,
+    categories: source.categories || DEFAULT_CATEGORIES,
+    logs: normalizeLogs(source.logs || []),
+    logSettings: source.logSettings || { maxSize: DEFAULT_MAX_SIZE },
+    requests: source.requests || [],
+    deviceGroups: source.deviceGroups || [],
+    requestHistory: source.requestHistory || [],
+    historySettings: source.historySettings || { maxSize: DEFAULT_MAX_SIZE }
   };
 };
 
@@ -109,11 +154,11 @@ export function useMccbData() {
   const [rooms, setRooms] = useState(DEFAULT_ROOMS);
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
   const [logs, setLogs] = useState([]);
-  const [logSettings, setLogSettings] = useState({ maxSize: 500 });
+  const [logSettings, setLogSettings] = useState({ maxSize: DEFAULT_MAX_SIZE });
   const [requests, setRequests] = useState([]);
   const [deviceGroups, setDeviceGroups] = useState([]);
   const [requestHistory, setRequestHistory] = useState([]);
-  const [historySettings, setHistorySettings] = useState({ maxSize: 500 });
+  const [historySettings, setHistorySettings] = useState({ maxSize: DEFAULT_MAX_SIZE });
 
   // 同期タスクキューおよびタイマー制御用のRef
   const syncQueue = useRef(Promise.resolve());
@@ -214,12 +259,12 @@ export function useMccbData() {
   const saveMccbEntry = useCallback((entry) => {
     const newMccb = { 
       ...entry, 
-      id: `MCCB-${Date.now()}`, 
+      id: createMccbId(), 
       isPowerOff: false, 
       isFavorite: false, 
-      childCards: Array.from({ length: 5 }, (_, i) => ({ id: i + 1, isBorrowed: false, workerName: '' })) 
+      childCards: createDefaultChildCards()
     };
-    const nextLogs = createUpdatedLogs('マスタ登録', `設備「${entry.name}」が登録されました。`, logs, logSettings.maxSize);
+    const nextLogs = createUpdatedLogs(LOG_TYPES.MASTER_CREATE, `設備「${entry.name}」が登録されました。`, logs, logSettings.maxSize);
     saveToServer([...mccbList, newMccb], rooms, categories, nextLogs);
   }, [mccbList, rooms, categories, logs, logSettings.maxSize, saveToServer]);
 
@@ -235,7 +280,7 @@ export function useMccbData() {
       
       const oldMccb = latest.mccbList.find(m => m.id === updatedMccb.id);
       let logMsg = '';
-      let logType = 'マスタ変更';
+      let logType = LOG_TYPES.MASTER_UPDATE;
 
       if (oldMccb) {
         const changeDetails = [];
@@ -253,18 +298,18 @@ export function useMccbData() {
         }
 
         if (oldMccb.isFavorite !== updatedMccb.isFavorite) {
-          changeDetails.push(`お気に入り${updatedMccb.isFavorite ? '登録しました' : '解除しました'}`);
+          changeDetails.push(`お気に入り${updatedMccb.isFavorite ? '登録しました。' : '解除しました。'}`);
         }
 
         if (oldMccb.isPowerOff !== updatedMccb.isPowerOff) {
-          changeDetails.push(`${updatedMccb.isPowerOff ? '🔴停電しました' : '🟢送電しました'}`);
-          logType = '操作';
+          changeDetails.push(`${updatedMccb.isPowerOff ? '🔴停電しました。' : '🟢送電しました。'}`);
+          logType = LOG_TYPES.OPERATION;
         }
 
         const oldBorrowed = oldMccb.childCards.filter(c => c.isBorrowed).length;
         const newBorrowed = updatedMccb.childCards.filter(c => c.isBorrowed).length;
         if (oldBorrowed !== newBorrowed) {
-          logType = '札貸出';
+          logType = LOG_TYPES.CARD_LOAN;
           changeDetails.push(`貸出札: ${oldBorrowed}枚 → ${newBorrowed}枚`);
         }
 
@@ -287,7 +332,7 @@ export function useMccbData() {
   /** 設備マスタの完全削除 */
   const deleteMccb = useCallback((id) => {
     if (window.confirm(`完全に削除してもよろしいですか？`)) {
-      const nextLogs = createUpdatedLogs('マスタ削除', `設備データが削除されました。`, logs, logSettings.maxSize);
+      const nextLogs = createUpdatedLogs(LOG_TYPES.MASTER_DELETE, `設備データが削除されました。`, logs, logSettings.maxSize);
       saveToServer(mccbList.filter(item => item.id !== id), rooms, categories, nextLogs);
     }
   }, [mccbList, rooms, categories, logs, logSettings.maxSize, saveToServer]);
@@ -336,21 +381,21 @@ export function useMccbData() {
   // --- システムログ制御 ---
   const clearAllLogs = useCallback(() => {
     if (window.confirm('ログ履歴をクリアしますか？')) {
-      const resetLog = [{ id: `LOG-${Date.now()}`, timestamp: getTimestamp(), type: 'システム', message: 'ログ履歴がクリアされました。' }];
+      const resetLog = [{ id: `LOG-${Date.now()}`, timestamp: getTimestamp(), type: LOG_TYPES.SYSTEM, message: 'ログ履歴がクリアされました。' }];
       saveToServer(mccbList, rooms, categories, resetLog);
     }
   }, [mccbList, rooms, categories, saveToServer]);
 
   const changeMaxLogSize = useCallback((size) => {
     const numSize = Number(size);
-    const nextLogs = createUpdatedLogs('設定変更', `ログ保持件数変更`, logs.slice(0, numSize), numSize);
+    const nextLogs = createUpdatedLogs(LOG_TYPES.SYSTEM, `ログ保持件数変更`, logs.slice(0, numSize), numSize);
     saveToServer(mccbList, rooms, categories, nextLogs, { ...logSettings, maxSize: numSize });
   }, [mccbList, rooms, categories, logs, logSettings, saveToServer]);
 
   // --- 停電作業依頼 履歴データ制御 ---
   const clearRequestHistory = useCallback(() => {
     if (window.confirm('過去の作業完了・解約の履歴データをすべて消去しますか？（元に戻せません）')) {
-      const nextLogs = createUpdatedLogs('システム', '停電作業の依頼履歴がすべてクリアされました。', logs, logSettings.maxSize);
+      const nextLogs = createUpdatedLogs(LOG_TYPES.SYSTEM, '停電作業の依頼履歴がすべてクリアされました。', logs, logSettings.maxSize);
       saveToServer(mccbList, rooms, categories, nextLogs, logSettings, requests, deviceGroups, []);
     }
   }, [mccbList, rooms, categories, logs, logSettings, requests, deviceGroups, saveToServer]);
@@ -358,7 +403,7 @@ export function useMccbData() {
   const changeMaxHistorySize = useCallback((size) => {
     const newSize = Number(size);
     const nextHistory = requestHistory.slice(0, newSize);
-    const nextLogs = createUpdatedLogs('設定変更', `最大依頼履歴数が ${newSize} 件に変更されました。`, logs, logSettings.maxSize);
+    const nextLogs = createUpdatedLogs(LOG_TYPES.SYSTEM, `最大依頼履歴数が ${newSize} 件に変更されました。`, logs, logSettings.maxSize);
     saveToServer(mccbList, rooms, categories, nextLogs, logSettings, requests, deviceGroups, nextHistory, { maxSize: newSize });
   }, [mccbList, rooms, categories, logs, logSettings, requests, deviceGroups, requestHistory, saveToServer]);
 
@@ -381,16 +426,42 @@ export function useMccbData() {
         }
       }
 
+      const roomSet = new Set(rooms);
+      const categorySet = new Set(categories);
+      const invalidEntries = parsedEntries
+        .map((entry, index) => ({
+          lineNumber: index + 2,
+          roomValid: roomSet.has(entry.room),
+          categoryValid: categorySet.has(entry.category),
+          entry,
+        }))
+        .filter(({ roomValid, categoryValid }) => !roomValid || !categoryValid);
+
+      if (invalidEntries.length > 0) {
+        const invalidDetails = invalidEntries
+          .slice(0, 10)
+          .map(({ lineNumber, roomValid, categoryValid, entry }) => {
+            const reasons = [];
+            if (!roomValid) reasons.push(`電気室「${entry.room || '(空欄)'}」`);
+            if (!categoryValid) reasons.push(`区分「${entry.category || '(空欄)'}」`);
+            return `${lineNumber}行目: ${reasons.join(' / ')} がマスター未登録です。`;
+          })
+          .join('\n');
+        const omittedCount = invalidEntries.length > 10 ? `\n...ほか ${invalidEntries.length - 10} 件` : '';
+        alert(`CSV取込を中止しました。電気室または区分がマスターと一致しない行があります。\n\n${invalidDetails}${omittedCount}`);
+        return;
+      }
+
       if (parsedEntries.length > 0) {
         if (window.confirm(`⚠️ 注意 ⚠️\n現在登録されているすべての設備データを消去し、CSVの ${parsedEntries.length} 件で完全に【データ上書き】しますか？`)) {
           const newMccbList = parsedEntries.map((e, idx) => ({ 
             ...e, 
-            id: `MCCB-${Date.now()}-${idx}`, 
+            id: createMccbId(idx), 
             isPowerOff: false, 
             isFavorite: false, 
-            childCards: Array.from({ length: 5 }, (_, i) => ({ id: i + 1, isBorrowed: false, workerName: '' })) 
+            childCards: createDefaultChildCards()
           }));
-          const nextLogs = createUpdatedLogs('マスタ登録', `CSVから ${newMccbList.length} 件の設備データが一括上書きインポートされました。`, logs, logSettings.maxSize);
+          const nextLogs = createUpdatedLogs(LOG_TYPES.MASTER_CREATE, `CSVから ${newMccbList.length} 件の設備データが一括上書きインポートされました。`, logs, logSettings.maxSize);
           saveToServer(newMccbList, rooms, categories, nextLogs, logSettings, requests, deviceGroups);
           alert(`CSVから ${newMccbList.length} 件のマスタデータを正常に上書き取り込みしました。`);
         }
@@ -404,7 +475,7 @@ export function useMccbData() {
   // --- 一括設備グループ制御マスター ---
   const addDeviceGroup = useCallback((name) => {
     const newGroup = { id: `GROUP-${Date.now()}`, name, mccbIds: [] };
-    const nextLogs = createUpdatedLogs('マスタ登録', `設備グループ「${name}」を新規作成しました。`, logs, logSettings.maxSize);
+    const nextLogs = createUpdatedLogs(LOG_TYPES.MASTER_CREATE, `設備グループ「${name}」を新規作成しました。`, logs, logSettings.maxSize);
     saveToServer(mccbList, rooms, categories, nextLogs, logSettings, requests, [...deviceGroups, newGroup]);
   }, [mccbList, rooms, categories, logs, logSettings, requests, deviceGroups, saveToServer]);
 
@@ -415,7 +486,7 @@ export function useMccbData() {
 
   const deleteDeviceGroup = useCallback((id) => {
     const groupToDelete = deviceGroups.find(g => g.id === id);
-    const nextLogs = createUpdatedLogs('マスタ削除', `設備グループ「${groupToDelete?.name}」を削除しました。`, logs, logSettings.maxSize);
+    const nextLogs = createUpdatedLogs(LOG_TYPES.MASTER_DELETE, `設備グループ「${groupToDelete?.name}」を削除しました。`, logs, logSettings.maxSize);
     const nextGroups = deviceGroups.filter(g => g.id !== id);
     saveToServer(mccbList, rooms, categories, nextLogs, logSettings, requests, nextGroups);
   }, [mccbList, rooms, categories, logs, logSettings, requests, deviceGroups, saveToServer]);
@@ -481,7 +552,7 @@ export function useMccbData() {
 
       const finalRequest = { ...newRequest, reservedCards };
       const nextRequests = [finalRequest, ...currentRequests];
-      const nextLogs = createUpdatedLogs('操作', `👷 ${newRequest.workerName}氏の停電依頼を発行し\n子札を貸出予約しました。`, latest.logs, latest.logSettings.maxSize);
+      const nextLogs = createUpdatedLogs(LOG_TYPES.OPERATION, `👷 ${newRequest.workerName}氏の停電依頼を発行し\n子札を貸出予約しました。`, latest.logs, latest.logSettings.maxSize);
       
       await fetch(API_URL, { 
         method: 'POST', 
@@ -537,10 +608,10 @@ export function useMccbData() {
       const completedRequest = reqToDelete ? { ...reqToDelete, completedTimestamp: getTimestamp() } : null;
       const nextRequests = currentRequests.filter(req => req.id !== id);
       
-      const maxSize = latest.historySettings?.maxSize || 500;
+      const maxSize = latest.historySettings?.maxSize || DEFAULT_MAX_SIZE;
       const nextHistory = completedRequest ? [completedRequest, ...currentHistory].slice(0, maxSize) : currentHistory;
       const completedWorkerName = reqToDelete?.workerName || '作業者';
-      const nextLogs = createUpdatedLogs('操作', `👷 ${completedWorkerName}氏の作業完了に伴い\n子札が返却されました。`, latest.logs, latest.logSettings.maxSize);
+      const nextLogs = createUpdatedLogs(LOG_TYPES.OPERATION, `👷 ${completedWorkerName}氏の作業完了に伴い\n子札が返却されました。`, latest.logs, latest.logSettings.maxSize);
       
       await fetch(API_URL, { 
         method: 'POST', 

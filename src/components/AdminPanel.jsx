@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useAdminPanelController } from '../hooks/useAdminPanelController';
 
 // ==========================================
 // 1. コンポーネント外の定数・スタイル定義 (純粋データ)
@@ -58,6 +58,7 @@ const getLogBadgeClass = (type) => {
     case 'マスタ登録': return 'bg-green-100 text-green-800 border border-green-200';
     case 'マスタ編集': return 'bg-purple-100 text-purple-800 border border-purple-200';
     case 'マスタ削除': return 'bg-red-100 text-red-800 border border-red-200';
+    case 'システム': return 'bg-gray-100 text-gray-700 border border-gray-300';
     default: return 'bg-gray-100 text-gray-700 border border-gray-200';
   }
 };
@@ -89,129 +90,47 @@ export default function AdminPanel({
   onClearRequestHistory = () => {},
   onChangeMaxHistorySize = () => {}
 }) {
-  // --- ローカルステート管理 ---
-  const [room, setRoom] = useState('');
-  const [category, setCategory] = useState('');
-  const [name, setName] = useState('');
-  const [newRoomInput, setNewRoomInput] = useState('');
-  const [newCategoryInput, setNewCategoryInput] = useState('');
-  const [newGroupName, setNewGroupName] = useState('');
-  const [selectedGroupId, setSelectedGroupId] = useState(null);
-  const csvInputRef = useRef(null);
-
-  // 現在選択されている設備グループオブジェクトを取得
-  const currentGroup = deviceGroups.find(g => g.id === selectedGroupId);
-
-  // --- ハンドラ関数群 ---
-
-  /** 設備の個別新規登録 */
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!name.trim()) return;
-    
-    const selectedRoom = room || rooms[0] || '';
-    const selectedCategory = category || categories[0] || '';
-
-    if (!selectedRoom || !selectedCategory) {
-      alert('電気室または区分が正しく設定されていません。マスター登録を確認してください。');
-      return;
-    }
-
-    onSaveEntry({ room: selectedRoom, category: selectedCategory, name: name.trim() });
-    setName('');
-  };
-
-  /** 現在のデータをCSVファイルとしてエクスポート */
-  const handleExportCSV = () => {
-    if (!mccbList || mccbList.length === 0) {
-      alert('出力する設備データがありません。');
-      return;
-    }
-    let csvContent = '電気室,区分,設備名称\n';
-    mccbList.forEach(item => {
-      const cleanRoom = item.room.replace(/[,"]/g, '');
-      const cleanCategory = item.category.replace(/[,"]/g, '');
-      const cleanName = item.name.replace(/[,"]/g, '');
-      csvContent += `${cleanRoom},${cleanCategory},${cleanName}\n`;
-    });
-    
-    const bom = new Uint8Array([0xEF, 0xBB, 0xBF]); // Excelの文字化けを防ぐBOM
-    const blob = new Blob([bom, csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `登録設備データ_${new Date().toISOString().slice(0, 10)}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  /** CSVインポートボタンをクリック */
-  const handleCSVButtonClick = () => {
-    csvInputRef.current?.click();
-  };
-
-  /** ダイアログ経由の電気室名称編集 */
-  const handleEditRoomPrompt = (oldName) => {
-    const res = window.prompt(`電気室「${oldName}」の新しい名称を入力してください:`, oldName);
-    if (res && res.trim() && res.trim() !== oldName) {
-      updateRoom(oldName, res.trim());
-    }
-  };
-
-  /** ダイアログ経由の区分名称編集 */
-  const handleEditCategoryPrompt = (oldName) => {
-    const res = window.prompt(`区分「${oldName}」の新しい名称を入力してください:`, oldName);
-    if (res && res.trim() && res.trim() !== oldName) {
-      updateCategory(oldName, res.trim());
-    }
-  };
-
-  /** 新しい電気室マスターの追加 */
-  const handleAddRoom = () => {
-    if (newRoomInput.trim()) {
-      addRoom(newRoomInput.trim());
-      setNewRoomInput('');
-    }
-  };
-
-  /** 新しい区分マスターの追加 */
-  const handleAddCategory = () => {
-    if (newCategoryInput.trim()) {
-      addCategory(newCategoryInput.trim());
-      setNewCategoryInput('');
-    }
-  };
-
-  /** 新しい設備グループの作成 */
-  const handleCreateGroup = () => {
-    if (newGroupName.trim()) {
-      addDeviceGroup(newGroupName.trim());
-      setNewGroupName('');
-    }
-  };
-
-  /** グループから対象を削除 */
-  const handleDeleteGroup = (g, e) => {
-    e.stopPropagation(); 
-    if (window.confirm(`グループ「${g.name}」を削除しますか？`)) {
-      deleteDeviceGroup(g.id); 
-      if (selectedGroupId === g.id) setSelectedGroupId(null);
-    }
-  };
-
-  /** グループ内の設備チェック切り替えロジック */
-  const handleToggleDeviceInGroup = (deviceId) => {
-    if (!currentGroup) return;
-    let updatedIds = [...(currentGroup.mccbIds || [])];
-    if (updatedIds.includes(deviceId)) {
-      updatedIds = updatedIds.filter(id => id !== deviceId);
-    } else {
-      updatedIds.push(deviceId);
-    }
-    updateDeviceGroup(currentGroup.id, { ...currentGroup, mccbIds: updatedIds });
-  };
+  const {
+    room,
+    setRoom,
+    category,
+    setCategory,
+    name,
+    setName,
+    newRoomInput,
+    setNewRoomInput,
+    newCategoryInput,
+    setNewCategoryInput,
+    newGroupName,
+    setNewGroupName,
+    selectedGroupId,
+    setSelectedGroupId,
+    currentGroup,
+    csvInputRef,
+    handleSubmit,
+    handleExportCSV,
+    handleCSVButtonClick,
+    handleEditRoomPrompt,
+    handleEditCategoryPrompt,
+    handleAddRoom,
+    handleAddCategory,
+    handleCreateGroup,
+    handleDeleteGroup,
+    handleToggleDeviceInGroup,
+  } = useAdminPanelController({
+    onSaveEntry,
+    mccbList,
+    rooms,
+    categories,
+    addRoom,
+    updateRoom,
+    addCategory,
+    updateCategory,
+    deviceGroups,
+    addDeviceGroup,
+    updateDeviceGroup,
+    deleteDeviceGroup,
+  });
 
   // --- 画面レンダリング ---
   return (

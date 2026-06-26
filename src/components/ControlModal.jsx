@@ -1,57 +1,24 @@
 import { useState } from 'react';
+import { useControlModalController } from '../hooks/useControlModalController';
 
 // ==========================================
 // 1. メインコンポーネント (ControlModal)
 // ==========================================
 export default function ControlModal({ mccb, onClose, onUpdate, onDelete, isAdmin, rooms, categories }) {
-  // --- ローカルステート管理 ---
-  const [isPowerOff, setIsPowerOff] = useState(mccb.isPowerOff);
-  const [room, setRoom] = useState(mccb.room);
-  const [category, setCategory] = useState(mccb.category);
-  const [name, setName] = useState(mccb.name);
-
-  // --- ハンドラ関数群 ---
-
-  /** ⚡ 設備停電ステータス（送電・停電）のトグル切り替え */
-  const hasBorrowedCards = mccb.childCards.some(card => card.isBorrowed);
-  const isSendingBlocked = isPowerOff && hasBorrowedCards;
-
-  const handleTogglePower = () => {
-    if (isSendingBlocked) return;
-    const nextStatus = !isPowerOff;
-    setIsPowerOff(nextStatus);
-    onUpdate({ ...mccb, isPowerOff: nextStatus });
-  };
-
-  /** 🔖 子札の個別手動返却処理 */
-  const handleReturnCard = (cardId) => {
-    const updatedCards = mccb.childCards.map(card => 
-      card.id === cardId ? { ...card, isBorrowed: false, workerName: '' } : card
-    );
-    onUpdate({ ...mccb, childCards: updatedCards });
-  };
-
-  /** 🔖 子札の個別手動貸出処理 */
-  const handleBorrowCard = (cardId, workerName) => {
-    if (!workerName.trim()) {
-      alert('作業者名を入力してください。');
-      return;
-    }
-    const updatedCards = mccb.childCards.map(card => 
-      card.id === cardId ? { ...card, isBorrowed: true, workerName: workerName.trim() } : card
-    );
-    onUpdate({ ...mccb, childCards: updatedCards });
-  };
-
-  /** 💾 管理者用：設備マスタ自体の更新保存 */
-  const handleSaveMaster = () => {
-    if (!name.trim()) {
-      alert('設備名称を入力してください。');
-      return;
-    }
-    onUpdate({ ...mccb, room, category, name: name.trim(), isPowerOff });
-    alert('設備情報を更新しました。');
-  };
+  const {
+    isPowerOff,
+    room,
+    setRoom,
+    category,
+    setCategory,
+    name,
+    setName,
+    isSendingBlocked,
+    handleTogglePower,
+    handleReturnCard,
+    handleBorrowCard,
+    handleSaveMaster,
+  } = useControlModalController({ mccb, onUpdate });
 
   // --- 画面レンダリング ---
   return (
