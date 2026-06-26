@@ -1,200 +1,15 @@
-import { useMemo } from 'react';
+import { usePrintPreviewController } from '../hooks/usePrintPreviewController';
 
 // ==========================================
-// 1. フック外の共通シミュレーションヘルパー関数群
-// ==========================================
-
-/** 過去の確定リクエスト情報から、現在のすべての札の貸出状態をマージ同期する */
-const syncPastRequests = (mccbList, requests) => {
-  const cloned = JSON.parse(JSON.stringify(mccbList));
-  return cloned.map(mccb => {
-    const updatedCards = mccb.childCards?.map(card => {
-      let isBorrowed = card.isBorrowed;
-      let workerName = card.workerName;
-
-      requests.forEach(req => {
-        if (!req.reservedCards) return;
-        Object.keys(req.reservedCards).forEach(tId => {
-          const resInfo = req.reservedCards[tId];
-          if (resInfo && resInfo.actualMccbId === mccb.id && resInfo.cardNo === card.id) {
-            isBorrowed = true;
-            workerName = req.workerName;
-          }
-        });
-      });
-      return { ...card, isBorrowed, workerName };
-    }) || [];
-    return { ...mccb, childCards: updatedCards };
-  });
-};
-
-/** 対象のダミー設備カードが、他の依頼や手動操作によって占有されているかを厳密に検証する */
-const isDummyOccupiedForSim = (dummy, targetId, requests, localReserved) => {
-  let isOccupied = false;
-
-  // ① 過去の確定リクエストからの逆引き検証
-  requests.forEach(req => {
-    if (!req.reservedCards) return;
-    Object.keys(req.reservedCards).forEach(origId => {
-      const resInfo = req.reservedCards[origId];
-      if (resInfo && resInfo.actualMccbId === dummy.id && origId !== targetId) {
-        isOccupied = true;
-      }
-    });
-  });
-
-  // ② 今回の印刷プレビューのループ内で、既に他の設備に割り当て済みか検証
-  Object.keys(localReserved).forEach(origId => {
-    const resInfo = localReserved[origId];
-    if (resInfo && resInfo.actualMccbId === dummy.id && origId !== targetId) {
-      isOccupied = true;
-    }
-  });
-
-  // ③ 依頼履歴にない、完全手動貸出で使用中のダミー札を検知
-  dummy.childCards?.forEach(card => {
-    if (!card.isBorrowed) return;
-    let isMyPastReservation = false;
-    requests.forEach(req => {
-      if (req.reservedCards && req.reservedCards[targetId]) {
-        const resInfo = req.reservedCards[targetId];
-        if (resInfo && resInfo.actualMccbId === dummy.id && resInfo.cardNo === card.id) {
-          isMyPastReservation = true;
-        }
-      }
-    });
-    if (!isMyPastReservation) {
-      isOccupied = true;
-    }
-  });
-
-  return isOccupied;
-};
-
-// ==========================================
-// 2. メインコンポーネント
+// メインコンポーネント
 // ==========================================
 export default function PrintPreviewForm({ workerName, workContent, selectedMccbIds, mccbList, requests = [], dummyNames = {} }) {
-  
-  // 🗓️ 日付・申請No用コードの算出
-  const { now, dateCode } = useMemo(() => {
-    const currentDate = new Date();
-    const code = `${currentDate.getFullYear().toString().slice(-2)}${(currentDate.getMonth() + 1).toString().padStart(2, '0')}${currentDate.getDate().toString().padStart(2, '0')}`;
-    return { now: currentDate, dateCode: code };
-  }, []);
-
-  // 💡 バックエンドの手動貸出回避ロジックと100%完全同期した精密シミュレーション
-  const selectedMccbsWithAssignedCards = useMemo(() => {
-    // 過去リクエストの状態を初期マージ
-    const simulatedMccbList = syncPastRequests(mccbList, requests);
-    const localReserved = {};
-
-    return selectedMccbIds.map((id) => {
-      const originalMccb = simulatedMccbList.find(m => m.id === id);
-      if (!originalMccb) return null;
-
-      let availableIdx = originalMccb.childCards?.findIndex(c => !c.isBorrowed) ?? -1;
-      let finalTargetMccb = originalMccb;
-      let isAllocatedFromDummy = false;
-      
-      const isOriginalDummy = originalMccb.isDummy || originalMccb.name?.includes('ダミー');
-
-      // 通常設備で空き札がない場合のみ、ダミースライド探索を実行
-      if (availableIdx === -1 && !isOriginalDummy) {
-        const dummyCandidates = simulatedMccbList.filter(m => 
-          m.name?.includes('ダミー') || m.id?.includes('DUMMY') || m.isDummy
-        );
-
-        // 同じ部屋のダミーを最優先し、名称順にソート
-        dummyCandidates.sort((a, b) => {
-          const aSameRoom = a.room === originalMccb.room ? 1 : 0;
-          const bSameRoom = b.room === originalMccb.room ? 1 : 0;
-          if (aSameRoom !== bSameRoom) return bSameRoom - aSameRoom;
-          return (a.name || '').localeCompare(b.name || '', 'ja');
-        });
-
-        // 段階 1: 同じ電気室内を基準に空きダミーを探索
-        let foundDummy = null;
-        let dummyCardIdx = -1;
-
-        for (const dummy of dummyCandidates) {
-          if (isDummyOccupiedForSim(dummy, id, requests, localReserved)) continue;
-
-          const idx = dummy.childCards?.findIndex(c => !c.isBorrowed) ?? -1;
-          if (idx !== -1) {
-            foundDummy = dummy;
-            dummyCardIdx = idx;
-            break;
-          }
-        }
-
-        // 段階 2: 例外フォールバック（全エリアのダミーからダミー0最優先で再探索）
-        if (!foundDummy) {
-          const allDummies = simulatedMccbList.filter(m => 
-            m.name?.includes('ダミー') || m.id?.includes('DUMMY') || m.isDummy
-          ).sort((a, b) => {
-            if (a.name === 'ダミー0' && b.name !== 'ダミー0') return -1;
-            if (a.name !== 'ダミー0' && b.name === 'ダミー0') return 1;
-            return (a.name || '').localeCompare(b.name || '', 'ja');
-          });
-
-          for (const dummy of allDummies) {
-            if (isDummyOccupiedForSim(dummy, id, requests, localReserved)) continue;
-
-            const idx = dummy.childCards?.findIndex(c => !c.isBorrowed) ?? -1;
-            if (idx !== -1) {
-              foundDummy = dummy;
-              dummyCardIdx = idx;
-              break;
-            }
-          }
-        }
-
-        if (foundDummy) {
-          finalTargetMccb = foundDummy;
-          availableIdx = dummyCardIdx;
-          isAllocatedFromDummy = true;
-        }
-      }
-
-      // シミュレーション上の仮確保を確定ロック
-      let finalCardNo = 1;
-      if (availableIdx !== -1 && finalTargetMccb.childCards) {
-        finalTargetMccb.childCards[availableIdx].isBorrowed = true;
-        finalCardNo = finalTargetMccb.childCards[availableIdx].id;
-
-        localReserved[id] = {
-          actualMccbId: finalTargetMccb.id,
-          cardNo: finalCardNo
-        };
-      }
-
-      // 名称の美しく正確な結合処理
-      let finalName = originalMccb.name;
-      if (isOriginalDummy) {
-        if (dummyNames[id]) {
-          finalName = `${originalMccb.name} (${dummyNames[id]})`;
-        }
-      } else if (isAllocatedFromDummy) {
-        finalName = `${finalTargetMccb.name} (${originalMccb.name})`;
-      }
-
-      const cardLabel = isAllocatedFromDummy 
-        ? `代替:${finalTargetMccb.name} No.${finalCardNo}` 
-        : `子札 No.${finalCardNo}`;
-        
-      const generatedCardNo = `${dateCode}-${finalTargetMccb.id.slice(-4)}-${finalCardNo}`;
-
-      return {
-        ...originalMccb,
-        name: finalName,
-        cardLabel,
-        generatedCardNo,
-        isDummy: isAllocatedFromDummy || isOriginalDummy,
-        allocatedDummyName: finalTargetMccb.name
-      };
-    }).filter(Boolean);
-  }, [selectedMccbIds, mccbList, requests, dateCode, dummyNames]);
+  const { now, dateCode, selectedMccbsWithAssignedCards } = usePrintPreviewController({
+    selectedMccbIds,
+    mccbList,
+    requests,
+    dummyNames,
+  });
 
   return (
     <div className="w-full lg:w-2/3 bg-white p-6 rounded-xl shadow-sm border border-gray-200 print:border-0 print:shadow-none print:p-0 print:w-[78mm] print:mx-auto">
@@ -233,7 +48,7 @@ export default function PrintPreviewForm({ workerName, workContent, selectedMccb
                     {index + 1}. {mccb.name}
                   </span>
                   <span className="font-black shrink-0 text-right bg-gray-100 px-1 rounded print:bg-transparent">
-                    {mccb.cardLabel.replace('代替:', '⚡')}
+                    {mccb.cardLabel.replace('代替:', '代替:')}
                   </span>
                 </div>
               ))

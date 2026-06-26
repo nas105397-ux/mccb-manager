@@ -4245,13 +4245,13 @@
       "childCards": [
         {
           "id": 1,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "AA"
         },
         {
           "id": 2,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "BB"
         },
         {
           "id": 3,
@@ -4280,13 +4280,13 @@
       "childCards": [
         {
           "id": 1,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "AA"
         },
         {
           "id": 2,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "BB"
         },
         {
           "id": 3,
@@ -4315,13 +4315,13 @@
       "childCards": [
         {
           "id": 1,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "AA"
         },
         {
           "id": 2,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "BB"
         },
         {
           "id": 3,
@@ -4350,13 +4350,13 @@
       "childCards": [
         {
           "id": 1,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "AA"
         },
         {
           "id": 2,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "BB"
         },
         {
           "id": 3,
@@ -4385,13 +4385,13 @@
       "childCards": [
         {
           "id": 1,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "AA"
         },
         {
           "id": 2,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "BB"
         },
         {
           "id": 3,
@@ -4420,13 +4420,13 @@
       "childCards": [
         {
           "id": 1,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "AA"
         },
         {
           "id": 2,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "BB"
         },
         {
           "id": 3,
@@ -5715,13 +5715,13 @@
       "childCards": [
         {
           "id": 1,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "AA"
         },
         {
           "id": 2,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "BB"
         },
         {
           "id": 3,
@@ -5750,13 +5750,13 @@
       "childCards": [
         {
           "id": 1,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "AA"
         },
         {
           "id": 2,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "BB"
         },
         {
           "id": 3,
@@ -5785,13 +5785,13 @@
       "childCards": [
         {
           "id": 1,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "AA"
         },
         {
           "id": 2,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "BB"
         },
         {
           "id": 3,
@@ -5820,13 +5820,13 @@
       "childCards": [
         {
           "id": 1,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "AA"
         },
         {
           "id": 2,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "BB"
         },
         {
           "id": 3,
@@ -5855,13 +5855,13 @@
       "childCards": [
         {
           "id": 1,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "AA"
         },
         {
           "id": 2,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "BB"
         },
         {
           "id": 3,
@@ -5890,13 +5890,13 @@
       "childCards": [
         {
           "id": 1,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "AA"
         },
         {
           "id": 2,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "BB"
         },
         {
           "id": 3,
@@ -7325,13 +7325,13 @@
       "childCards": [
         {
           "id": 1,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "AA"
         },
         {
           "id": 2,
-          "isBorrowed": false,
-          "workerName": ""
+          "isBorrowed": true,
+          "workerName": "BB"
         },
         {
           "id": 3,
@@ -14405,6 +14405,18 @@
   ],
   "logs": [
     {
+      "id": "LOG-1782499332057-e6kn0",
+      "timestamp": "2026-06-27 03:42:12",
+      "type": "操作",
+      "message": "👷 BB氏の停電依頼を発行し\n子札を貸出予約しました。"
+    },
+    {
+      "id": "LOG-1782499212901-kvopu",
+      "timestamp": "2026-06-27 03:40:12",
+      "type": "操作",
+      "message": "👷 AA氏の停電依頼を発行し\n子札を貸出予約しました。"
+    },
+    {
       "id": "LOG-1782498809509-546gx",
       "timestamp": "2026-06-27 03:33:29",
       "type": "操作",
@@ -14546,7 +14558,212 @@
   "logSettings": {
     "maxSize": 500
   },
-  "requests": [],
+  "requests": [
+    {
+      "id": "REQ-1782499329235",
+      "timestamp": "2026/6/27 3:42:09",
+      "workerName": "BB",
+      "workContent": "BB",
+      "targetMccbIds": [
+        "MCCB-1782288115870-121",
+        "MCCB-1782288115870-123",
+        "MCCB-1782288115870-122",
+        "MCCB-1782288115870-124",
+        "MCCB-1782288115870-126",
+        "MCCB-1782288115870-125",
+        "MCCB-1782288115870-163",
+        "MCCB-1782288115870-165",
+        "MCCB-1782288115870-167",
+        "MCCB-1782288115870-164",
+        "MCCB-1782288115870-166",
+        "MCCB-1782288115870-168",
+        "MCCB-1782288115870-209"
+      ],
+      "dummyNames": {},
+      "reservedCards": {
+        "MCCB-1782288115870-121": {
+          "actualMccbId": "MCCB-1782288115870-121",
+          "cardNo": 2,
+          "displayName": "1スト D/B引上げ駆動モータ",
+          "customDummyName": null
+        },
+        "MCCB-1782288115870-123": {
+          "actualMccbId": "MCCB-1782288115870-123",
+          "cardNo": 2,
+          "displayName": "3スト D/B引上げ駆動モータ",
+          "customDummyName": null
+        },
+        "MCCB-1782288115870-122": {
+          "actualMccbId": "MCCB-1782288115870-122",
+          "cardNo": 2,
+          "displayName": "2スト D/B引上げ駆動モータ",
+          "customDummyName": null
+        },
+        "MCCB-1782288115870-124": {
+          "actualMccbId": "MCCB-1782288115870-124",
+          "cardNo": 2,
+          "displayName": "4スト D/B引上げ駆動モータ",
+          "customDummyName": null
+        },
+        "MCCB-1782288115870-126": {
+          "actualMccbId": "MCCB-1782288115870-126",
+          "cardNo": 2,
+          "displayName": "6スト D/B引上げ駆動モータ",
+          "customDummyName": null
+        },
+        "MCCB-1782288115870-125": {
+          "actualMccbId": "MCCB-1782288115870-125",
+          "cardNo": 2,
+          "displayName": "5スト D/B引上げ駆動モータ",
+          "customDummyName": null
+        },
+        "MCCB-1782288115870-163": {
+          "actualMccbId": "MCCB-1782288115870-163",
+          "cardNo": 2,
+          "displayName": "1スト P/R･D/Bインバータ電源",
+          "customDummyName": null
+        },
+        "MCCB-1782288115870-165": {
+          "actualMccbId": "MCCB-1782288115870-165",
+          "cardNo": 2,
+          "displayName": "3スト P/R･D/Bインバータ電源",
+          "customDummyName": null
+        },
+        "MCCB-1782288115870-167": {
+          "actualMccbId": "MCCB-1782288115870-167",
+          "cardNo": 2,
+          "displayName": "5スト P/R･D/Bインバータ電源",
+          "customDummyName": null
+        },
+        "MCCB-1782288115870-164": {
+          "actualMccbId": "MCCB-1782288115870-164",
+          "cardNo": 2,
+          "displayName": "2スト P/R･D/Bインバータ電源",
+          "customDummyName": null
+        },
+        "MCCB-1782288115870-166": {
+          "actualMccbId": "MCCB-1782288115870-166",
+          "cardNo": 2,
+          "displayName": "4スト P/R･D/Bインバータ電源",
+          "customDummyName": null
+        },
+        "MCCB-1782288115870-168": {
+          "actualMccbId": "MCCB-1782288115870-168",
+          "cardNo": 2,
+          "displayName": "6スト P/R･D/Bインバータ電源",
+          "customDummyName": null
+        },
+        "MCCB-1782288115870-209": {
+          "actualMccbId": "MCCB-1782288115870-209",
+          "cardNo": 2,
+          "displayName": "FCRフード",
+          "customDummyName": null
+        }
+      }
+    },
+    {
+      "id": "REQ-1782499207353",
+      "timestamp": "2026/6/27 3:40:07",
+      "workerName": "AA",
+      "workContent": "AA",
+      "targetMccbIds": [
+        "MCCB-1782288115870-121",
+        "MCCB-1782288115870-123",
+        "MCCB-1782288115870-122",
+        "MCCB-1782288115870-124",
+        "MCCB-1782288115870-126",
+        "MCCB-1782288115870-125",
+        "MCCB-1782288115870-163",
+        "MCCB-1782288115870-165",
+        "MCCB-1782288115870-167",
+        "MCCB-1782288115870-164",
+        "MCCB-1782288115870-166",
+        "MCCB-1782288115870-168",
+        "MCCB-1782288115870-209"
+      ],
+      "dummyNames": {},
+      "reservedCards": {
+        "MCCB-1782288115870-121": {
+          "actualMccbId": "MCCB-1782288115870-121",
+          "cardNo": 1,
+          "displayName": "1スト D/B引上げ駆動モータ",
+          "customDummyName": null
+        },
+        "MCCB-1782288115870-123": {
+          "actualMccbId": "MCCB-1782288115870-123",
+          "cardNo": 1,
+          "displayName": "3スト D/B引上げ駆動モータ",
+          "customDummyName": null
+        },
+        "MCCB-1782288115870-122": {
+          "actualMccbId": "MCCB-1782288115870-122",
+          "cardNo": 1,
+          "displayName": "2スト D/B引上げ駆動モータ",
+          "customDummyName": null
+        },
+        "MCCB-1782288115870-124": {
+          "actualMccbId": "MCCB-1782288115870-124",
+          "cardNo": 1,
+          "displayName": "4スト D/B引上げ駆動モータ",
+          "customDummyName": null
+        },
+        "MCCB-1782288115870-126": {
+          "actualMccbId": "MCCB-1782288115870-126",
+          "cardNo": 1,
+          "displayName": "6スト D/B引上げ駆動モータ",
+          "customDummyName": null
+        },
+        "MCCB-1782288115870-125": {
+          "actualMccbId": "MCCB-1782288115870-125",
+          "cardNo": 1,
+          "displayName": "5スト D/B引上げ駆動モータ",
+          "customDummyName": null
+        },
+        "MCCB-1782288115870-163": {
+          "actualMccbId": "MCCB-1782288115870-163",
+          "cardNo": 1,
+          "displayName": "1スト P/R･D/Bインバータ電源",
+          "customDummyName": null
+        },
+        "MCCB-1782288115870-165": {
+          "actualMccbId": "MCCB-1782288115870-165",
+          "cardNo": 1,
+          "displayName": "3スト P/R･D/Bインバータ電源",
+          "customDummyName": null
+        },
+        "MCCB-1782288115870-167": {
+          "actualMccbId": "MCCB-1782288115870-167",
+          "cardNo": 1,
+          "displayName": "5スト P/R･D/Bインバータ電源",
+          "customDummyName": null
+        },
+        "MCCB-1782288115870-164": {
+          "actualMccbId": "MCCB-1782288115870-164",
+          "cardNo": 1,
+          "displayName": "2スト P/R･D/Bインバータ電源",
+          "customDummyName": null
+        },
+        "MCCB-1782288115870-166": {
+          "actualMccbId": "MCCB-1782288115870-166",
+          "cardNo": 1,
+          "displayName": "4スト P/R･D/Bインバータ電源",
+          "customDummyName": null
+        },
+        "MCCB-1782288115870-168": {
+          "actualMccbId": "MCCB-1782288115870-168",
+          "cardNo": 1,
+          "displayName": "6スト P/R･D/Bインバータ電源",
+          "customDummyName": null
+        },
+        "MCCB-1782288115870-209": {
+          "actualMccbId": "MCCB-1782288115870-209",
+          "cardNo": 1,
+          "displayName": "FCRフード",
+          "customDummyName": null
+        }
+      }
+    }
+  ],
   "deviceGroups": [
     {
       "id": "GROUP-1782494036903",
