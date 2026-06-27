@@ -35,6 +35,7 @@ function MccbCard({
   onSelect,
   onToggleFavorite,
   hasActiveRequest = false,
+  className = "",
 }) {
   const {
     id: mccbId,
@@ -60,7 +61,7 @@ function MccbCard({
     <div
       onClick={handleSelect}
       onKeyDown={handleKeyDown}
-      className={`bg-white p-4 rounded-xl border shadow-sm relative flex flex-col justify-between min-h-[140px] transition-all duration-200 hover:shadow-md cursor-pointer will-change-transform ${cardStatusCls}`}
+      className={`bg-white p-4 rounded-xl border shadow-sm relative flex flex-col justify-between min-h-[140px] transition-all duration-200 hover:shadow-md cursor-pointer will-change-transform ${cardStatusCls} ${className}`}
       role="button"
       tabIndex={0}
     >

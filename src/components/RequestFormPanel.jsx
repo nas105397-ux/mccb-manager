@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import PrintPreviewForm from "./PrintPreviewForm";
 import { useRequestFormController } from "../hooks/useRequestFormController";
-import { FixedSizeList as List } from "react-window";
+import { VariableSizeList as List } from "react-window";
 
 // ==========================================
 // 定数定義
@@ -25,6 +25,12 @@ const ROW_DEFAULT_CLASS =
 /** グループボタン共通ベース */
 const BTN_GROUP_BASE =
   "px-2.5 py-1.5 rounded text-[11px] font-black border transition-all cursor-pointer shadow-sm transform active:scale-95";
+
+// 仮想リストの行高さ/ギャップ（px）
+const ROW_HEIGHT_COLLAPSED = 40;
+const ROW_HEIGHT_SELECTED = 40;
+const ROW_HEIGHT_SELECTED_DUMMY = 87;
+const ROW_GAP = 1; // 行間の余白（上下）
 
 // ==========================================
 // RequestMccbRow: 1行単位の軽量コンポーネント（独立隔離）
@@ -100,6 +106,18 @@ export default function RequestFormPanel({
     handleSelectGroup,
     handlePrint,
   } = useRequestFormController({ mccbList, onAddRequest });
+
+  const listRef = useRef(null);
+
+  useEffect(() => {
+    // 選択状態やダミー名が変わったら行高さを再計測
+    if (
+      listRef.current &&
+      typeof listRef.current.resetAfterIndex === "function"
+    ) {
+      listRef.current.resetAfterIndex(0, true);
+    }
+  }, [selectedMccbIds, filteredMccbList.length, JSON.stringify(dummyNames)]);
 
   // --- 画面レンダリング ---
   return (
@@ -183,24 +201,43 @@ export default function RequestFormPanel({
             className={INPUT_SEARCH_CLASS}
           />
 
-          <div className="max-h-56 overflow-y-auto border rounded-lg p-2 bg-gray-50 space-y-1 text-left">
+          <div className="max-h-56 overflow-y-auto border rounded-lg p-2 bg-gray-50 text-left">
             <List
+              ref={listRef}
               height={224}
               itemCount={filteredMccbList.length}
-              itemSize={64}
+              itemSize={(index) => {
+                const mccb = filteredMccbList[index];
+                if (!mccb) return ROW_HEIGHT_COLLAPSED + ROW_GAP;
+                const isSelected = selectedMccbIds.includes(mccb.id);
+                const isDummy = mccb.isDummy || mccb.name?.includes("ダミー");
+                if (!isSelected) return ROW_HEIGHT_COLLAPSED + ROW_GAP; // 標準行高さ + ギャップ
+                const base = isDummy
+                  ? ROW_HEIGHT_SELECTED_DUMMY
+                  : ROW_HEIGHT_SELECTED;
+                return base + ROW_GAP; // 選択時高さ + ギャップ
+              }}
               width={"100%"}
+              overscanCount={6}
             >
               {({ index, style }) => {
                 const mccb = filteredMccbList[index];
                 return (
                   <div style={style} key={mccb?.id || index}>
-                    <RequestMccbRow
-                      mccb={mccb}
-                      isSelected={selectedMccbIds.includes(mccb.id)}
-                      onToggle={handleToggleMccb}
-                      dummyName={dummyNames[mccb.id]}
-                      onDummyNameChange={handleDummyNameChange}
-                    />
+                    <div
+                      style={{
+                        height: `calc(100% - ${ROW_GAP}px)`,
+                        boxSizing: "border-box",
+                      }}
+                    >
+                      <RequestMccbRow
+                        mccb={mccb}
+                        isSelected={selectedMccbIds.includes(mccb.id)}
+                        onToggle={handleToggleMccb}
+                        dummyName={dummyNames[mccb.id]}
+                        onDummyNameChange={handleDummyNameChange}
+                      />
+                    </div>
                   </div>
                 );
               }}
