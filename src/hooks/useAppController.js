@@ -1,20 +1,42 @@
-import { useState, useMemo, useCallback, useDeferredValue } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { useMccbData } from './useMccbData';
+import { useState, useMemo, useCallback, useDeferredValue } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useMccbData } from "./useMccbData";
 
 export function useAppController() {
   const {
-    mccbList, rooms, categories, updateMccb, saveMccbEntry, deleteMccb,
-    importFromCSV, addRoom, updateRoom, deleteRoom,
-    addCategory, updateCategory, deleteCategory,
-    requests, requestHistory, historySettings, addRequest, deleteRequest, clearRequestHistory, changeMaxHistorySize,
-    logs, logSettings, changeMaxLogSize, clearAllLogs,
-    deviceGroups, addDeviceGroup, updateDeviceGroup, deleteDeviceGroup
+    mccbList,
+    rooms,
+    categories,
+    updateMccb,
+    saveMccbEntry,
+    deleteMccb,
+    importFromCSV,
+    addRoom,
+    updateRoom,
+    deleteRoom,
+    addCategory,
+    updateCategory,
+    deleteCategory,
+    requests,
+    requestHistory,
+    historySettings,
+    addRequest,
+    deleteRequest,
+    clearRequestHistory,
+    changeMaxHistorySize,
+    logs,
+    logSettings,
+    changeMaxLogSize,
+    clearAllLogs,
+    deviceGroups,
+    addDeviceGroup,
+    updateDeviceGroup,
+    deleteDeviceGroup,
   } = useMccbData();
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('すべて');
-  const [filterRoom, setFilterRoom] = useState('すべて');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterStatus, setFilterStatus] = useState("すべて");
+  const [filterRoom, setFilterRoom] = useState("すべて");
   const [filterFavorite, setFilterFavorite] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [selectedMccbId, setSelectedMccbId] = useState(null);
@@ -26,18 +48,31 @@ export function useAppController() {
 
   const handleToggleAdmin = useCallback(() => {
     if (!isAdmin) {
-      const password = window.prompt('管理者パスワードを入力してください：');
-      if (password === 'admin') {
+      const password = window.prompt("管理者パスワードを入力してください：");
+      if (password === "admin") {
         setIsAdmin(true);
-        alert('🔓 管理者認証に成功しました。');
+        alert("🔓 管理者認証に成功しました。");
       } else if (password !== null) {
-        alert('❌ パスワードが正しくありません。認証に失敗しました。');
+        alert("❌ パスワードが正しくありません。認証に失敗しました。");
       }
       return;
     }
 
     setIsAdmin(false);
   }, [isAdmin]);
+
+  // --- 依頼で占有されている MCCB を事前計算（originalId と actualMccbId の両方を含める）
+  const activeMccbIds = useMemo(() => {
+    const set = new Set();
+    requests.forEach((req) => {
+      if (!req.reservedCards) return;
+      Object.entries(req.reservedCards).forEach(([origId, resInfo]) => {
+        set.add(origId);
+        if (resInfo?.actualMccbId) set.add(resInfo.actualMccbId);
+      });
+    });
+    return set;
+  }, [requests]);
 
   const processedMccbList = useMemo(() => {
     const nameOverlayMap = new Map();
@@ -57,7 +92,10 @@ export function useAppController() {
         }
 
         if (resInfo.customDummyName) {
-          nameOverlayMap.set(resInfo.actualMccbId, ` (${resInfo.customDummyName})`);
+          nameOverlayMap.set(
+            resInfo.actualMccbId,
+            ` (${resInfo.customDummyName})`,
+          );
         }
       });
     });
@@ -73,34 +111,33 @@ export function useAppController() {
   const filteredMccbList = useMemo(() => {
     const lowerSearch = deferredSearch.toLowerCase();
 
-    // 依頼発行中のMCCBを特定するためのセット
-    const requestedMccbIds = new Set();
-    requests.forEach((req) => {
-      if (req.reservedCards) {
-        Object.keys(req.reservedCards).forEach((mccbId) => {
-          requestedMccbIds.add(mccbId);
-        });
-      }
-    });
-
     return processedMccbList.filter((mccb) => {
       const matchesSearch = mccb.name.toLowerCase().includes(lowerSearch);
-      const matchesRoom = filterRoom === 'すべて' || mccb.room === filterRoom;
+      const matchesRoom = filterRoom === "すべて" || mccb.room === filterRoom;
       const matchesStatus =
-        filterStatus === 'すべて' ||
-        (filterStatus === '送電中' && !mccb.isPowerOff) ||
-        (filterStatus === '停電中' && mccb.isPowerOff) ||
-        (filterStatus === '依頼発行中' && requestedMccbIds.has(mccb.id));
+        filterStatus === "すべて" ||
+        (filterStatus === "送電中" && !mccb.isPowerOff) ||
+        (filterStatus === "停電中" && mccb.isPowerOff) ||
+        (filterStatus === "依頼発行中" && activeMccbIds.has(mccb.id));
       const matchesFavorite = !filterFavorite || mccb.isFavorite;
 
       return matchesSearch && matchesRoom && matchesStatus && matchesFavorite;
     });
-  }, [processedMccbList, deferredSearch, filterRoom, filterStatus, filterFavorite, requests]);
+  }, [
+    processedMccbList,
+    deferredSearch,
+    filterRoom,
+    filterStatus,
+    filterFavorite,
+    activeMccbIds,
+  ]);
 
   const borrowedCountMap = useMemo(() => {
     const map = {};
     mccbList.forEach((m) => {
-      map[m.id] = m.childCards ? m.childCards.filter((c) => c.isBorrowed).length : 0;
+      map[m.id] = m.childCards
+        ? m.childCards.filter((c) => c.isBorrowed).length
+        : 0;
     });
     return map;
   }, [mccbList]);
@@ -122,36 +159,57 @@ export function useAppController() {
     return null;
   }, [mccbList, selectedMccbId, selectedMccbCache]);
 
-  const handleSelect = useCallback((id) => {
-    const selected = mccbList.find((m) => m.id === id) ?? null;
-    setSelectedMccbCache(selected);
-    setSelectedMccbId(id);
-  }, [mccbList]);
+  const handleSelect = useCallback(
+    (id) => {
+      const selected = mccbList.find((m) => m.id === id) ?? null;
+      setSelectedMccbCache(selected);
+      setSelectedMccbId(id);
+    },
+    [mccbList],
+  );
 
   const handleCloseModal = useCallback(() => {
     setSelectedMccbCache(null);
     setSelectedMccbId(null);
   }, []);
 
-  const handleToggleFavorite = useCallback((id, current) => {
-    const target = mccbList.find((m) => m.id === id);
-    if (!target) return;
-    updateMccb({ ...target, isFavorite: !current });
-  }, [mccbList, updateMccb]);
+  const handleToggleFavorite = useCallback(
+    (id, current) => {
+      const target = mccbList.find((m) => m.id === id);
+      if (!target) return;
+      updateMccb({ ...target, isFavorite: !current });
+    },
+    [mccbList, updateMccb],
+  );
 
   const totalCount = mccbList.length;
-  const offCount = useMemo(() => mccbList.filter((m) => m.isPowerOff).length, [mccbList]);
-  const onCount = useMemo(() => mccbList.filter((m) => !m.isPowerOff).length, [mccbList]);
+  const offCount = useMemo(
+    () => mccbList.filter((m) => m.isPowerOff).length,
+    [mccbList],
+  );
+  const onCount = useMemo(
+    () => mccbList.filter((m) => !m.isPowerOff).length,
+    [mccbList],
+  );
 
-  const navItems = useMemo(() => ([
-    { path: '/', label: '🔖 札管理ダッシュボード' },
-    { path: '/request', label: '🖨️ 停電作業 依頼発行・印刷' },
-    { path: '/request-list', label: `📋 依頼一覧・進捗 (${requests.length})` }
-  ]), [requests.length]);
+  const navItems = useMemo(
+    () => [
+      { path: "/", label: "🔖 札管理ダッシュボード" },
+      { path: "/request", label: "🖨️ 停電作業 依頼発行・印刷" },
+      {
+        path: "/request-list",
+        label: `📋 依頼一覧・進捗 (${requests.length})`,
+      },
+    ],
+    [requests.length],
+  );
 
-  const goTo = useCallback((path) => {
-    navigate(path);
-  }, [navigate]);
+  const goTo = useCallback(
+    (path) => {
+      navigate(path);
+    },
+    [navigate],
+  );
 
   return {
     mccbList,
@@ -204,6 +262,8 @@ export function useAppController() {
     clearAllLogs,
     addDeviceGroup,
     updateDeviceGroup,
-    deleteDeviceGroup
+    deleteDeviceGroup,
+    // 新規追加: アクティブな MCCB ID の集合（MCCB カード再描画最適化に利用）
+    activeMccbIds,
   };
 }
