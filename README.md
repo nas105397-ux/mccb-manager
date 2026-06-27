@@ -246,6 +246,268 @@ npm start
 node server.js
 ```
 
+### Raspberry Pi 5 常時運用（PCビルド + PM2 + nginx + X11 kiosk）
+
+本番運用では、開発とビルドはPCで行い、Raspberry Pi 5は実行専用にします。Pi上ではViteビルドを行わず、PCで生成した `dist/` をExpressが配信します。
+
+推奨構成:
+
+```text
+PM2: Node/Expressサーバーを常駐
+nginx: 80番ポートで公開し、localhost:5000へリバースプロキシ
+X11 + Chromium kiosk: FHD操作画面と4Kダッシュボードを2画面固定表示
+```
+
+#### 1. PCでビルド
+
+```bash
+npm install
+npm run build
+```
+
+Piへ渡す最小構成:
+
+```text
+package.json
+package-lock.json
+server.js
+ecosystem.config.cjs
+mccb_data.json
+dist/
+deploy/
+README.md
+```
+
+Pi側の配置先は `/home/pi/mccb-manager` を想定しています。別の場所に置く場合は `ecosystem.config.cjs` と `deploy/kiosk/mccb-kiosk.service` のパスを合わせてください。
+
+#### 2. Piで本番依存関係を入れる
+
+```bash
+cd /home/pi/mccb-manager
+npm ci --omit=dev
+```
+
+#### 3. サーバーを手動起動で確認
+
+```bash
+cd /home/pi/mccb-manager
+npm start
+```
+
+別端末またはブラウザで確認:
+
+```text
+http://<Raspberry PiのIP>:5000/#/
+http://<Raspberry PiのIP>:5000/#/monitor
+```
+
+確認できたら `Ctrl + C` で停止します。
+
+#### 4. PM2でサーバーを常駐
+
+```bash
+cd /home/pi/mccb-manager
+npm install -g pm2
+pm2 start ecosystem.config.cjs
+pm2 save
+pm2 startup
+```
+
+`pm2 startup` のあとに表示される `sudo ...` コマンドをコピーして実行してください。
+
+確認:
+
+```bash
+pm2 status
+pm2 logs mccb-manager --lines 50
+```
+
+#### 5. nginxで80番ポート公開
+
+```bash
+sudo apt update
+sudo apt install nginx
+
+cd /home/pi/mccb-manager
+sudo cp deploy/nginx/mccb-manager.conf /etc/nginx/sites-available/mccb-manager
+sudo ln -s /etc/nginx/sites-available/mccb-manager /etc/nginx/sites-enabled/mccb-manager
+sudo rm /etc/nginx/sites-enabled/default
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+`sudo rm /etc/nginx/sites-enabled/default` で `No such file` と出た場合は、そのままで問題ありません。
+
+nginx経由のURL:
+
+```text
+メイン操作画面: http://<Raspberry PiのIP>/#/
+4Kダッシュボード: http://<Raspberry PiのIP>/#/monitor
+```
+
+「Welcome to nginx」が出る場合は、`/etc/nginx/sites-enabled/default` が残っていないか確認してください。
+
+```bash
+ls -l /etc/nginx/sites-enabled/
+systemctl status nginx
+```
+
+#### 6. X11 kioskを手動起動で確認
+
+Raspberry Pi OSはX11に切り替えて運用します。SSHからX11上の画面に出す場合は `DISPLAY=:0` を付けます。
+
+```bash
+cd /home/pi/mccb-manager
+chmod +x deploy/kiosk/start-kiosk.sh
+pkill chromium
+
+DISPLAY=:0 \
+APP_URL=http://127.0.0.1 \
+MAIN_GEOMETRY=1920x1080+0+0 \
+DASHBOARD_GEOMETRY=3840x2160+1920+0 \
+DASHBOARD_SCALE=1.5 \
+./deploy/kiosk/start-kiosk.sh
+```
+
+画面配置の想定:
+
+```text
+左: FHD操作画面 1920x1080
+右: 4Kダッシュボード 3840x2160、表示倍率1.5
+```
+
+止める場合:
+
+```bash
+pkill chromium
+```
+
+描画が乱れる場合はGPU補助を切って起動します。
+
+```bash
+DISPLAY=:0 ENABLE_GPU_TUNING=0 APP_URL=http://127.0.0.1 ./deploy/kiosk/start-kiosk.sh
+```
+
+#### 7. kioskを自動起動
+
+```bash
+cd /home/pi/mccb-manager
+mkdir -p ~/.config/systemd/user
+cp deploy/kiosk/mccb-kiosk.service ~/.config/systemd/user/mccb-kiosk.service
+chmod +x deploy/kiosk/start-kiosk.sh
+
+systemctl --user daemon-reload
+systemctl --user enable mccb-kiosk.service
+systemctl --user start mccb-kiosk.service
+```
+
+確認:
+
+```bash
+systemctl --user status mccb-kiosk.service
+journalctl --user -u mccb-kiosk.service --no-pager -n 80
+```
+
+再起動後もユーザーサービスを動かす場合:
+
+```bash
+loginctl enable-linger pi
+```
+
+#### 8. スリープ・画面OFFを無効化
+
+`deploy/kiosk/mccb-kiosk.service` には以下を入れています。
+
+```ini
+Environment=DISPLAY=:0
+ExecStartPre=/usr/bin/xset s off
+ExecStartPre=/usr/bin/xset -dpms
+ExecStartPre=/usr/bin/xset s noblank
+```
+
+手動で確認:
+
+```bash
+DISPLAY=:0 xset q
+```
+
+以下ならOKです。
+
+```text
+Screen Saver timeout: 0
+DPMS is Disabled
+```
+
+#### 9. kioskで日本語入力を使う
+
+X11 + Chromium kioskで日本語入力する場合は、Piに `fcitx5-mozc` を入れます。
+
+```bash
+sudo apt update
+sudo apt install fcitx5 fcitx5-mozc im-config
+```
+
+入力方式を `fcitx5` にします。
+
+```bash
+im-config
+```
+
+画面で `fcitx5` を選び、Piを再起動します。
+
+```bash
+sudo reboot
+```
+
+`deploy/kiosk/start-kiosk.sh` は、`fcitx5` が入っていればChromium起動前に自動起動します。`deploy/kiosk/mccb-kiosk.service` には以下の環境変数を入れています。
+
+```ini
+Environment=GTK_IM_MODULE=fcitx
+Environment=QT_IM_MODULE=fcitx
+Environment=XMODIFIERS=@im=fcitx
+```
+
+サービスファイルをPi側へ反映したら再読み込みします。
+
+```bash
+cd /home/pi/mccb-manager
+cp deploy/kiosk/mccb-kiosk.service ~/.config/systemd/user/mccb-kiosk.service
+systemctl --user daemon-reload
+systemctl --user restart mccb-kiosk.service
+```
+
+日本語/英数の切り替えは、通常 `Ctrl + Space` または `半角/全角` です。効かない場合は、デスクトップ上で `fcitx5-configtool` を開き、入力メソッドに `Mozc` を追加してください。
+
+```bash
+fcitx5-configtool
+```
+
+#### 10. 運用確認コマンド
+
+```bash
+systemctl --user status mccb-kiosk.service
+DISPLAY=:0 xset q
+pm2 status
+systemctl status nginx
+vcgencmd measure_temp
+vcgencmd get_throttled
+free -h
+df -h
+ps -eo pid,ppid,cmd,%mem,%cpu --sort=-%cpu | head -20
+```
+
+目安:
+
+```text
+mccb-kiosk.service: active (running)
+PM2 mccb-manager: online
+nginx: active (running)
+throttled=0x0
+温度: 75度未満なら概ね良好
+```
+
+Chromiumの `GetVSyncParametersIfAvailable() failed` やGoogle API/GCM系のログは、画面表示が正常なら基本的に無視できます。
+
 ---
 
 ## 🔐 セキュリティ上の注意

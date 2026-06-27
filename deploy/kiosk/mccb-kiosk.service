@@ -1,0 +1,26 @@
+[Unit]
+Description=MCCB Manager Chromium kiosk
+After=graphical-session.target network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/mccb-manager
+Environment=DISPLAY=:0
+Environment=GTK_IM_MODULE=fcitx
+Environment=QT_IM_MODULE=fcitx
+Environment=XMODIFIERS=@im=fcitx
+Environment=APP_URL=http://127.0.0.1
+Environment=MAIN_GEOMETRY=1920x1080+0+0
+Environment=DASHBOARD_GEOMETRY=3840x2160+1920+0
+Environment=DASHBOARD_SCALE=1.5
+Environment=CHROMIUM_FLAGS=--disable-features=OptimizationGuideModelDownloading,OnDeviceModelExecution --disable-gpu-vsync
+ExecStartPre=/bin/sleep 8
+ExecStartPre=/usr/bin/xset s off
+ExecStartPre=/usr/bin/xset -dpms
+ExecStartPre=/usr/bin/xset s noblank
+ExecStart=%h/mccb-manager/deploy/kiosk/start-kiosk.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

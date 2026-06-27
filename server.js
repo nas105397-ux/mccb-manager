@@ -16,8 +16,8 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const FILE_PATH = './mccb_data.json';
-const PORT = 5000;
+const FILE_PATH = path.join(__dirname, 'mccb_data.json');
+const PORT = process.env.PORT || 5000;
 
 // マスタデータ初期化用デフォルト値
 const DEFAULT_MCCB = [
