@@ -301,81 +301,25 @@ export function useMccbData() {
       );
 
       runSyncTask(async () => {
-        const res = await fetch(API_URL);
-        const data = await res.json();
-        const latest = parseServerData(data);
+        const res = await fetch(`${API_URL}/${encodeURIComponent(updatedMccb.id)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mccb: updatedMccb }),
+        });
 
-        const oldMccb = latest.mccbList.find((m) => m.id === updatedMccb.id);
-        let logMsg = "";
-        let logType = LOG_TYPES.MASTER_UPDATE;
-
-        if (oldMccb) {
-          const changeDetails = [];
-
-          if (oldMccb.room !== updatedMccb.room) {
-            changeDetails.push(`電気室: ${oldMccb.room} → ${updatedMccb.room}`);
-          }
-
-          if (oldMccb.category !== updatedMccb.category) {
-            changeDetails.push(
-              `区分: ${oldMccb.category} → ${updatedMccb.category}`,
-            );
-          }
-
-          if (oldMccb.name !== updatedMccb.name) {
-            changeDetails.push(`設備名: ${oldMccb.name} → ${updatedMccb.name}`);
-          }
-
-          if (oldMccb.isFavorite !== updatedMccb.isFavorite) {
-            changeDetails.push(
-              `お気に入り${updatedMccb.isFavorite ? "登録しました。" : "解除しました。"}`,
-            );
-          }
-
-          if (oldMccb.isPowerOff !== updatedMccb.isPowerOff) {
-            changeDetails.push(
-              `${updatedMccb.isPowerOff ? "🔴停電しました。" : "🟢送電しました。"}`,
-            );
-            logType = LOG_TYPES.OPERATION;
-          }
-
-          const oldBorrowed = oldMccb.childCards.filter(
-            (c) => c.isBorrowed,
-          ).length;
-          const newBorrowed = updatedMccb.childCards.filter(
-            (c) => c.isBorrowed,
-          ).length;
-          if (oldBorrowed !== newBorrowed) {
-            logType = LOG_TYPES.CARD_LOAN;
-            changeDetails.push(`貸出札: ${oldBorrowed}枚 → ${newBorrowed}枚`);
-          }
-
-          if (changeDetails.length > 0) {
-            logMsg = `【${oldMccb.room} / ${oldMccb.name}】${changeDetails.join(" / ")}`;
-          }
+        if (!res.ok) {
+          throw new Error(`設備更新に失敗しました (${res.status})`);
         }
 
-        const nextList = latest.mccbList.map((item) =>
-          item.id === updatedMccb.id ? updatedMccb : item,
-        );
-        const nextLogs = logMsg
-          ? createUpdatedLogs(
-              logType,
-              logMsg,
-              latest.logs,
-              latest.logSettings.maxSize,
-            )
-          : latest.logs;
-
-        await fetch(API_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...latest,
-            mccbList: nextList,
-            logs: nextLogs,
-          }),
-        });
+        const result = await res.json();
+        if (result.mccb) {
+          setMccbList((prev) =>
+            prev.map((item) => (item.id === result.mccb.id ? result.mccb : item)),
+          );
+        }
+        if (Array.isArray(result.logs)) {
+          setLogs(normalizeLogs(result.logs));
+        }
       });
     },
     [runSyncTask],
