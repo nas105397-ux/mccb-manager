@@ -29,6 +29,60 @@ const syncPastRequests = (mccbList, requests) => {
   });
 };
 
+const isDummyMccb = (mccb) =>
+  mccb?.isDummy || mccb?.name?.includes('ダミー') || mccb?.id?.includes('DUMMY');
+
+const hasBorrowedChildCard = (mccb) =>
+  mccb?.childCards?.some((card) => card.isBorrowed) ?? false;
+
+const compareMccbNameNumeric = (a, b) =>
+  (a.name || '').localeCompare(b.name || '', 'ja', { numeric: true });
+
+const getAvailableDummyCandidates = (targetMccb, mccbList) => {
+  const availableDummies = mccbList.filter(
+    (mccb) => isDummyMccb(mccb) && !hasBorrowedChildCard(mccb)
+  );
+  const sameRoom = availableDummies
+    .filter((mccb) => mccb.room === targetMccb.room)
+    .sort(compareMccbNameNumeric);
+  const otherRooms = availableDummies
+    .filter((mccb) => mccb.room !== targetMccb.room)
+    .sort((a, b) => {
+      if (a.name === 'ダミー0' && b.name !== 'ダミー0') return -1;
+      if (a.name !== 'ダミー0' && b.name === 'ダミー0') return 1;
+      return compareMccbNameNumeric(a, b);
+    });
+
+  return [...sameRoom, ...otherRooms];
+};
+
+const findExistingDummyAssignment = (targetId, requests, localReserved, mccbList) => {
+  const candidates = [
+    localReserved[targetId],
+    ...requests.map((req) => req.reservedCards?.[targetId]).filter(Boolean),
+  ].filter(Boolean);
+
+  for (const reservedInfo of candidates) {
+    if (!reservedInfo?.actualMccbId || reservedInfo.actualMccbId === targetId) {
+      continue;
+    }
+
+    const assignedMccb = mccbList.find(
+      (mccb) => mccb.id === reservedInfo.actualMccbId
+    );
+    if (!isDummyMccb(assignedMccb)) {
+      continue;
+    }
+
+    const availableIdx = assignedMccb.childCards?.findIndex((card) => !card.isBorrowed) ?? -1;
+    if (availableIdx !== -1) {
+      return { finalTargetMccb: assignedMccb, availableIdx };
+    }
+  }
+
+  return null;
+};
+
 /** 対象のダミー設備カードが、他の依頼や手動操作によって占有されているかを厳密に検証する */
 const isDummyOccupiedForSim = (dummy, targetId, requests, localReserved) => {
   // ① 過去の確定リクエストからの逆引き検証
@@ -44,17 +98,8 @@ const isDummyOccupiedForSim = (dummy, targetId, requests, localReserved) => {
     if (resInfo?.actualMccbId === dummy.id && origId !== targetId) return true;
   }
 
-  // ③ 依頼履歴にない完全手動貸出で使用中のダミー札を検知
-  return (
-    dummy.childCards?.some((card) => {
-      if (!card.isBorrowed) return false;
-      return !requests.some(
-        (req) =>
-          req.reservedCards?.[targetId]?.actualMccbId === dummy.id &&
-          req.reservedCards[targetId].cardNo === card.id
-      );
-    }) ?? false
-  );
+  // ③ ダミー代替は親札単位で使用するため、子札が1枚でも使用中なら占有扱い
+  return hasBorrowedChildCard(dummy);
 };
 
 // ==========================================
@@ -81,43 +126,32 @@ export function usePrintPreviewController({ selectedMccbIds, mccbList, requests,
         let finalTargetMccb = originalMccb;
         let isAllocatedFromDummy = false;
 
-        const isOriginalDummy = originalMccb.isDummy || originalMccb.name?.includes('ダミー');
+        const isOriginalDummy = isDummyMccb(originalMccb);
+
+        if (!isOriginalDummy) {
+          const existingDummy = findExistingDummyAssignment(
+            id,
+            requests,
+            localReserved,
+            simulatedMccbList,
+          );
+
+          if (existingDummy) {
+            finalTargetMccb = existingDummy.finalTargetMccb;
+            availableIdx = existingDummy.availableIdx;
+            isAllocatedFromDummy = true;
+          }
+        }
 
         // 通常設備で空き札がない場合のみダミースライド探索を実行
         if (availableIdx === -1 && !isOriginalDummy) {
-          const makeCandidates = (list) =>
-            list.filter((m) => m.name?.includes('ダミー') || m.id?.includes('DUMMY') || m.isDummy);
-
-          // 段階 1: 同室ダミー優先でソートして探索
-          const samePrioritized = makeCandidates(simulatedMccbList).sort((a, b) => {
-            const aSame = a.room === originalMccb.room ? 1 : 0;
-            const bSame = b.room === originalMccb.room ? 1 : 0;
-            if (aSame !== bSame) return bSame - aSame;
-            return (a.name || '').localeCompare(b.name || '', 'ja');
-          });
-
           let foundDummy   = null;
           let dummyCardIdx = -1;
 
-          for (const dummy of samePrioritized) {
+          for (const dummy of getAvailableDummyCandidates(originalMccb, simulatedMccbList)) {
             if (isDummyOccupiedForSim(dummy, id, requests, localReserved)) continue;
             const idx = dummy.childCards?.findIndex((c) => !c.isBorrowed) ?? -1;
             if (idx !== -1) { foundDummy = dummy; dummyCardIdx = idx; break; }
-          }
-
-          // 段階 2: 全エリア・ダミー0最優先のフォールバック
-          if (!foundDummy) {
-            const allSorted = makeCandidates(simulatedMccbList).sort((a, b) => {
-              if (a.name === 'ダミー0' && b.name !== 'ダミー0') return -1;
-              if (a.name !== 'ダミー0' && b.name === 'ダミー0') return 1;
-              return (a.name || '').localeCompare(b.name || '', 'ja');
-            });
-
-            for (const dummy of allSorted) {
-              if (isDummyOccupiedForSim(dummy, id, requests, localReserved)) continue;
-              const idx = dummy.childCards?.findIndex((c) => !c.isBorrowed) ?? -1;
-              if (idx !== -1) { foundDummy = dummy; dummyCardIdx = idx; break; }
-            }
           }
 
           if (foundDummy) {

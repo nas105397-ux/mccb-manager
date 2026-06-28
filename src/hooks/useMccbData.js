@@ -103,51 +103,6 @@ const parseServerData = (data) => {
 };
 
 // ==========================================
-// findAvailableCard: 利用可能な空き子札を探索する（簡略化・高速化）
-// ==========================================
-const findAvailableCard = (targetMccb, currentMccbList) => {
-  const isOriginalDummy =
-    targetMccb.isDummy || targetMccb.name.includes("ダミー");
-
-  // 段階 1: 自身の設備に空き札があるか確認
-  let cardIdx = targetMccb.childCards.findIndex((c) => !c.isBorrowed);
-  if (cardIdx !== -1) return { finalMccb: targetMccb, availableIdx: cardIdx };
-  if (isOriginalDummy) return { finalMccb: null, availableIdx: -1 };
-
-  // 段階 2: 同じ電気室内の空きダミー設備を探索
-  const sameRoomDummies = currentMccbList
-    .filter(
-      (m) =>
-        m.room === targetMccb.room &&
-        (m.name.includes("ダミー") || m.id.includes("DUMMY") || m.isDummy),
-    )
-    .sort((a, b) => a.name.localeCompare(b.name, "ja"));
-
-  for (const dummy of sameRoomDummies) {
-    const idx = dummy.childCards.findIndex((c) => !c.isBorrowed);
-    if (idx !== -1) return { finalMccb: dummy, availableIdx: idx };
-  }
-
-  // 段階 3: 全エリアの空きダミー設備から再探索 (ダミー0最優先)
-  const allDummies = currentMccbList
-    .filter(
-      (m) => m.name.includes("ダミー") || m.id.includes("DUMMY") || m.isDummy,
-    )
-    .sort((a, b) => {
-      if (a.name === "ダミー0" && b.name !== "ダミー0") return -1;
-      if (a.name !== "ダミー0" && b.name === "ダミー0") return 1;
-      return a.name.localeCompare(b.name, "ja");
-    });
-
-  for (const dummy of allDummies) {
-    const idx = dummy.childCards.findIndex((c) => !c.isBorrowed);
-    if (idx !== -1) return { finalMccb: dummy, availableIdx: idx };
-  }
-
-  return { finalMccb: null, availableIdx: -1 };
-};
-
-// ==========================================
 // 2. カスタムフック定義
 // ==========================================
 export function useMccbData() {
@@ -732,128 +687,31 @@ export function useMccbData() {
   const addRequest = useCallback(
     (newRequest) => {
       runSyncTask(async () => {
-        const res = await fetch(API_URL);
-        const data = await res.json();
-        const latest = parseServerData(data);
-
-        // ローカルで競合を避けつつシミュレーションを行うため、現在のマスタ・依頼を基に状態を作る
-        let currentMccbList = latest.mccbList.map((m) => ({
-          ...m,
-          childCards: m.childCards ? m.childCards.map((c) => ({ ...c })) : [],
-        }));
-        const currentRequests = latest.requests || [];
-
-        // 既存依頼から実際に占有されている子札情報をインデックス化（actualMccbId -> Map(cardNo -> workerName)）
-        const actualReservations = new Map();
-        currentRequests.forEach((req) => {
-          if (!req.reservedCards) return;
-          Object.entries(req.reservedCards).forEach(([, resInfo]) => {
-            if (!resInfo || !resInfo.actualMccbId) return;
-            const actualId = resInfo.actualMccbId;
-            if (!actualReservations.has(actualId))
-              actualReservations.set(actualId, new Map());
-            const cardMap = actualReservations.get(actualId);
-            if (resInfo.cardNo != null)
-              cardMap.set(resInfo.cardNo, req.workerName);
-          });
-        });
-
-        // インデックスを反映して childCards の isBorrowed / workerName を更新
-        currentMccbList = currentMccbList.map((mccb) => {
-          const cardMap = actualReservations.get(mccb.id);
-          const updatedCards = mccb.childCards.map((card) => {
-            if (cardMap && cardMap.has(card.id)) {
-              return {
-                ...card,
-                isBorrowed: true,
-                workerName: cardMap.get(card.id) || "",
-              };
-            }
-            return {
-              ...card,
-              isBorrowed: !!card.isBorrowed,
-              workerName: card.workerName || "",
-            };
-          });
-          return { ...mccb, childCards: updatedCards };
-        });
-
-        // 新規割当シミュレーション（簡略化版：childCards の isBorrowed 状態のみ参照して割当）
-        const reservedCards = {};
-        for (const targetId of newRequest.targetMccbIds) {
-          const originalMccb = currentMccbList.find((m) => m.id === targetId);
-          if (!originalMccb) {
-            reservedCards[targetId] = {
-              actualMccbId: null,
-              cardNo: null,
-              displayName: "空きなし",
-              customDummyName: null,
-            };
-            continue;
-          }
-
-          const { finalMccb, availableIdx } = findAvailableCard(
-            originalMccb,
-            currentMccbList,
-          );
-
-          if (finalMccb && availableIdx !== -1) {
-            // マップ上の childCards を更新して次のループで重複が起きないようにする
-            currentMccbList = currentMccbList.map((mccb) => {
-              if (mccb.id === finalMccb.id) {
-                const updatedCards = [...mccb.childCards];
-                updatedCards[availableIdx] = {
-                  ...updatedCards[availableIdx],
-                  isBorrowed: true,
-                  workerName: newRequest.workerName,
-                };
-                return { ...mccb, childCards: updatedCards };
-              }
-              return mccb;
-            });
-
-            const assignedCardNo =
-              finalMccb.childCards[availableIdx]?.id ?? availableIdx + 1;
-
-            reservedCards[targetId] = {
-              actualMccbId: finalMccb.id,
-              cardNo: assignedCardNo,
-              displayName: finalMccb.name,
-              customDummyName: newRequest.dummyNames?.[targetId] || null,
-            };
-          } else {
-            reservedCards[targetId] = {
-              actualMccbId: null,
-              cardNo: null,
-              displayName: "空きなし",
-              customDummyName: null,
-            };
-          }
-        }
-
-        const finalRequest = { ...newRequest, reservedCards };
-        const nextRequests = [finalRequest, ...currentRequests];
-        const nextLogs = createUpdatedLogs(
-          LOG_TYPES.OPERATION,
-          `👷 ${newRequest.workerName}氏の停電依頼を発行し\n子札を貸出予約しました。`,
-          latest.logs,
-          latest.logSettings.maxSize,
-        );
-
-        await fetch(API_URL, {
+        const res = await fetch("/api/requests", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...latest,
-            mccbList: currentMccbList,
-            requests: nextRequests,
-            logs: nextLogs,
-          }),
+          body: JSON.stringify({ request: newRequest }),
         });
 
-        setMccbList(currentMccbList);
-        setRequests(nextRequests);
-        setLogs(nextLogs);
+        if (!res.ok) {
+          throw new Error(`停電作業依頼の発行に失敗しました (${res.status})`);
+        }
+
+        const result = await res.json();
+        if (Array.isArray(result.changedMccbs)) {
+          setMccbList((prev) => {
+            const changedById = new Map(
+              result.changedMccbs.map((mccb) => [mccb.id, mccb]),
+            );
+            return prev.map((mccb) => changedById.get(mccb.id) || mccb);
+          });
+        }
+        if (Array.isArray(result.requests)) {
+          setRequests(result.requests);
+        }
+        if (Array.isArray(result.logs)) {
+          setLogs(normalizeLogs(result.logs));
+        }
       });
     },
     [runSyncTask],
@@ -866,78 +724,32 @@ export function useMccbData() {
       setRequests((prev) => prev.filter((req) => req.id !== id));
 
       runSyncTask(async () => {
-        const res = await fetch(API_URL);
-        const data = await res.json();
-        const latest = parseServerData(data);
-
-        let currentMccbList = latest.mccbList;
-        let currentRequests = latest.requests;
-        let currentHistory = latest.requestHistory || [];
-
-        const reqToDelete = currentRequests.find((r) => r.id === id);
-
-        // 確保されていた子札・ダミー札の返却解放処理
-        if (reqToDelete?.reservedCards) {
-          Object.keys(reqToDelete.reservedCards).forEach((targetId) => {
-            const resInfo = reqToDelete.reservedCards[targetId];
-            if (resInfo?.actualMccbId && resInfo?.cardNo) {
-              currentMccbList = currentMccbList.map((mccb) => {
-                if (mccb.id === resInfo.actualMccbId && mccb.childCards) {
-                  const cardIdx = mccb.childCards.findIndex(
-                    (c) => c.id === resInfo.cardNo,
-                  );
-                  if (cardIdx !== -1) {
-                    const card = mccb.childCards[cardIdx];
-                    if (card.workerName === reqToDelete.workerName) {
-                      const updatedCards = [...mccb.childCards];
-                      updatedCards[cardIdx] = {
-                        ...card,
-                        isBorrowed: false,
-                        workerName: "",
-                      };
-                      return { ...mccb, childCards: updatedCards };
-                    }
-                  }
-                }
-                return mccb;
-              });
-            }
-          });
-        }
-
-        const completedRequest = reqToDelete
-          ? { ...reqToDelete, completedTimestamp: getTimestamp() }
-          : null;
-        const nextRequests = currentRequests.filter((req) => req.id !== id);
-
-        const maxSize = latest.historySettings?.maxSize || DEFAULT_MAX_SIZE;
-        const nextHistory = completedRequest
-          ? [completedRequest, ...currentHistory].slice(0, maxSize)
-          : currentHistory;
-        const completedWorkerName = reqToDelete?.workerName || "作業者";
-        const nextLogs = createUpdatedLogs(
-          LOG_TYPES.OPERATION,
-          `👷 ${completedWorkerName}氏の作業完了に伴い\n子札が返却されました。`,
-          latest.logs,
-          latest.logSettings.maxSize,
-        );
-
-        await fetch(API_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...latest,
-            mccbList: currentMccbList,
-            requests: nextRequests,
-            requestHistory: nextHistory,
-            logs: nextLogs,
-          }),
+        const res = await fetch(`/api/requests/${encodeURIComponent(id)}`, {
+          method: "DELETE",
         });
 
-        setMccbList(currentMccbList);
-        setRequests(nextRequests);
-        setRequestHistory(nextHistory);
-        setLogs(nextLogs);
+        if (!res.ok) {
+          throw new Error(`停電作業依頼の完了処理に失敗しました (${res.status})`);
+        }
+
+        const result = await res.json();
+        if (Array.isArray(result.changedMccbs)) {
+          setMccbList((prev) => {
+            const changedById = new Map(
+              result.changedMccbs.map((mccb) => [mccb.id, mccb]),
+            );
+            return prev.map((mccb) => changedById.get(mccb.id) || mccb);
+          });
+        }
+        if (Array.isArray(result.requests)) {
+          setRequests(result.requests);
+        }
+        if (Array.isArray(result.requestHistory)) {
+          setRequestHistory(result.requestHistory);
+        }
+        if (Array.isArray(result.logs)) {
+          setLogs(normalizeLogs(result.logs));
+        }
       });
     },
     [runSyncTask],

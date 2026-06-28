@@ -297,6 +297,21 @@ export function createMccbStore({ dbPath, jsonPath, defaults }) {
     };
   };
 
+  const writeMccbs = (mccbs) => {
+    const now = Date.now();
+
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      for (const mccb of mccbs) {
+        writeMccb(mccb, now);
+      }
+      db.exec('COMMIT');
+    } catch (error) {
+      db.exec('ROLLBACK');
+      throw error;
+    }
+  };
+
   if (!hasRows()) {
     if (fs.existsSync(jsonPath)) {
       const rawData = fs.readFileSync(jsonPath, 'utf-8');
@@ -313,5 +328,6 @@ export function createMccbStore({ dbPath, jsonPath, defaults }) {
     saveAll,
     updateMccb,
     writeCollection,
+    writeMccbs,
   };
 }
