@@ -115,6 +115,7 @@ function AppContent() {
                     historySettings={controller.historySettings}
                     onClearRequestHistory={controller.clearRequestHistory}
                     onChangeMaxHistorySize={controller.changeMaxHistorySize}
+                    onCreateDatabaseBackup={controller.createDatabaseBackup}
                   />
                 )}
 

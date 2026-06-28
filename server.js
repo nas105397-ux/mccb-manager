@@ -19,10 +19,15 @@ const __dirname = path.dirname(__filename);
 
 const DATA_DIR = path.join(__dirname, 'data');
 const FILE_PATH = path.join(DATA_DIR, 'mccb_data.json');
+const BACKUP_DIR = path.join(DATA_DIR, 'backups');
 const LEGACY_JSON_PATH = path.join(__dirname, 'mccb_data.json');
 const LEGACY_DB_PATH = path.join(__dirname, 'mccb_data.sqlite');
 const DB_PATH = process.env.MCCB_DB_PATH || path.join(DATA_DIR, 'mccb_data.sqlite');
 const PORT = process.env.PORT || 5000;
+const BACKUP_MAX_FILES = Number(process.env.MCCB_BACKUP_MAX_FILES || 10);
+const WAL_CHECKPOINT_INTERVAL_MS = Number(
+  process.env.MCCB_WAL_CHECKPOINT_INTERVAL_MS || 10 * 60 * 1000,
+);
 
 function ensureDefaultDatabasePath() {
   if (process.env.MCCB_DB_PATH) return;
@@ -278,6 +283,23 @@ const store = createMccbStore({
   defaults: DEFAULT_DATA,
 });
 
+store.checkpointWal({ force: true, mode: 'TRUNCATE' });
+
+const walCheckpointTimer = setInterval(() => {
+  store.checkpointWal({ mode: 'PASSIVE' });
+}, WAL_CHECKPOINT_INTERVAL_MS);
+walCheckpointTimer.unref?.();
+
+function shutdown(signal) {
+  console.log(`\n${signal} を受信したため、SQLiteを安全に終了します。`);
+  clearInterval(walCheckpointTimer);
+  store.close();
+  process.exit(0);
+}
+
+process.once('SIGINT', () => shutdown('SIGINT'));
+process.once('SIGTERM', () => shutdown('SIGTERM'));
+
 // ==========================================
 // 2. API エンドポイントの定義
 // ==========================================
@@ -331,6 +353,33 @@ app.get('/api/request-history', (req, res) => {
   } catch (error) {
     console.error("依頼履歴ページ読み込み失敗:", error);
     res.status(500).json({ error: '依頼履歴の読み込みに失敗しました。' });
+  }
+});
+
+/** SQLite DBの手動バックアップ */
+app.post('/api/admin/backups', (req, res) => {
+  try {
+    const backup = store.createBackup({
+      backupDir: BACKUP_DIR,
+      maxFiles: BACKUP_MAX_FILES,
+    });
+    const logs = createUpdatedLogs(
+      LOG_TYPES.SYSTEM,
+      `SQLite DBバックアップを作成しました: ${backup.fileName}`,
+      store.readCollection('logs'),
+      store.readCollection('logSettings')?.maxSize || 500,
+    );
+    store.writeCollection('logs', logs);
+
+    res.json({
+      status: 'success',
+      backup,
+      logs,
+      version: store.getVersion(),
+    });
+  } catch (error) {
+    console.error("DBバックアップ作成失敗:", error);
+    res.status(500).json({ error: 'DBバックアップの作成に失敗しました' });
   }
 });
 

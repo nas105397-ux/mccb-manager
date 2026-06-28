@@ -931,6 +931,20 @@ export function useMccbData() {
     [applyLogs, applyVersion, deviceGroups, runSyncTask],
   );
 
+  const createDatabaseBackup = useCallback(() => {
+    runSyncTask(async () => {
+      const res = await fetch("/api/admin/backups", { method: "POST" });
+      if (!res.ok) throw new Error(`DBバックアップの作成に失敗しました (${res.status})`);
+
+      const result = await res.json();
+      if (Array.isArray(result.logs)) {
+        applyLogs(result.logs);
+      }
+      applyVersion(result.version);
+      alert(`DBバックアップを作成しました。\n${result.backup?.fileName || ""}`);
+    });
+  }, [applyLogs, applyVersion, runSyncTask]);
+
   // --- ⚡ 停電作業依頼発行（自動スライド札割り当てシミュレーション） ---
   const addRequest = useCallback(
     (newRequest) => {
@@ -1043,6 +1057,7 @@ export function useMccbData() {
     addDeviceGroup,
     updateDeviceGroup,
     deleteDeviceGroup,
+    createDatabaseBackup,
     updateMccb,
     saveMccbEntry,
     deleteMccb,

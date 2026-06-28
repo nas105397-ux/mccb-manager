@@ -53,8 +53,19 @@ const toMccbObject = (row, childCards = []) => ({
   childCards,
 });
 
+const createBackupFileName = () => {
+  const now = new Date();
+  const pad = (value) => String(value).padStart(2, '0');
+  return [
+    'mccb_data',
+    `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`,
+    `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`,
+  ].join('_') + '.sqlite';
+};
+
 export function createMccbStore({ dbPath, jsonPath, defaults }) {
   const db = new DatabaseSync(dbPath);
+  let lastCheckpointAt = 0;
 
   db.exec(`
     PRAGMA journal_mode = WAL;
@@ -118,6 +129,71 @@ export function createMccbStore({ dbPath, jsonPath, defaults }) {
     const nextVersion = Math.max(Date.now(), getVersion() + 1);
     setVersion(nextVersion);
     return nextVersion;
+  };
+
+  const checkpointWal = ({ force = false, mode = 'PASSIVE' } = {}) => {
+    const now = Date.now();
+    if (!force && now - lastCheckpointAt < 60_000) return null;
+
+    const checkpointMode = mode === 'TRUNCATE' ? 'TRUNCATE' : 'PASSIVE';
+    try {
+      const result = db
+        .prepare(`PRAGMA wal_checkpoint(${checkpointMode})`)
+        .all();
+      lastCheckpointAt = now;
+      return result?.[0] || null;
+    } catch (error) {
+      console.warn('SQLite WAL checkpoint skipped:', error.message);
+      return null;
+    }
+  };
+
+  const close = () => {
+    checkpointWal({ force: true, mode: 'TRUNCATE' });
+    db.close();
+  };
+
+  const createBackup = ({ backupDir, maxFiles = 10 } = {}) => {
+    if (!backupDir) {
+      throw new Error('backupDir is required');
+    }
+
+    checkpointWal({ force: true, mode: 'TRUNCATE' });
+    fs.mkdirSync(backupDir, { recursive: true });
+
+    const fileName = createBackupFileName();
+    const backupPath = `${backupDir}/${fileName}`;
+    fs.copyFileSync(dbPath, backupPath);
+
+    const backupFiles = fs
+      .readdirSync(backupDir, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && /^mccb_data_\d{8}_\d{6}\.sqlite$/.test(entry.name))
+      .map((entry) => {
+        const filePath = `${backupDir}/${entry.name}`;
+        const stat = fs.statSync(filePath);
+        return {
+          fileName: entry.name,
+          path: filePath,
+          size: stat.size,
+          createdAt: stat.mtimeMs,
+        };
+      })
+      .sort((a, b) => b.createdAt - a.createdAt);
+
+    for (const oldFile of backupFiles.slice(Math.max(1, maxFiles))) {
+      fs.unlinkSync(oldFile.path);
+    }
+
+    const keptFiles = backupFiles
+      .filter((file) => fs.existsSync(file.path))
+      .map(({ fileName, size, createdAt }) => ({ fileName, size, createdAt }));
+
+    return {
+      fileName,
+      path: backupPath,
+      size: fs.statSync(backupPath).size,
+      keptFiles,
+    };
   };
 
   const readCollection = (key) => {
@@ -482,6 +558,9 @@ export function createMccbStore({ dbPath, jsonPath, defaults }) {
   }
 
   return {
+    checkpointWal,
+    close,
+    createBackup,
     getVersion,
     createMccb,
     deleteMccb,

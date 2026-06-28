@@ -14,7 +14,9 @@ dist-ssr
 mccb_data.sqlite*
 data/*.sqlite*
 data/**/*.sqlite*
+data/backups/*
 !data/.gitkeep
+!data/backups/.gitkeep
 
 # Editor directories and files
 .vscode/*

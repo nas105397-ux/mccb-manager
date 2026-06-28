@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import PrintPreviewForm from "./PrintPreviewForm";
 import { useRequestFormController } from "../hooks/useRequestFormController";
 import { VariableSizeList as List } from "react-window";
@@ -32,6 +32,33 @@ const ROW_HEIGHT_SELECTED = 40;
 const ROW_HEIGHT_SELECTED_DUMMY = 87;
 const ROW_GAP = 1; // 行間の余白（上下）
 
+function DummyNameInput({ mccbId, value, onChange }) {
+  const [draft, setDraft] = useState(() => value || "");
+
+  const commitValue = (nextValue) => {
+    if ((value || "") !== nextValue) {
+      onChange(mccbId, nextValue);
+    }
+  };
+
+  return (
+    <input
+      type="text"
+      value={draft}
+      onChange={(e) => {
+        const nextValue = e.target.value;
+        setDraft(nextValue);
+      }}
+      onBlur={() => commitValue(draft)}
+      placeholder="✏️ 代替する実際の設備名称を入力"
+      className={INPUT_DUMMY_CLASS}
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
+    />
+  );
+}
+
 // ==========================================
 // RequestMccbRow: 1行単位の軽量コンポーネント（独立隔離）
 // ==========================================
@@ -61,13 +88,11 @@ const RequestMccbRow = React.memo(
 
         {isSelected && isDummy && (
           <div className="mt-1.5 pl-6">
-            <input
-              type="text"
-              value={dummyName || ""}
-              onChange={(e) => onDummyNameChange(mccb.id, e.target.value)}
-              placeholder="✏️ 代替する実際の設備名称を入力"
-              className={INPUT_DUMMY_CLASS}
-              onClick={(e) => e.stopPropagation()}
+            <DummyNameInput
+              key={mccb.id}
+              mccbId={mccb.id}
+              value={dummyName}
+              onChange={onDummyNameChange}
             />
           </div>
         )}
@@ -108,17 +133,17 @@ export default function RequestFormPanel({
   } = useRequestFormController({ mccbList, onAddRequest });
 
   const listRef = useRef(null);
-  const dummyNamesKey = JSON.stringify(dummyNames);
 
   useEffect(() => {
-    // 選択状態やダミー名が変わったら行高さを再計測
+    // 選択状態や絞り込みが変わったら行高さを再計測する。
+    // 代替名称の入力値は高さに影響しないため、入力中のフォーカス維持を優先する。
     if (
       listRef.current &&
       typeof listRef.current.resetAfterIndex === "function"
     ) {
       listRef.current.resetAfterIndex(0, true);
     }
-  }, [selectedMccbIds, filteredMccbList.length, dummyNamesKey]);
+  }, [selectedMccbIds, filteredMccbList.length]);
 
   // --- 画面レンダリング ---
   return (
@@ -207,6 +232,7 @@ export default function RequestFormPanel({
               ref={listRef}
               height={224}
               itemCount={filteredMccbList.length}
+              itemKey={(index) => filteredMccbList[index]?.id || index}
               itemSize={(index) => {
                 const mccb = filteredMccbList[index];
                 if (!mccb) return ROW_HEIGHT_COLLAPSED + ROW_GAP;

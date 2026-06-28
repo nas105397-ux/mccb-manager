@@ -113,6 +113,7 @@ export default function AdminPanel({
   historySettings = { maxSize: 500 },
   onClearRequestHistory = () => {},
   onChangeMaxHistorySize = () => {},
+  onCreateDatabaseBackup = () => {},
 }) {
   const {
     room,
@@ -501,8 +502,26 @@ export default function AdminPanel({
             </div>
           </div>
 
+          <div className="lg:col-span-4 rounded-xl border border-gray-200 p-4 bg-white">
+            <h3 className={UI_STYLES.labelSubsection}>
+              DBバックアップ
+            </h3>
+            <div className="space-y-4 text-xs font-bold">
+              <div className="text-gray-500 font-medium">
+                現在のSQLite DBを data/backups に保存します。最新10件を保持します。
+              </div>
+              <button
+                type="button"
+                onClick={onCreateDatabaseBackup}
+                className={UI_STYLES.btnCsvAction}
+              >
+                💾 DBバックアップ作成
+              </button>
+            </div>
+          </div>
+
           {/* 📜 SECTION 6: システム操作ログ履歴セクション */}
-          <div className="lg:col-span-8 rounded-xl border border-gray-200 p-4 bg-white space-y-3">
+          <div className="lg:col-span-4 rounded-xl border border-gray-200 p-4 bg-white space-y-3">
             <h3 className={UI_STYLES.labelSubsection}>
               システム操作ログ履歴 (直近の操作から順に表示)
             </h3>
