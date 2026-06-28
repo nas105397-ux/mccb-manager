@@ -126,7 +126,7 @@ code {
      animations for kiosk builds.
    ========================================================== */
 
-@media (prefers-reduced-motion: reduce) {
+/*@media (prefers-reduced-motion: reduce) {
     *,
     *::before,
     *::after {
@@ -135,10 +135,11 @@ code {
         transition-duration: 0ms !important;
         scroll-behavior: auto !important;
     }
-}
+}*/
 
 /* Aggressive global override used for kiosk deployments when
-   you want to disable most animations to improve performance. */
+you want to disable most animations to improve performance. */
+/*
 *,
 *::before,
 *::after {
@@ -146,4 +147,4 @@ code {
     animation-delay: 0ms !important;
     transition-duration: 0ms !important;
     scroll-behavior: auto !important;
-}
+    }*/

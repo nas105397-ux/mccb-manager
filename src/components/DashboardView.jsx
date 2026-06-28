@@ -1,28 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useDashboardController, POLL_INTERVAL } from '../hooks/useDashboardController';
+import VirtualizedOffMccbGrid from './VirtualizedOffMccbGrid';
 
 // ==========================================
 // 定数定義
 // ==========================================
-
-/** 区分バッジの色クラス */
-const CATEGORY_COLORS = {
-  '1スト': 'bg-white text-gray-900 border-gray-300 shadow-sm',
-  '2スト': 'bg-black text-white border-gray-700',
-  '3スト': 'bg-red-600 text-white border-red-600',
-  '4スト': 'bg-blue-600 text-white border-blue-600',
-  '5スト': 'bg-yellow-400 text-gray-900 border-yellow-400',
-  '6スト': 'bg-green-600 text-white border-green-600',
-  共通: 'bg-gray-100 text-gray-700 border-gray-300',
-};
-
-/** 列数選択のグリッドクラス */
-const COL_LAYOUT_CLASS = {
-  auto: 'grid-cols-[repeat(auto-fill,minmax(330px,1fr))]',
-  3: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3',
-  4: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
-  5: 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5',
-};
 
 /** テーマ別スタイル（ダーク） */
 const DARK_STYLES = {
@@ -46,16 +28,7 @@ const LIGHT_STYLES = {
 // スタイルヘルパー
 // ==========================================
 
-const getColLayoutClass = (colLayout) => COL_LAYOUT_CLASS[colLayout] ?? COL_LAYOUT_CLASS.auto;
-
 const getThemeStyle = (isDarkMode, key) => (isDarkMode ? DARK_STYLES : LIGHT_STYLES)[key] ?? '';
-
-const getCategoryBadgeClass = (category, isDarkMode) => {
-  if (CATEGORY_COLORS[category]) return `border ${CATEGORY_COLORS[category]}`;
-  return isDarkMode
-    ? 'border bg-gray-800 text-gray-300 border-gray-700'
-    : 'border bg-gray-50 text-gray-600 border-gray-200';
-};
 
 /** ログメッセージを「見出し行 + 詳細行」で表示できる形に整形 */
 const formatActivityMessage = (message) => {
@@ -209,7 +182,7 @@ export default function DashboardView({ onClose }) {
             </span>
           </div>
 
-          <div className="flex-1 overflow-y-auto pr-1 min-h-0">
+          <div className="flex-1 min-h-0 flex">
             {stats.offCount === 0 ? (
               <div className={`h-full flex flex-col items-center justify-center border-2 border-dashed rounded-xl space-y-4 ${
                 isDarkMode ? 'text-gray-500 border-gray-800 bg-gray-900/30' : 'text-gray-400 border-gray-300 bg-gray-50'
@@ -221,86 +194,11 @@ export default function DashboardView({ onClose }) {
                 <p className={`text-sm ${isDarkMode ? 'text-gray-600' : 'text-gray-400'}`}>全系統、通常送電運用中</p>
               </div>
             ) : (
-              <div className={`grid gap-4 pb-2 transition-all duration-300 ${
-                getColLayoutClass(colLayout)
-              }`}>
-                {processedOffMccbs.map((mccb) => {
-                  const workers = mccb.childCards?.filter(c => c.isBorrowed) || [];
-                  const isAlternative = mccb.name.includes('(');
-
-                  return (
-                    <div 
-                      key={mccb.id} 
-                      className={`border-4 rounded-xl p-5 shadow-xl flex flex-col justify-between min-h-[200px] transition-colors will-change-transform ${
-                        isDarkMode 
-                          ? 'from-gray-800 to-gray-850 bg-gradient-to-b border-red-600' 
-                          : 'bg-red-50/40 border-red-500'
-                      }`}
-                    >
-                      <div>
-                        <div className="flex justify-between items-start gap-2 mb-2">
-                          <span className={`text-xs border px-2.5 py-0.5 rounded font-black truncate ${
-                            isDarkMode ? 'bg-gray-950 border-gray-700 text-gray-300' : 'bg-white border-gray-300 text-gray-600'
-                          }`}>
-                            {mccb.room}
-                          </span>
-                          <span className={`text-xs px-2.5 py-0.5 rounded font-black shrink-0 ${getCategoryBadgeClass(mccb.category, isDarkMode)}`}>
-                            {mccb.category}
-                          </span>
-                        </div>
-
-                        <h3 className={`text-2xl font-black tracking-wide border-b-2 pb-2 mb-3 truncate ${
-                          isAlternative ? (isDarkMode ? 'text-amber-400 font-extrabold' : 'text-orange-400 font-extrabold') : (isDarkMode ? 'text-white' : 'text-gray-900')
-                        } ${isDarkMode ? 'border-gray-700' : 'border-red-200'}`}>
-                          {mccb.name}
-                        </h3>
-                        
-                        <div className="space-y-1.5">
-                          <p className={`text-xs font-extrabold tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                            ▼ 子札保持者:
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            {workers.length === 0 ? (
-                              <span className={`text-xs font-black px-2.5 py-1 rounded animate-pulse border will-change-transform ${
-                                isDarkMode ? 'bg-amber-950/40 border-amber-900 text-amber-400' : 'bg-amber-50 border-amber-200 text-amber-700'
-                              }`}>
-                                ⚠️ 札登録なし（直接操作ロック中）
-                              </span>
-                            ) : (
-                              workers.map((card) => (
-                                <span 
-                                  key={card.id} 
-                                  className={`text-sm border-2 px-3 py-1 rounded font-black flex items-center gap-2 shadow-md ${
-                                    isDarkMode ? 'bg-gray-950 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-800'
-                                  }`}
-                                >
-                                  <span className={`font-mono text-xs px-1.5 py-0.5 rounded ${
-                                    isDarkMode ? 'bg-amber-950 text-amber-400' : 'bg-amber-100 text-amber-700'
-                                  }`}>
-                                    No.{card.id}
-                                  </span>
-                                  {card.workerName}
-                                </span>
-                              ))
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className={`mt-4 pt-2 border-t flex justify-between items-center text-[10px] font-mono ${
-                        isDarkMode ? 'border-gray-700/60 text-gray-500' : 'border-red-200 text-gray-400'
-                      }`}>
-                        <span>ID: {mccb.id}</span>
-                        <span className={`px-1.5 py-0.5 rounded font-black border ${
-                          isDarkMode ? 'bg-red-950 text-red-500 border-red-900/40' : 'bg-red-100 text-red-700 border-red-200'
-                        }`}>
-                          操作禁止
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <VirtualizedOffMccbGrid
+                items={processedOffMccbs}
+                colLayout={colLayout}
+                isDarkMode={isDarkMode}
+              />
             )}
           </div>
         </div>
