@@ -21,6 +21,7 @@ export default function VirtualizedMccbGrid({
   hGap = 12,
   rowGap = 12,
 }) {
+  const edgeGap = 2;
   const containerRef = useRef(null);
   const [containerWidth, setContainerWidth] = useState(
     typeof window !== "undefined" ? window.innerWidth : 1024,
@@ -59,7 +60,7 @@ export default function VirtualizedMccbGrid({
   }, []);
 
   const itemWidth = Math.floor(
-    (containerWidth - hGap * (columns - 1)) / columns,
+    (containerWidth - edgeGap * 2 - hGap * (columns - 1)) / columns,
   );
   const rowCount = Math.ceil(items.length / columns);
   const rowHeight = estimatedCardHeight + rowGap; // 垂直ギャップは rowGap でコントロールする
@@ -99,6 +100,9 @@ export default function VirtualizedMccbGrid({
           display: "flex",
           gap: `${hGap}px`,
           boxSizing: "border-box",
+          width: "100%",
+          paddingLeft: edgeGap,
+          paddingRight: edgeGap,
           paddingBottom: 0,
           alignItems: "flex-start", // 子要素は固定高さ（estimatedCardHeight）にし、下側にギャップを作る
         }}
