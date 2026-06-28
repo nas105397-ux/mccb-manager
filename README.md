@@ -194,6 +194,24 @@
 
 運用データは `data/mccb_data.sqlite` に保存されます。`data/mccb_data.json` は初回移行や復旧時の元データとして使用できます。
 
+バックアップは `data/backups/` に保存されます。サーバー起動時に1回、その後24時間ごとに自動作成され、最新10件を保持します。管理画面から手動作成もできます。
+
+自動バックアップ設定:
+
+```bash
+# 自動バックアップを無効化
+MCCB_AUTO_BACKUP_ENABLED=0
+
+# 起動時バックアップだけ無効化
+MCCB_AUTO_BACKUP_ON_START=0
+
+# 自動バックアップ間隔を変更（例: 12時間）
+MCCB_AUTO_BACKUP_INTERVAL_MS=43200000
+
+# 保持件数を変更
+MCCB_BACKUP_MAX_FILES=20
+```
+
 ```json
 {
   "mccbList": [

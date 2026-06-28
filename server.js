@@ -25,6 +25,11 @@ const LEGACY_DB_PATH = path.join(__dirname, 'mccb_data.sqlite');
 const DB_PATH = process.env.MCCB_DB_PATH || path.join(DATA_DIR, 'mccb_data.sqlite');
 const PORT = process.env.PORT || 5000;
 const BACKUP_MAX_FILES = Number(process.env.MCCB_BACKUP_MAX_FILES || 10);
+const AUTO_BACKUP_ENABLED = process.env.MCCB_AUTO_BACKUP_ENABLED !== '0';
+const AUTO_BACKUP_ON_START = process.env.MCCB_AUTO_BACKUP_ON_START !== '0';
+const AUTO_BACKUP_INTERVAL_MS = Number(
+  process.env.MCCB_AUTO_BACKUP_INTERVAL_MS || 24 * 60 * 60 * 1000,
+);
 const WAL_CHECKPOINT_INTERVAL_MS = Number(
   process.env.MCCB_WAL_CHECKPOINT_INTERVAL_MS || 10 * 60 * 1000,
 );
@@ -290,9 +295,55 @@ const walCheckpointTimer = setInterval(() => {
 }, WAL_CHECKPOINT_INTERVAL_MS);
 walCheckpointTimer.unref?.();
 
+function createDatabaseBackup(reason = '手動') {
+  const backup = store.createBackup({
+    backupDir: BACKUP_DIR,
+    maxFiles: BACKUP_MAX_FILES,
+  });
+  const logs = createUpdatedLogs(
+    LOG_TYPES.SYSTEM,
+    `${reason}DBバックアップを作成しました: ${backup.fileName}`,
+    store.readCollection('logs'),
+    store.readCollection('logSettings')?.maxSize || 500,
+  );
+  store.writeCollection('logs', logs);
+
+  return {
+    backup,
+    logs,
+    version: store.getVersion(),
+  };
+}
+
+const backupTimers = [];
+if (AUTO_BACKUP_ENABLED) {
+  if (AUTO_BACKUP_ON_START) {
+    const startupBackupTimer = setTimeout(() => {
+      try {
+        createDatabaseBackup('起動時自動');
+      } catch (error) {
+        console.error("起動時DBバックアップ作成失敗:", error);
+      }
+    }, 3000);
+    startupBackupTimer.unref?.();
+    backupTimers.push(startupBackupTimer);
+  }
+
+  const autoBackupTimer = setInterval(() => {
+    try {
+      createDatabaseBackup('定期自動');
+    } catch (error) {
+      console.error("定期DBバックアップ作成失敗:", error);
+    }
+  }, AUTO_BACKUP_INTERVAL_MS);
+  autoBackupTimer.unref?.();
+  backupTimers.push(autoBackupTimer);
+}
+
 function shutdown(signal) {
   console.log(`\n${signal} を受信したため、SQLiteを安全に終了します。`);
   clearInterval(walCheckpointTimer);
+  backupTimers.forEach((timer) => clearInterval(timer));
   store.close();
   process.exit(0);
 }
@@ -359,23 +410,13 @@ app.get('/api/request-history', (req, res) => {
 /** SQLite DBの手動バックアップ */
 app.post('/api/admin/backups', (req, res) => {
   try {
-    const backup = store.createBackup({
-      backupDir: BACKUP_DIR,
-      maxFiles: BACKUP_MAX_FILES,
-    });
-    const logs = createUpdatedLogs(
-      LOG_TYPES.SYSTEM,
-      `SQLite DBバックアップを作成しました: ${backup.fileName}`,
-      store.readCollection('logs'),
-      store.readCollection('logSettings')?.maxSize || 500,
-    );
-    store.writeCollection('logs', logs);
+    const { backup, logs, version } = createDatabaseBackup('手動');
 
     res.json({
       status: 'success',
       backup,
       logs,
-      version: store.getVersion(),
+      version,
     });
   } catch (error) {
     console.error("DBバックアップ作成失敗:", error);
