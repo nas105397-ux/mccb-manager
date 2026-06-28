@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 mccb_data.sqlite*
+data/*.sqlite*
+data/**/*.sqlite*
+!data/.gitkeep
 
 # Editor directories and files
 .vscode/*

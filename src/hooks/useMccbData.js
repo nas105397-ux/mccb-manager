@@ -1,6 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 const API_URL = "/api/mccb";
+const CORE_API_URL = `${API_URL}?core=1`;
+const VERSION_URL = `${API_URL}/version`;
+const LOGS_PAGE_URL = "/api/logs";
+const HISTORY_PAGE_URL = "/api/request-history";
 const DEFAULT_ROOMS = [
   "1階高圧電気室",
   "1階電気室",
@@ -20,6 +24,8 @@ const DEFAULT_CATEGORIES = [
 ];
 const POLL_INTERVAL = 5000; // 3s -> 5s に緩和
 const DEFAULT_MAX_SIZE = 500;
+const LOG_PAGE_SIZE = 50;
+const HISTORY_PAGE_SIZE = 20;
 const CHILD_CARD_COUNT = 5;
 const LOG_TYPES = Object.freeze({
   OPERATION: "操作",
@@ -84,6 +90,19 @@ const normalizeLogs = (logs) => {
   }));
 };
 
+const createPageInfo = (page = 1, pageSize = 50, total = 0) => ({
+  page,
+  pageSize,
+  total,
+  totalPages: Math.max(1, Math.ceil(total / pageSize)),
+});
+
+const getPageSlice = (items, pageInfo) => {
+  const safeItems = Array.isArray(items) ? items : [];
+  const start = (pageInfo.page - 1) * pageInfo.pageSize;
+  return safeItems.slice(start, start + pageInfo.pageSize);
+};
+
 /** サーバー受信データのパース・デフォルト値マージ */
 const parseServerData = (data) => {
   const source = data && typeof data === "object" ? data : {};
@@ -99,6 +118,7 @@ const parseServerData = (data) => {
     deviceGroups: source.deviceGroups || [],
     requestHistory: source.requestHistory || [],
     historySettings: source.historySettings || { maxSize: DEFAULT_MAX_SIZE },
+    version: Number(source.version || 0),
   };
 };
 
@@ -110,10 +130,18 @@ export function useMccbData() {
   const [rooms, setRooms] = useState(DEFAULT_ROOMS);
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
   const [logs, setLogs] = useState([]);
+  const [pagedLogs, setPagedLogs] = useState([]);
+  const [logPageInfo, setLogPageInfo] = useState(() =>
+    createPageInfo(1, LOG_PAGE_SIZE),
+  );
   const [logSettings, setLogSettings] = useState({ maxSize: DEFAULT_MAX_SIZE });
   const [requests, setRequests] = useState([]);
   const [deviceGroups, setDeviceGroups] = useState([]);
   const [requestHistory, setRequestHistory] = useState([]);
+  const [pagedRequestHistory, setPagedRequestHistory] = useState([]);
+  const [historyPageInfo, setHistoryPageInfo] = useState(() =>
+    createPageInfo(1, HISTORY_PAGE_SIZE),
+  );
   const [historySettings, setHistorySettings] = useState({
     maxSize: DEFAULT_MAX_SIZE,
   });
@@ -122,6 +150,37 @@ export function useMccbData() {
   const syncQueue = useRef(Promise.resolve());
   const pauseTimer = useRef(0);
   const syncInProgress = useRef(false);
+  const lastVersion = useRef(0);
+
+  const applyLogs = useCallback((nextLogs) => {
+    const normalizedLogs = normalizeLogs(nextLogs);
+    setLogs(normalizedLogs);
+    const nextPageInfo = createPageInfo(
+      1,
+      LOG_PAGE_SIZE,
+      normalizedLogs.length,
+    );
+    setLogPageInfo(nextPageInfo);
+    setPagedLogs(getPageSlice(normalizedLogs, nextPageInfo));
+  }, []);
+
+  const applyRequestHistory = useCallback((nextHistory) => {
+    const normalizedHistory = Array.isArray(nextHistory) ? nextHistory : [];
+    setRequestHistory(normalizedHistory);
+    const nextPageInfo = createPageInfo(
+      1,
+      HISTORY_PAGE_SIZE,
+      normalizedHistory.length,
+    );
+    setHistoryPageInfo(nextPageInfo);
+    setPagedRequestHistory(getPageSlice(normalizedHistory, nextPageInfo));
+  }, []);
+
+  const applyVersion = useCallback((version) => {
+    if (version) {
+      lastVersion.current = Number(version);
+    }
+  }, []);
 
   /** 非同期サーバー書き込み処理をキューイングし、自動ポーリングと衝突させない制御ラッパー */
   const runSyncTask = useCallback((taskFn) => {
@@ -141,21 +200,96 @@ export function useMccbData() {
 
   // --- 定期自動同期ポーリング設定 (useEffect) ---
   useEffect(() => {
-    const fetchData = () => {
-      if (Date.now() < pauseTimer.current || syncInProgress.current) return;
-      fetch(API_URL)
+    const applyLogsPageFromArray = (nextLogs) => {
+      const nextPageInfo = createPageInfo(1, LOG_PAGE_SIZE, nextLogs.length);
+      setLogPageInfo(nextPageInfo);
+      setPagedLogs(getPageSlice(nextLogs, nextPageInfo));
+    };
+
+    const applyHistoryPageFromArray = (nextHistory) => {
+      const nextPageInfo = createPageInfo(
+        1,
+        HISTORY_PAGE_SIZE,
+        nextHistory.length,
+      );
+      setHistoryPageInfo(nextPageInfo);
+      setPagedRequestHistory(getPageSlice(nextHistory, nextPageInfo));
+    };
+
+    const applyServerData = (data) => {
+      const parsed = parseServerData(data);
+      lastVersion.current = parsed.version || lastVersion.current;
+      setMccbList(parsed.mccbList);
+      setRooms(parsed.rooms);
+      setCategories(parsed.categories);
+      if (!data.core) {
+        setLogs(parsed.logs);
+        applyLogsPageFromArray(parsed.logs);
+      }
+      setLogSettings(parsed.logSettings);
+      setRequests(parsed.requests);
+      setDeviceGroups(parsed.deviceGroups);
+      if (!data.core) {
+        setRequestHistory(parsed.requestHistory);
+        applyHistoryPageFromArray(parsed.requestHistory);
+      }
+      setHistorySettings(parsed.historySettings);
+    };
+
+    const fetchPageSnapshots = () => {
+      fetch(`${LOGS_PAGE_URL}?page=1&pageSize=${LOG_PAGE_SIZE}`)
+        .then((res) => res.json())
+        .then((result) => {
+          setPagedLogs(normalizeLogs(result.items || []));
+          setLogPageInfo(
+            createPageInfo(
+              result.page || 1,
+              result.pageSize || LOG_PAGE_SIZE,
+              result.total || 0,
+            ),
+          );
+        })
+        .catch((err) => console.error("ログページ同期エラー:", err));
+
+      fetch(`${HISTORY_PAGE_URL}?page=1&pageSize=${HISTORY_PAGE_SIZE}`)
+        .then((res) => res.json())
+        .then((result) => {
+          setPagedRequestHistory(result.items || []);
+          setHistoryPageInfo(
+            createPageInfo(
+              result.page || 1,
+              result.pageSize || HISTORY_PAGE_SIZE,
+              result.total || 0,
+            ),
+          );
+        })
+        .catch((err) => console.error("依頼履歴ページ同期エラー:", err));
+    };
+
+    const fetchFullData = () =>
+      fetch(CORE_API_URL)
         .then((res) => res.json())
         .then((data) => {
-          const parsed = parseServerData(data);
-          setMccbList(parsed.mccbList);
-          setRooms(parsed.rooms);
-          setCategories(parsed.categories);
-          setLogs(parsed.logs);
-          setLogSettings(parsed.logSettings);
-          setRequests(parsed.requests);
-          setDeviceGroups(parsed.deviceGroups);
-          setRequestHistory(parsed.requestHistory);
-          setHistorySettings(parsed.historySettings);
+          applyServerData(data);
+          fetchPageSnapshots();
+        });
+
+    const fetchData = () => {
+      if (Date.now() < pauseTimer.current || syncInProgress.current) return;
+
+      if (lastVersion.current === 0) {
+        fetchFullData().catch((err) => console.error("自動同期エラー:", err));
+        return;
+      }
+
+      fetch(VERSION_URL)
+        .then((res) => res.json())
+        .then((data) => {
+          const nextVersion = Number(data.version || 0);
+          if (nextVersion && nextVersion !== lastVersion.current) {
+            return fetchFullData();
+          }
+          return null;
         })
         .catch((err) => console.error("自動同期エラー:", err));
     };
@@ -163,6 +297,38 @@ export function useMccbData() {
     fetchData();
     const timer = setInterval(fetchData, POLL_INTERVAL);
     return () => clearInterval(timer);
+  }, []);
+
+  const fetchLogsPage = useCallback(async (page = 1) => {
+    const res = await fetch(
+      `${LOGS_PAGE_URL}?page=${encodeURIComponent(page)}&pageSize=${LOG_PAGE_SIZE}`,
+    );
+    if (!res.ok) throw new Error(`ログページ取得に失敗しました (${res.status})`);
+    const result = await res.json();
+    setPagedLogs(normalizeLogs(result.items || []));
+    setLogPageInfo(
+      createPageInfo(
+        result.page || 1,
+        result.pageSize || LOG_PAGE_SIZE,
+        result.total || 0,
+      ),
+    );
+  }, []);
+
+  const fetchRequestHistoryPage = useCallback(async (page = 1) => {
+    const res = await fetch(
+      `${HISTORY_PAGE_URL}?page=${encodeURIComponent(page)}&pageSize=${HISTORY_PAGE_SIZE}`,
+    );
+    if (!res.ok) throw new Error(`依頼履歴ページ取得に失敗しました (${res.status})`);
+    const result = await res.json();
+    setPagedRequestHistory(result.items || []);
+    setHistoryPageInfo(
+      createPageInfo(
+        result.page || 1,
+        result.pageSize || HISTORY_PAGE_SIZE,
+        result.total || 0,
+      ),
+    );
   }, []);
 
   /** 共通：ローカル状態変更およびサーバーへのPOST送信一括処理 */
@@ -182,14 +348,24 @@ export function useMccbData() {
       setRooms(nextRooms);
       setCategories(nextCategories);
       setLogs(nextLogs);
+      const nextLogPageInfo = createPageInfo(1, LOG_PAGE_SIZE, nextLogs.length);
+      setLogPageInfo(nextLogPageInfo);
+      setPagedLogs(getPageSlice(nextLogs, nextLogPageInfo));
       setLogSettings(nextSettings);
       setRequests(nextRequests);
       setDeviceGroups(nextDeviceGroups);
       setRequestHistory(nextHistory);
+      const nextHistoryPageInfo = createPageInfo(
+        1,
+        HISTORY_PAGE_SIZE,
+        nextHistory.length,
+      );
+      setHistoryPageInfo(nextHistoryPageInfo);
+      setPagedRequestHistory(getPageSlice(nextHistory, nextHistoryPageInfo));
       setHistorySettings(nextHistorySettings);
 
       runSyncTask(async () => {
-        await fetch(API_URL, {
+        const res = await fetch(API_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -204,6 +380,10 @@ export function useMccbData() {
             historySettings: nextHistorySettings,
           }),
         });
+        const result = await res.json();
+        if (result.version) {
+          lastVersion.current = Number(result.version);
+        }
       });
     },
     [
@@ -236,15 +416,26 @@ export function useMccbData() {
         isFavorite: false,
         childCards: createDefaultChildCards(),
       };
-      const nextLogs = createUpdatedLogs(
-        LOG_TYPES.MASTER_CREATE,
-        `設備「${entry.name}」が登録されました。`,
-        logs,
-        logSettings.maxSize,
-      );
-      saveToServer([...mccbList, newMccb], rooms, categories, nextLogs);
+
+      setMccbList((prev) => [...prev, newMccb]);
+      runSyncTask(async () => {
+        const res = await fetch("/api/mccbs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mccb: newMccb }),
+        });
+        if (!res.ok) throw new Error(`設備登録に失敗しました (${res.status})`);
+        const result = await res.json();
+        if (result.mccb) {
+          setMccbList((prev) =>
+            prev.map((mccb) => (mccb.id === result.mccb.id ? result.mccb : mccb)),
+          );
+        }
+        if (Array.isArray(result.logs)) applyLogs(result.logs);
+        applyVersion(result.version);
+      });
     },
-    [mccbList, rooms, categories, logs, logSettings.maxSize, saveToServer],
+    [applyLogs, applyVersion, runSyncTask],
   );
 
   /** 設備データ（開閉状態・お気に入り・子札貸出）の更新操作 */
@@ -273,7 +464,14 @@ export function useMccbData() {
           );
         }
         if (Array.isArray(result.logs)) {
-          setLogs(normalizeLogs(result.logs));
+          const nextLogs = normalizeLogs(result.logs);
+          setLogs(nextLogs);
+          const nextPageInfo = createPageInfo(1, LOG_PAGE_SIZE, nextLogs.length);
+          setLogPageInfo(nextPageInfo);
+          setPagedLogs(getPageSlice(nextLogs, nextPageInfo));
+        }
+        if (result.version) {
+          lastVersion.current = Number(result.version);
         }
       });
     },
@@ -284,31 +482,48 @@ export function useMccbData() {
   const deleteMccb = useCallback(
     (id) => {
       if (window.confirm(`完全に削除してもよろしいですか？`)) {
-        const nextLogs = createUpdatedLogs(
-          LOG_TYPES.MASTER_DELETE,
-          `設備データが削除されました。`,
-          logs,
-          logSettings.maxSize,
-        );
-        saveToServer(
-          mccbList.filter((item) => item.id !== id),
-          rooms,
-          categories,
-          nextLogs,
-        );
+        setMccbList((prev) => prev.filter((item) => item.id !== id));
+        runSyncTask(async () => {
+          const res = await fetch(`/api/mccbs/${encodeURIComponent(id)}`, {
+            method: "DELETE",
+          });
+          if (!res.ok) throw new Error(`設備削除に失敗しました (${res.status})`);
+          const result = await res.json();
+          if (result.deletedId) {
+            setMccbList((prev) =>
+              prev.filter((item) => item.id !== result.deletedId),
+            );
+          }
+          if (Array.isArray(result.logs)) applyLogs(result.logs);
+          applyVersion(result.version);
+        });
       }
     },
-    [mccbList, rooms, categories, logs, logSettings.maxSize, saveToServer],
+    [applyLogs, applyVersion, runSyncTask],
   );
 
   // --- マスター項目（電気室・区分）制御 ---
   const addRoom = useCallback(
     (roomName) => {
       const trimmed = roomName.trim();
-      if (trimmed && !rooms.includes(trimmed))
-        saveToServer(mccbList, [...rooms, trimmed]);
+      if (trimmed && !rooms.includes(trimmed)) {
+        const nextRooms = [...rooms, trimmed];
+        setRooms(nextRooms);
+        runSyncTask(async () => {
+          const res = await fetch("/api/admin/rooms", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ rooms: nextRooms, mccbList }),
+          });
+          if (!res.ok) throw new Error(`電気室追加に失敗しました (${res.status})`);
+          const result = await res.json();
+          if (Array.isArray(result.rooms)) setRooms(result.rooms);
+          if (Array.isArray(result.mccbList)) setMccbList(result.mccbList);
+          applyVersion(result.version);
+        });
+      }
     },
-    [mccbList, rooms, saveToServer],
+    [applyVersion, mccbList, rooms, runSyncTask],
   );
 
   const updateRoom = useCallback(
@@ -319,10 +534,23 @@ export function useMccbData() {
           m.room === oldName ? { ...m, room: trimmed } : m,
         );
         const nextRooms = rooms.map((r) => (r === oldName ? trimmed : r));
-        saveToServer(nextList, nextRooms);
+        setMccbList(nextList);
+        setRooms(nextRooms);
+        runSyncTask(async () => {
+          const res = await fetch("/api/admin/rooms", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ rooms: nextRooms, mccbList: nextList }),
+          });
+          if (!res.ok) throw new Error(`電気室編集に失敗しました (${res.status})`);
+          const result = await res.json();
+          if (Array.isArray(result.rooms)) setRooms(result.rooms);
+          if (Array.isArray(result.mccbList)) setMccbList(result.mccbList);
+          applyVersion(result.version);
+        });
       }
     },
-    [mccbList, rooms, saveToServer],
+    [applyVersion, mccbList, rooms, runSyncTask],
   );
 
   const deleteRoom = useCallback(
@@ -331,22 +559,46 @@ export function useMccbData() {
         !mccbList.some((m) => m.room === roomName) &&
         window.confirm(`削除しますか？`)
       ) {
-        saveToServer(
-          mccbList,
-          rooms.filter((r) => r !== roomName),
-        );
+        const nextRooms = rooms.filter((r) => r !== roomName);
+        setRooms(nextRooms);
+        runSyncTask(async () => {
+          const res = await fetch("/api/admin/rooms", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ rooms: nextRooms, mccbList }),
+          });
+          if (!res.ok) throw new Error(`電気室削除に失敗しました (${res.status})`);
+          const result = await res.json();
+          if (Array.isArray(result.rooms)) setRooms(result.rooms);
+          if (Array.isArray(result.mccbList)) setMccbList(result.mccbList);
+          applyVersion(result.version);
+        });
       }
     },
-    [mccbList, rooms, saveToServer],
+    [applyVersion, mccbList, rooms, runSyncTask],
   );
 
   const addCategory = useCallback(
     (categoryName) => {
       const trimmed = categoryName.trim();
-      if (trimmed && !categories.includes(trimmed))
-        saveToServer(mccbList, rooms, [...categories, trimmed]);
+      if (trimmed && !categories.includes(trimmed)) {
+        const nextCategories = [...categories, trimmed];
+        setCategories(nextCategories);
+        runSyncTask(async () => {
+          const res = await fetch("/api/admin/categories", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ categories: nextCategories, mccbList }),
+          });
+          if (!res.ok) throw new Error(`区分追加に失敗しました (${res.status})`);
+          const result = await res.json();
+          if (Array.isArray(result.categories)) setCategories(result.categories);
+          if (Array.isArray(result.mccbList)) setMccbList(result.mccbList);
+          applyVersion(result.version);
+        });
+      }
     },
-    [mccbList, rooms, categories, saveToServer],
+    [applyVersion, categories, mccbList, runSyncTask],
   );
 
   const updateCategory = useCallback(
@@ -357,10 +609,23 @@ export function useMccbData() {
           m.category === oldName ? { ...m, category: trimmed } : m,
         );
         const nextCats = categories.map((c) => (c === oldName ? trimmed : c));
-        saveToServer(nextList, rooms, nextCats);
+        setMccbList(nextList);
+        setCategories(nextCats);
+        runSyncTask(async () => {
+          const res = await fetch("/api/admin/categories", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ categories: nextCats, mccbList: nextList }),
+          });
+          if (!res.ok) throw new Error(`区分編集に失敗しました (${res.status})`);
+          const result = await res.json();
+          if (Array.isArray(result.categories)) setCategories(result.categories);
+          if (Array.isArray(result.mccbList)) setMccbList(result.mccbList);
+          applyVersion(result.version);
+        });
       }
     },
-    [mccbList, rooms, categories, saveToServer],
+    [applyVersion, categories, mccbList, runSyncTask],
   );
 
   const deleteCategory = useCallback(
@@ -369,46 +634,61 @@ export function useMccbData() {
         !mccbList.some((m) => m.category === categoryName) &&
         window.confirm(`削除しますか？`)
       ) {
-        saveToServer(
-          mccbList,
-          rooms,
-          categories.filter((c) => c !== categoryName),
-        );
+        const nextCategories = categories.filter((c) => c !== categoryName);
+        setCategories(nextCategories);
+        runSyncTask(async () => {
+          const res = await fetch("/api/admin/categories", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ categories: nextCategories, mccbList }),
+          });
+          if (!res.ok) throw new Error(`区分削除に失敗しました (${res.status})`);
+          const result = await res.json();
+          if (Array.isArray(result.categories)) setCategories(result.categories);
+          if (Array.isArray(result.mccbList)) setMccbList(result.mccbList);
+          applyVersion(result.version);
+        });
       }
     },
-    [mccbList, rooms, categories, saveToServer],
+    [applyVersion, categories, mccbList, runSyncTask],
   );
 
   // --- システムログ制御 ---
   const clearAllLogs = useCallback(() => {
     if (window.confirm("ログ履歴をクリアしますか？")) {
-      const resetLog = [
-        {
-          id: `LOG-${Date.now()}`,
-          timestamp: getTimestamp(),
-          type: LOG_TYPES.SYSTEM,
-          message: "ログ履歴がクリアされました。",
-        },
-      ];
-      saveToServer(mccbList, rooms, categories, resetLog);
+      runSyncTask(async () => {
+        const res = await fetch("/api/admin/logs", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "clear" }),
+        });
+        if (!res.ok) throw new Error(`ログクリアに失敗しました (${res.status})`);
+        const result = await res.json();
+        if (Array.isArray(result.logs)) applyLogs(result.logs);
+        if (result.logSettings) setLogSettings(result.logSettings);
+        applyVersion(result.version);
+      });
     }
-  }, [mccbList, rooms, categories, saveToServer]);
+  }, [applyLogs, applyVersion, runSyncTask]);
 
   const changeMaxLogSize = useCallback(
     (size) => {
       const numSize = Number(size);
-      const nextLogs = createUpdatedLogs(
-        LOG_TYPES.SYSTEM,
-        `ログ保持件数変更`,
-        logs.slice(0, numSize),
-        numSize,
-      );
-      saveToServer(mccbList, rooms, categories, nextLogs, {
-        ...logSettings,
-        maxSize: numSize,
+      setLogSettings((prev) => ({ ...prev, maxSize: numSize }));
+      runSyncTask(async () => {
+        const res = await fetch("/api/admin/logs", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "setMaxSize", maxSize: numSize }),
+        });
+        if (!res.ok) throw new Error(`ログ保持件数変更に失敗しました (${res.status})`);
+        const result = await res.json();
+        if (Array.isArray(result.logs)) applyLogs(result.logs);
+        if (result.logSettings) setLogSettings(result.logSettings);
+        applyVersion(result.version);
       });
     },
-    [mccbList, rooms, categories, logs, logSettings, saveToServer],
+    [applyLogs, applyVersion, runSyncTask],
   );
 
   // --- 停電作業依頼 履歴データ制御 ---
@@ -418,67 +698,47 @@ export function useMccbData() {
         "過去の作業完了・解約の履歴データをすべて消去しますか？（元に戻せません）",
       )
     ) {
-      const nextLogs = createUpdatedLogs(
-        LOG_TYPES.SYSTEM,
-        "停電作業の依頼履歴がすべてクリアされました。",
-        logs,
-        logSettings.maxSize,
-      );
-      saveToServer(
-        mccbList,
-        rooms,
-        categories,
-        nextLogs,
-        logSettings,
-        requests,
-        deviceGroups,
-        [],
-      );
+      applyRequestHistory([]);
+      runSyncTask(async () => {
+        const res = await fetch("/api/admin/request-history", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "clear" }),
+        });
+        if (!res.ok) throw new Error(`依頼履歴クリアに失敗しました (${res.status})`);
+        const result = await res.json();
+        if (Array.isArray(result.requestHistory)) {
+          applyRequestHistory(result.requestHistory);
+        }
+        if (result.historySettings) setHistorySettings(result.historySettings);
+        if (Array.isArray(result.logs)) applyLogs(result.logs);
+        applyVersion(result.version);
+      });
     }
-  }, [
-    mccbList,
-    rooms,
-    categories,
-    logs,
-    logSettings,
-    requests,
-    deviceGroups,
-    saveToServer,
-  ]);
+  }, [applyLogs, applyRequestHistory, applyVersion, runSyncTask]);
 
   const changeMaxHistorySize = useCallback(
     (size) => {
       const newSize = Number(size);
-      const nextHistory = requestHistory.slice(0, newSize);
-      const nextLogs = createUpdatedLogs(
-        LOG_TYPES.SYSTEM,
-        `最大依頼履歴数が ${newSize} 件に変更されました。`,
-        logs,
-        logSettings.maxSize,
-      );
-      saveToServer(
-        mccbList,
-        rooms,
-        categories,
-        nextLogs,
-        logSettings,
-        requests,
-        deviceGroups,
-        nextHistory,
-        { maxSize: newSize },
-      );
+      setHistorySettings({ maxSize: newSize });
+      applyRequestHistory(requestHistory.slice(0, newSize));
+      runSyncTask(async () => {
+        const res = await fetch("/api/admin/request-history", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "setMaxSize", maxSize: newSize }),
+        });
+        if (!res.ok) throw new Error(`依頼履歴保持件数変更に失敗しました (${res.status})`);
+        const result = await res.json();
+        if (Array.isArray(result.requestHistory)) {
+          applyRequestHistory(result.requestHistory);
+        }
+        if (result.historySettings) setHistorySettings(result.historySettings);
+        if (Array.isArray(result.logs)) applyLogs(result.logs);
+        applyVersion(result.version);
+      });
     },
-    [
-      mccbList,
-      rooms,
-      categories,
-      logs,
-      logSettings,
-      requests,
-      deviceGroups,
-      requestHistory,
-      saveToServer,
-    ],
+    [applyLogs, applyRequestHistory, applyVersion, requestHistory, runSyncTask],
   );
 
   // --- CSV一括インポートインジェクション ---
@@ -596,32 +856,28 @@ export function useMccbData() {
   const addDeviceGroup = useCallback(
     (name) => {
       const newGroup = { id: `GROUP-${Date.now()}`, name, mccbIds: [] };
-      const nextLogs = createUpdatedLogs(
-        LOG_TYPES.MASTER_CREATE,
-        `設備グループ「${name}」を新規作成しました。`,
-        logs,
-        logSettings.maxSize,
-      );
-      saveToServer(
-        mccbList,
-        rooms,
-        categories,
-        nextLogs,
-        logSettings,
-        requests,
-        [...deviceGroups, newGroup],
-      );
+      const nextGroups = [...deviceGroups, newGroup];
+      setDeviceGroups(nextGroups);
+      runSyncTask(async () => {
+        const res = await fetch("/api/admin/device-groups", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            deviceGroups: nextGroups,
+            logType: LOG_TYPES.MASTER_CREATE,
+            logMessage: `設備グループ「${name}」を新規作成しました。`,
+          }),
+        });
+        if (!res.ok) throw new Error(`設備グループ作成に失敗しました (${res.status})`);
+        const result = await res.json();
+        if (Array.isArray(result.deviceGroups)) {
+          setDeviceGroups(result.deviceGroups);
+        }
+        if (Array.isArray(result.logs)) applyLogs(result.logs);
+        applyVersion(result.version);
+      });
     },
-    [
-      mccbList,
-      rooms,
-      categories,
-      logs,
-      logSettings,
-      requests,
-      deviceGroups,
-      saveToServer,
-    ],
+    [applyLogs, applyVersion, deviceGroups, runSyncTask],
   );
 
   const updateDeviceGroup = useCallback(
@@ -629,58 +885,50 @@ export function useMccbData() {
       const nextGroups = deviceGroups.map((g) =>
         g.id === id ? updatedGroup : g,
       );
-      saveToServer(
-        mccbList,
-        rooms,
-        categories,
-        logs,
-        logSettings,
-        requests,
-        nextGroups,
-      );
+      setDeviceGroups(nextGroups);
+      runSyncTask(async () => {
+        const res = await fetch("/api/admin/device-groups", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ deviceGroups: nextGroups }),
+        });
+        if (!res.ok) throw new Error(`設備グループ更新に失敗しました (${res.status})`);
+        const result = await res.json();
+        if (Array.isArray(result.deviceGroups)) {
+          setDeviceGroups(result.deviceGroups);
+        }
+        if (Array.isArray(result.logs)) applyLogs(result.logs);
+        applyVersion(result.version);
+      });
     },
-    [
-      mccbList,
-      rooms,
-      categories,
-      logs,
-      logSettings,
-      requests,
-      deviceGroups,
-      saveToServer,
-    ],
+    [applyLogs, applyVersion, deviceGroups, runSyncTask],
   );
 
   const deleteDeviceGroup = useCallback(
     (id) => {
       const groupToDelete = deviceGroups.find((g) => g.id === id);
-      const nextLogs = createUpdatedLogs(
-        LOG_TYPES.MASTER_DELETE,
-        `設備グループ「${groupToDelete?.name}」を削除しました。`,
-        logs,
-        logSettings.maxSize,
-      );
       const nextGroups = deviceGroups.filter((g) => g.id !== id);
-      saveToServer(
-        mccbList,
-        rooms,
-        categories,
-        nextLogs,
-        logSettings,
-        requests,
-        nextGroups,
-      );
+      setDeviceGroups(nextGroups);
+      runSyncTask(async () => {
+        const res = await fetch("/api/admin/device-groups", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            deviceGroups: nextGroups,
+            logType: LOG_TYPES.MASTER_DELETE,
+            logMessage: `設備グループ「${groupToDelete?.name}」を削除しました。`,
+          }),
+        });
+        if (!res.ok) throw new Error(`設備グループ削除に失敗しました (${res.status})`);
+        const result = await res.json();
+        if (Array.isArray(result.deviceGroups)) {
+          setDeviceGroups(result.deviceGroups);
+        }
+        if (Array.isArray(result.logs)) applyLogs(result.logs);
+        applyVersion(result.version);
+      });
     },
-    [
-      mccbList,
-      rooms,
-      categories,
-      logs,
-      logSettings,
-      requests,
-      deviceGroups,
-      saveToServer,
-    ],
+    [applyLogs, applyVersion, deviceGroups, runSyncTask],
   );
 
   // --- ⚡ 停電作業依頼発行（自動スライド札割り当てシミュレーション） ---
@@ -710,7 +958,14 @@ export function useMccbData() {
           setRequests(result.requests);
         }
         if (Array.isArray(result.logs)) {
-          setLogs(normalizeLogs(result.logs));
+          const nextLogs = normalizeLogs(result.logs);
+          setLogs(nextLogs);
+          const nextPageInfo = createPageInfo(1, LOG_PAGE_SIZE, nextLogs.length);
+          setLogPageInfo(nextPageInfo);
+          setPagedLogs(getPageSlice(nextLogs, nextPageInfo));
+        }
+        if (result.version) {
+          lastVersion.current = Number(result.version);
         }
       });
     },
@@ -746,9 +1001,25 @@ export function useMccbData() {
         }
         if (Array.isArray(result.requestHistory)) {
           setRequestHistory(result.requestHistory);
+          const nextHistoryPageInfo = createPageInfo(
+            1,
+            HISTORY_PAGE_SIZE,
+            result.requestHistory.length,
+          );
+          setHistoryPageInfo(nextHistoryPageInfo);
+          setPagedRequestHistory(
+            getPageSlice(result.requestHistory, nextHistoryPageInfo),
+          );
         }
         if (Array.isArray(result.logs)) {
-          setLogs(normalizeLogs(result.logs));
+          const nextLogs = normalizeLogs(result.logs);
+          setLogs(nextLogs);
+          const nextPageInfo = createPageInfo(1, LOG_PAGE_SIZE, nextLogs.length);
+          setLogPageInfo(nextPageInfo);
+          setPagedLogs(getPageSlice(nextLogs, nextPageInfo));
+        }
+        if (result.version) {
+          lastVersion.current = Number(result.version);
         }
       });
     },
@@ -760,9 +1031,13 @@ export function useMccbData() {
     rooms,
     categories,
     logs,
+    pagedLogs,
+    logPageInfo,
     logSettings,
     requests,
     requestHistory,
+    pagedRequestHistory,
+    historyPageInfo,
     historySettings,
     deviceGroups,
     addDeviceGroup,
@@ -781,6 +1056,8 @@ export function useMccbData() {
     deleteCategory,
     changeMaxLogSize,
     clearAllLogs,
+    fetchLogsPage,
+    fetchRequestHistoryPage,
     addRequest,
     deleteRequest,
     clearRequestHistory,

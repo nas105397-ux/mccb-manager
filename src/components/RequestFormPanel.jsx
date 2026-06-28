@@ -108,6 +108,7 @@ export default function RequestFormPanel({
   } = useRequestFormController({ mccbList, onAddRequest });
 
   const listRef = useRef(null);
+  const dummyNamesKey = JSON.stringify(dummyNames);
 
   useEffect(() => {
     // 選択状態やダミー名が変わったら行高さを再計測
@@ -117,7 +118,7 @@ export default function RequestFormPanel({
     ) {
       listRef.current.resetAfterIndex(0, true);
     }
-  }, [selectedMccbIds, filteredMccbList.length, JSON.stringify(dummyNames)]);
+  }, [selectedMccbIds, filteredMccbList.length, dummyNamesKey]);
 
   // --- 画面レンダリング ---
   return (

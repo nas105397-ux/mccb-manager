@@ -87,11 +87,37 @@ export function createMccbStore({ dbPath, jsonPath, defaults }) {
       key TEXT PRIMARY KEY,
       value_json TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS app_meta (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
   `);
 
   const hasRows = () => {
     const row = db.prepare('SELECT COUNT(*) AS count FROM mccbs').get();
     return row.count > 0;
+  };
+
+  const getVersion = () => {
+    const row = db
+      .prepare('SELECT value FROM app_meta WHERE key = ?')
+      .get('data_version');
+    return Number(row?.value || 0);
+  };
+
+  const setVersion = (version) => {
+    db.prepare(
+      `INSERT INTO app_meta (key, value)
+       VALUES (?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    ).run('data_version', String(version));
+  };
+
+  const bumpVersion = () => {
+    const nextVersion = Math.max(Date.now(), getVersion() + 1);
+    setVersion(nextVersion);
+    return nextVersion;
   };
 
   const readCollection = (key) => {
@@ -101,12 +127,53 @@ export function createMccbStore({ dbPath, jsonPath, defaults }) {
     return parseJson(row?.value_json, defaults[key]);
   };
 
+  const readCollectionPage = (key, page = 1, pageSize = 50) => {
+    const items = readCollection(key);
+    const normalizedItems = Array.isArray(items) ? items : [];
+    const safePageSize = Math.max(1, Number(pageSize) || 50);
+    const total = normalizedItems.length;
+    const totalPages = Math.max(1, Math.ceil(total / safePageSize));
+    const safePage = Math.min(Math.max(1, Number(page) || 1), totalPages);
+    const start = (safePage - 1) * safePageSize;
+
+    return {
+      items: normalizedItems.slice(start, start + safePageSize),
+      page: safePage,
+      pageSize: safePageSize,
+      total,
+      totalPages,
+      version: getVersion(),
+    };
+  };
+
   const writeCollection = (key, value) => {
     db.prepare(
       `INSERT INTO app_collections (key, value_json)
        VALUES (?, ?)
        ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json`,
     ).run(key, JSON.stringify(value));
+    return bumpVersion();
+  };
+
+  const writeCollections = (entries) => {
+    const upsert = db.prepare(
+      `INSERT INTO app_collections (key, value_json)
+       VALUES (?, ?)
+       ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json`,
+    );
+
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      for (const [key, value] of Object.entries(entries)) {
+        upsert.run(key, JSON.stringify(value));
+      }
+      db.exec('COMMIT');
+    } catch (error) {
+      db.exec('ROLLBACK');
+      throw error;
+    }
+
+    return bumpVersion();
   };
 
   const readMccb = (id) => {
@@ -136,6 +203,23 @@ export function createMccbStore({ dbPath, jsonPath, defaults }) {
       }));
 
     return toMccbObject(row, childCards);
+  };
+
+  const readMccbsByIds = (ids) => {
+    const uniqueIds = [...new Set(ids.filter(Boolean))];
+    return uniqueIds.map((id) => readMccb(id)).filter(Boolean);
+  };
+
+  const readDummyMccbs = () => {
+    const rows = db
+      .prepare(
+        `SELECT id
+         FROM mccbs
+         WHERE is_dummy = 1 OR name LIKE '%ダミー%' OR id LIKE '%DUMMY%'
+         ORDER BY rowid`,
+      )
+      .all();
+    return rows.map((row) => readMccb(row.id)).filter(Boolean);
   };
 
   const writeMccb = (mccb, now = Date.now()) => {
@@ -226,10 +310,10 @@ export function createMccbStore({ dbPath, jsonPath, defaults }) {
       throw error;
     }
 
-    return normalized;
+    return { ...normalized, version: bumpVersion() };
   };
 
-  const readAll = () => {
+  const readMccbList = () => {
     const rows = db
       .prepare(
         `SELECT id, room, category, name, is_power_off, is_favorite, is_dummy, extra_json
@@ -258,24 +342,55 @@ export function createMccbStore({ dbPath, jsonPath, defaults }) {
       childCardsByMccb.set(row.mccb_id, cards);
     }
 
+    return rows.map((row) =>
+      toMccbObject(row, childCardsByMccb.get(row.id) || []),
+    );
+  };
+
+  const readCollections = (keys) => {
+    if (!keys.length) return {};
+
     const collections = new Map(
       db
-        .prepare('SELECT key, value_json FROM app_collections')
-        .all()
+        .prepare(
+          `SELECT key, value_json
+           FROM app_collections
+           WHERE key IN (${keys.map(() => '?').join(',')})`,
+        )
+        .all(...keys)
         .map((row) => [row.key, row.value_json]),
     );
 
+    return Object.fromEntries(
+      keys.map((key) => [key, parseJson(collections.get(key), defaults[key])]),
+    );
+  };
+
+  const readAll = () => {
     const data = {
-      mccbList: rows.map((row) =>
-        toMccbObject(row, childCardsByMccb.get(row.id) || []),
-      ),
+      mccbList: readMccbList(),
+      ...readCollections(COLLECTION_KEYS),
     };
 
-    for (const key of COLLECTION_KEYS) {
-      data[key] = parseJson(collections.get(key), defaults[key]);
-    }
+    return { ...normalizeData(data, defaults), version: getVersion() };
+  };
 
-    return normalizeData(data, defaults);
+  const readCoreData = () => {
+    const data = {
+      mccbList: readMccbList(),
+      ...readCollections([
+        'rooms',
+        'categories',
+        'logSettings',
+        'requests',
+        'deviceGroups',
+        'historySettings',
+      ]),
+      logs: [],
+      requestHistory: [],
+    };
+
+    return { ...normalizeData(data, defaults), version: getVersion(), core: true };
   };
 
   const updateMccb = (updatedMccb) => {
@@ -291,9 +406,48 @@ export function createMccbStore({ dbPath, jsonPath, defaults }) {
       throw error;
     }
 
+    const version = bumpVersion();
+
     return {
       before,
       after: readMccb(updatedMccb.id),
+      version,
+    };
+  };
+
+  const createMccb = (mccb) => {
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      writeMccb(mccb);
+      db.exec('COMMIT');
+    } catch (error) {
+      db.exec('ROLLBACK');
+      throw error;
+    }
+
+    return {
+      mccb: readMccb(mccb.id),
+      version: bumpVersion(),
+    };
+  };
+
+  const deleteMccb = (id) => {
+    const existing = readMccb(id);
+    if (!existing) return null;
+
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      db.prepare('DELETE FROM child_cards WHERE mccb_id = ?').run(id);
+      db.prepare('DELETE FROM mccbs WHERE id = ?').run(id);
+      db.exec('COMMIT');
+    } catch (error) {
+      db.exec('ROLLBACK');
+      throw error;
+    }
+
+    return {
+      deleted: existing,
+      version: bumpVersion(),
     };
   };
 
@@ -310,6 +464,8 @@ export function createMccbStore({ dbPath, jsonPath, defaults }) {
       db.exec('ROLLBACK');
       throw error;
     }
+
+    return mccbs.length > 0 ? bumpVersion() : getVersion();
   };
 
   if (!hasRows()) {
@@ -321,13 +477,25 @@ export function createMccbStore({ dbPath, jsonPath, defaults }) {
     }
   }
 
+  if (getVersion() === 0) {
+    bumpVersion();
+  }
+
   return {
+    getVersion,
+    createMccb,
+    deleteMccb,
     readAll,
     readCollection,
+    readCollectionPage,
+    readCoreData,
+    readDummyMccbs,
     readMccb,
+    readMccbsByIds,
     saveAll,
     updateMccb,
     writeCollection,
+    writeCollections,
     writeMccbs,
   };
 }

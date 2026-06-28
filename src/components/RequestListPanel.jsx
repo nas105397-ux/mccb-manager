@@ -1,9 +1,15 @@
+import { useState } from "react";
 import { useRequestListController } from "../hooks/useRequestListController";
 
 const UI = {
   panel:
     "bg-white p-6 rounded-xl border border-gray-200 shadow-sm min-h-[60vh]",
-  title: "text-lg font-black text-gray-800 border-b pb-3 mb-4",
+  tabWrap:
+    "mb-5 inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1 shadow-inner",
+  tabButton:
+    "px-4 py-2 rounded-md text-xs font-black transition-all cursor-pointer",
+  tabActive: "bg-white text-blue-700 shadow-sm border border-gray-200",
+  tabIdle: "text-gray-500 hover:text-gray-700",
   empty:
     "text-center py-16 text-gray-400 bg-gray-50 rounded-xl border border-dashed",
   sectionTitle:
@@ -75,9 +81,12 @@ const HISTORY = {
 export default function RequestListPanel({
   requests = [],
   requestHistory = [],
+  historyPageInfo = { page: 1, pageSize: 20, total: 0, totalPages: 1 },
   mccbList = [],
   onDeleteRequest,
+  onChangeHistoryPage = () => {},
 }) {
+  const [activeView, setActiveView] = useState("active");
   const { activeRequestViews, historyRequestViews, toggleExpand } =
     useRequestListController({
       requests,
@@ -87,22 +96,46 @@ export default function RequestListPanel({
 
   return (
     <div className={UI.panel}>
-      <h2 className={UI.title}>📋 停電依頼 一覧・進捗状況</h2>
+      <div className={UI.tabWrap} role="tablist" aria-label="依頼一覧表示切替">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeView === "active"}
+          onClick={() => setActiveView("active")}
+          className={`${UI.tabButton} ${
+            activeView === "active" ? UI.tabActive : UI.tabIdle
+          }`}
+        >
+          進行中 {activeRequestViews.length} 件
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeView === "history"}
+          onClick={() => setActiveView("history")}
+          className={`${UI.tabButton} ${
+            activeView === "history" ? UI.tabActive : UI.tabIdle
+          }`}
+        >
+          履歴 {historyPageInfo.total || historyRequestViews.length} 件
+        </button>
+      </div>
 
       {/* ====================================================
           SECTION 1: 進行中の停電作業依頼一覧
           ==================================================== */}
-      {activeRequestViews.length === 0 ? (
-        <div className={UI.empty}>
-          現在、発行されている停電依頼はありません。
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {activeRequestViews.map((req) => {
-            const isExpanded = req.isExpanded;
+      {activeView === "active" &&
+        (activeRequestViews.length === 0 ? (
+          <div className={UI.empty}>
+            現在、発行されている停電依頼はありません。
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {activeRequestViews.map((req) => {
+              const isExpanded = req.isExpanded;
 
-            return (
-              <div key={req.id} className={ACTIVE.card}>
+              return (
+                <div key={req.id} className={ACTIVE.card}>
                 {/* 依頼の基本情報ヘッダー */}
                 <div className={ACTIVE.header}>
                   <div>
@@ -191,19 +224,22 @@ export default function RequestListPanel({
                     </div>
                   )}
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+                </div>
+              );
+            })}
+          </div>
+        ))}
 
       {/* ====================================================
           SECTION 2: 作業完了・解約の歴史を記録する履歴一覧
           ==================================================== */}
-      <div className={UI.sectionDivider}>
+      {activeView === "history" && (
+      <div className="pt-1">
         <h3 className={UI.sectionTitle}>
           📜 作業完了・解約 履歴一覧
-          <span className={UI.countBadge}>{historyRequestViews.length} 件</span>
+          <span className={UI.countBadge}>
+            {historyPageInfo.total || historyRequestViews.length} 件
+          </span>
         </h3>
 
         {historyRequestViews.length === 0 ? (
@@ -286,7 +322,35 @@ export default function RequestListPanel({
             })}
           </div>
         )}
+
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500 border-t border-gray-150 pt-3">
+          <span>
+            表示 {historyRequestViews.length} 件 / {historyPageInfo.total || 0} 件
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onChangeHistoryPage(historyPageInfo.page - 1)}
+              disabled={historyPageInfo.page <= 1}
+              className="px-3 py-1 rounded border bg-white text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            >
+              前へ
+            </button>
+            <span className="font-black text-gray-600">
+              {historyPageInfo.page || 1} / {historyPageInfo.totalPages || 1}
+            </span>
+            <button
+              type="button"
+              onClick={() => onChangeHistoryPage(historyPageInfo.page + 1)}
+              disabled={historyPageInfo.page >= historyPageInfo.totalPages}
+              className="px-3 py-1 rounded border bg-white text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            >
+              次へ
+            </button>
+          </div>
+        </div>
       </div>
+      )}
     </div>
   );
 }

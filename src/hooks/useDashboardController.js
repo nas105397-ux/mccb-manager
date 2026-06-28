@@ -1,6 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 const API_URL = '/api/mccb';
+const CORE_API_URL = `${API_URL}?core=1`;
+const VERSION_URL = `${API_URL}/version`;
+const LOGS_PAGE_URL = '/api/logs?page=1&pageSize=40';
 export const POLL_INTERVAL = 15000;
 const INITIAL_DATA = { mccbList: [], logs: [], requests: [] };
 
@@ -16,6 +19,7 @@ export function useDashboardController() {
   const [loading, setLoading] = useState(true);
   const [isDarkMode, setIsDarkMode] = useState(getInitialDarkMode);
   const [colLayout, setColLayout] = useState(getInitialColLayout);
+  const lastVersion = useRef(0);
 
   useEffect(() => {
     localStorage.setItem('dashboard_is_dark_mode', isDarkMode);
@@ -28,15 +32,20 @@ export function useDashboardController() {
   useEffect(() => {
     let disposed = false;
 
-    const fetchData = async () => {
+    const fetchFullData = async () => {
       try {
-        const res = await fetch(API_URL);
-        const latest = await res.json();
+        const [coreRes, logsRes] = await Promise.all([
+          fetch(CORE_API_URL),
+          fetch(LOGS_PAGE_URL),
+        ]);
+        const latest = await coreRes.json();
+        const logsPage = await logsRes.json();
         if (disposed || !latest) return;
 
+        lastVersion.current = Number(latest.version || lastVersion.current);
         setData({
           mccbList: latest.mccbList || [],
-          logs: latest.logs || [],
+          logs: logsPage.items || [],
           requests: latest.requests || [],
         });
       } catch (err) {
@@ -50,7 +59,29 @@ export function useDashboardController() {
       }
     };
 
-    fetchData();
+    const fetchData = async () => {
+      if (lastVersion.current === 0) {
+        await fetchFullData();
+        return;
+      }
+
+      try {
+        const res = await fetch(VERSION_URL);
+        const latest = await res.json();
+        if (disposed || !latest) return;
+
+        const nextVersion = Number(latest.version || 0);
+        if (nextVersion && nextVersion !== lastVersion.current) {
+          await fetchFullData();
+        }
+      } catch (err) {
+        if (!disposed) {
+          console.error('監視データ同期エラー:', err);
+        }
+      }
+    };
+
+    fetchFullData();
     const timer = setInterval(fetchData, POLL_INTERVAL);
 
     return () => {

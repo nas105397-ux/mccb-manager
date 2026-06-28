@@ -101,9 +101,11 @@ export default function AdminPanel({
   updateCategory,
   deleteCategory,
   logs = [],
+  logPageInfo = { page: 1, pageSize: 50, total: 0, totalPages: 1 },
   logSettings = { maxSize: 500 },
   onChangeMaxLogSize,
   onClearAllLogs,
+  onChangeLogPage = () => {},
   deviceGroups = [],
   addDeviceGroup = () => {},
   updateDeviceGroup = () => {},
@@ -567,12 +569,39 @@ export default function AdminPanel({
                   </table>
                 )}
               </div>
-              <div className="bg-gray-50 px-3 py-1 text-[10px] text-gray-400 text-right border-t border-gray-150">
-                ログ保存容量:{" "}
-                <span className="font-bold text-gray-600">
-                  {logs ? logs.length : 0}
-                </span>{" "}
-                / {logSettings.maxSize} 件
+              <div className="bg-gray-50 px-3 py-1.5 text-[10px] text-gray-400 border-t border-gray-150 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  表示:{" "}
+                  <span className="font-bold text-gray-600">
+                    {logs ? logs.length : 0}
+                  </span>{" "}
+                  件 / 総数{" "}
+                  <span className="font-bold text-gray-600">
+                    {logPageInfo.total || 0}
+                  </span>{" "}
+                  件 / 保持上限 {logSettings.maxSize} 件
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => onChangeLogPage(logPageInfo.page - 1)}
+                    disabled={logPageInfo.page <= 1}
+                    className="px-2 py-0.5 rounded border bg-white text-gray-500 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    前へ
+                  </button>
+                  <span className="font-bold text-gray-600">
+                    {logPageInfo.page || 1} / {logPageInfo.totalPages || 1}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onChangeLogPage(logPageInfo.page + 1)}
+                    disabled={logPageInfo.page >= logPageInfo.totalPages}
+                    className="px-2 py-0.5 rounded border bg-white text-gray-500 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    次へ
+                  </button>
+                </div>
               </div>
             </div>
           </div>

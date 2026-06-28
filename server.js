@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import fs from 'fs';
 import path from 'path'; 
 import os from 'os'; 
 import { fileURLToPath } from 'url';
@@ -16,9 +17,33 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const FILE_PATH = path.join(__dirname, 'mccb_data.json');
-const DB_PATH = process.env.MCCB_DB_PATH || path.join(__dirname, 'mccb_data.sqlite');
+const DATA_DIR = path.join(__dirname, 'data');
+const FILE_PATH = path.join(DATA_DIR, 'mccb_data.json');
+const LEGACY_JSON_PATH = path.join(__dirname, 'mccb_data.json');
+const LEGACY_DB_PATH = path.join(__dirname, 'mccb_data.sqlite');
+const DB_PATH = process.env.MCCB_DB_PATH || path.join(DATA_DIR, 'mccb_data.sqlite');
 const PORT = process.env.PORT || 5000;
+
+function ensureDefaultDatabasePath() {
+  if (process.env.MCCB_DB_PATH) return;
+
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+
+  if (!fs.existsSync(FILE_PATH) && fs.existsSync(LEGACY_JSON_PATH)) {
+    fs.copyFileSync(LEGACY_JSON_PATH, FILE_PATH);
+  }
+
+  if (!fs.existsSync(DB_PATH) && fs.existsSync(LEGACY_DB_PATH)) {
+    fs.copyFileSync(LEGACY_DB_PATH, DB_PATH);
+
+    for (const suffix of ['-wal', '-shm']) {
+      const legacySidecar = `${LEGACY_DB_PATH}${suffix}`;
+      if (fs.existsSync(legacySidecar)) {
+        fs.copyFileSync(legacySidecar, `${DB_PATH}${suffix}`);
+      }
+    }
+  }
+}
 
 // マスタデータ初期化用デフォルト値
 const DEFAULT_MCCB = [
@@ -40,6 +65,8 @@ const LOG_TYPES = Object.freeze({
   CARD_LOAN: "札貸出",
   MASTER_CREATE: "マスタ登録",
   MASTER_UPDATE: "マスタ編集",
+  MASTER_DELETE: "マスタ削除",
+  SYSTEM: "システム",
 });
 const DEFAULT_DATA = {
   mccbList: DEFAULT_MCCB,
@@ -231,6 +258,10 @@ function cloneMccbListForMutation(mccbList) {
   }));
 }
 
+function dedupeMccbs(mccbList) {
+  return [...new Map(mccbList.map((mccb) => [mccb.id, mccb])).values()];
+}
+
 function getChangedMccbs(beforeList, afterList) {
   const beforeById = new Map(beforeList.map((mccb) => [mccb.id, mccb]));
   return afterList.filter((mccb) => {
@@ -238,6 +269,8 @@ function getChangedMccbs(beforeList, afterList) {
     return JSON.stringify(before?.childCards || []) !== JSON.stringify(mccb.childCards || []);
   });
 }
+
+ensureDefaultDatabasePath();
 
 const store = createMccbStore({
   dbPath: DB_PATH,
@@ -252,18 +285,60 @@ const store = createMccbStore({
 /** 設備マスタ＆ステータスデータの取得 (GET) */
 app.get('/api/mccb', (req, res) => {
   try {
-    res.json(store.readAll());
+    res.json(req.query.core === '1' ? store.readCoreData() : store.readAll());
   } catch (error) {
     console.error("SQLiteデータ読み込み失敗:", error);
     res.status(500).json({ error: 'サーバーデータの読み込みに失敗しました。' });
   }
 });
 
+/** データ変更有無だけを確認する軽量エンドポイント */
+app.get('/api/mccb/version', (req, res) => {
+  try {
+    res.json({ version: store.getVersion() });
+  } catch (error) {
+    console.error("SQLiteバージョン読み込み失敗:", error);
+    res.status(500).json({ error: 'サーバーデータの更新番号取得に失敗しました。' });
+  }
+});
+
+/** システムログのページ取得 */
+app.get('/api/logs', (req, res) => {
+  try {
+    res.json(
+      store.readCollectionPage(
+        'logs',
+        Number(req.query.page || 1),
+        Number(req.query.pageSize || 50),
+      ),
+    );
+  } catch (error) {
+    console.error("ログページ読み込み失敗:", error);
+    res.status(500).json({ error: 'ログ履歴の読み込みに失敗しました。' });
+  }
+});
+
+/** 完了済み依頼履歴のページ取得 */
+app.get('/api/request-history', (req, res) => {
+  try {
+    res.json(
+      store.readCollectionPage(
+        'requestHistory',
+        Number(req.query.page || 1),
+        Number(req.query.pageSize || 20),
+      ),
+    );
+  } catch (error) {
+    console.error("依頼履歴ページ読み込み失敗:", error);
+    res.status(500).json({ error: '依頼履歴の読み込みに失敗しました。' });
+  }
+});
+
 /** 設備マスタ＆ステータスデータの保存更新 (POST) */
 app.post('/api/mccb', (req, res) => {
   try {
-    store.saveAll(req.body);
-    res.json({ status: 'success' });
+    const saved = store.saveAll(req.body);
+    res.json({ status: 'success', version: saved.version });
   } catch (error) {
     console.error("SQLiteデータ書き込み失敗:", error);
     res.status(500).json({ error: 'データベースの書き込みに失敗しました' });
@@ -302,10 +377,221 @@ app.patch('/api/mccb/:id', (req, res) => {
       status: 'success',
       mccb: result.after,
       logs,
+      version: store.getVersion(),
     });
   } catch (error) {
     console.error("SQLite設備更新失敗:", error);
     res.status(500).json({ error: '設備データの更新に失敗しました' });
+  }
+});
+
+/** 設備マスタ1件の新規登録 */
+app.post('/api/mccbs', (req, res) => {
+  try {
+    const mccb = req.body?.mccb;
+    if (!mccb?.id) {
+      return res.status(400).json({ error: '設備データが不正です。' });
+    }
+
+    const result = store.createMccb(mccb);
+    const logs = createUpdatedLogs(
+      LOG_TYPES.MASTER_CREATE,
+      `設備「${mccb.name}」が登録されました。`,
+      store.readCollection('logs'),
+      store.readCollection('logSettings')?.maxSize || 500,
+    );
+    store.writeCollection('logs', logs);
+
+    res.json({
+      status: 'success',
+      mccb: result.mccb,
+      logs,
+      version: store.getVersion(),
+    });
+  } catch (error) {
+    console.error("設備登録失敗:", error);
+    res.status(500).json({ error: '設備データの登録に失敗しました' });
+  }
+});
+
+/** 設備マスタ1件の削除 */
+app.delete('/api/mccbs/:id', (req, res) => {
+  try {
+    const result = store.deleteMccb(req.params.id);
+    if (!result) {
+      return res.status(404).json({ error: '削除対象の設備が見つかりません。' });
+    }
+
+    const logs = createUpdatedLogs(
+      LOG_TYPES.MASTER_DELETE,
+      `設備「${result.deleted.name}」が削除されました。`,
+      store.readCollection('logs'),
+      store.readCollection('logSettings')?.maxSize || 500,
+    );
+    store.writeCollection('logs', logs);
+
+    res.json({
+      status: 'success',
+      deletedId: result.deleted.id,
+      logs,
+      version: store.getVersion(),
+    });
+  } catch (error) {
+    console.error("設備削除失敗:", error);
+    res.status(500).json({ error: '設備データの削除に失敗しました' });
+  }
+});
+
+/** 電気室マスター更新 */
+app.patch('/api/admin/rooms', (req, res) => {
+  try {
+    const rooms = Array.isArray(req.body?.rooms) ? req.body.rooms : null;
+    const mccbList = Array.isArray(req.body?.mccbList) ? req.body.mccbList : null;
+    if (!rooms || !mccbList) {
+      return res.status(400).json({ error: '電気室マスター更新データが不正です。' });
+    }
+
+    store.writeMccbs(mccbList);
+    store.writeCollection('rooms', rooms);
+    res.json({ status: 'success', rooms, mccbList, version: store.getVersion() });
+  } catch (error) {
+    console.error("電気室マスター更新失敗:", error);
+    res.status(500).json({ error: '電気室マスターの更新に失敗しました' });
+  }
+});
+
+/** 区分マスター更新 */
+app.patch('/api/admin/categories', (req, res) => {
+  try {
+    const categories = Array.isArray(req.body?.categories) ? req.body.categories : null;
+    const mccbList = Array.isArray(req.body?.mccbList) ? req.body.mccbList : null;
+    if (!categories || !mccbList) {
+      return res.status(400).json({ error: '区分マスター更新データが不正です。' });
+    }
+
+    store.writeMccbs(mccbList);
+    store.writeCollection('categories', categories);
+    res.json({ status: 'success', categories, mccbList, version: store.getVersion() });
+  } catch (error) {
+    console.error("区分マスター更新失敗:", error);
+    res.status(500).json({ error: '区分マスターの更新に失敗しました' });
+  }
+});
+
+/** 設備グループマスター更新 */
+app.patch('/api/admin/device-groups', (req, res) => {
+  try {
+    const deviceGroups = Array.isArray(req.body?.deviceGroups)
+      ? req.body.deviceGroups
+      : null;
+    if (!deviceGroups) {
+      return res.status(400).json({ error: '設備グループ更新データが不正です。' });
+    }
+
+    store.writeCollection('deviceGroups', deviceGroups);
+    let logs = null;
+    if (req.body?.logMessage) {
+      logs = createUpdatedLogs(
+        req.body.logType || LOG_TYPES.MASTER_UPDATE,
+        req.body.logMessage,
+        store.readCollection('logs'),
+        store.readCollection('logSettings')?.maxSize || 500,
+      );
+      store.writeCollection('logs', logs);
+    }
+    res.json({ status: 'success', deviceGroups, logs, version: store.getVersion() });
+  } catch (error) {
+    console.error("設備グループ更新失敗:", error);
+    res.status(500).json({ error: '設備グループの更新に失敗しました' });
+  }
+});
+
+/** ログ保持設定・ログクリア */
+app.patch('/api/admin/logs', (req, res) => {
+  try {
+    const action = req.body?.action;
+    const currentLogs = store.readCollection('logs');
+    const currentSettings = store.readCollection('logSettings');
+    let logs = currentLogs;
+    let logSettings = currentSettings;
+
+    if (action === 'clear') {
+      logs = [
+        {
+          id: `LOG-${Date.now()}`,
+          timestamp: getTimestamp(),
+          type: LOG_TYPES.SYSTEM,
+          message: "ログ履歴がクリアされました。",
+        },
+      ];
+    } else if (action === 'setMaxSize') {
+      const maxSize = Number(req.body?.maxSize);
+      if (!maxSize) {
+        return res.status(400).json({ error: 'ログ保持件数が不正です。' });
+      }
+      logSettings = { ...currentSettings, maxSize };
+      logs = createUpdatedLogs(
+        LOG_TYPES.SYSTEM,
+        `ログ保持件数変更`,
+        currentLogs.slice(0, maxSize),
+        maxSize,
+      );
+    } else {
+      return res.status(400).json({ error: 'ログ管理操作が不正です。' });
+    }
+
+    store.writeCollections({ logs, logSettings });
+    res.json({ status: 'success', logs, logSettings, version: store.getVersion() });
+  } catch (error) {
+    console.error("ログ管理更新失敗:", error);
+    res.status(500).json({ error: 'ログ管理の更新に失敗しました' });
+  }
+});
+
+/** 依頼履歴保持設定・履歴クリア */
+app.patch('/api/admin/request-history', (req, res) => {
+  try {
+    const action = req.body?.action;
+    const currentHistory = store.readCollection('requestHistory');
+    const currentSettings = store.readCollection('historySettings');
+    const currentLogs = store.readCollection('logs');
+    const logSettings = store.readCollection('logSettings');
+    let requestHistory = currentHistory;
+    let historySettings = currentSettings;
+
+    if (action === 'clear') {
+      requestHistory = [];
+    } else if (action === 'setMaxSize') {
+      const maxSize = Number(req.body?.maxSize);
+      if (!maxSize) {
+        return res.status(400).json({ error: '依頼履歴保持件数が不正です。' });
+      }
+      historySettings = { maxSize };
+      requestHistory = currentHistory.slice(0, maxSize);
+    } else {
+      return res.status(400).json({ error: '依頼履歴管理操作が不正です。' });
+    }
+
+    const logs = createUpdatedLogs(
+      LOG_TYPES.SYSTEM,
+      action === 'clear'
+        ? "停電作業の依頼履歴がすべてクリアされました。"
+        : `最大依頼履歴数が ${historySettings.maxSize} 件に変更されました。`,
+      currentLogs,
+      logSettings?.maxSize || 500,
+    );
+
+    store.writeCollections({ requestHistory, historySettings, logs });
+    res.json({
+      status: 'success',
+      requestHistory,
+      historySettings,
+      logs,
+      version: store.getVersion(),
+    });
+  } catch (error) {
+    console.error("依頼履歴管理更新失敗:", error);
+    res.status(500).json({ error: '依頼履歴管理の更新に失敗しました' });
   }
 });
 
@@ -317,10 +603,13 @@ app.post('/api/requests', (req, res) => {
       return res.status(400).json({ error: '依頼データが不正です。' });
     }
 
-    const latest = store.readAll();
-    const beforeMccbList = latest.mccbList;
+    const currentRequests = store.readCollection('requests') || [];
+    const logsBefore = store.readCollection('logs');
+    const logSettings = store.readCollection('logSettings');
+    const targetMccbs = store.readMccbsByIds(newRequest.targetMccbIds);
+    const dummyMccbs = store.readDummyMccbs();
+    const beforeMccbList = dedupeMccbs([...targetMccbs, ...dummyMccbs]);
     let currentMccbList = cloneMccbListForMutation(beforeMccbList);
-    const currentRequests = latest.requests || [];
 
     const actualReservations = new Map();
     currentRequests.forEach((request) => {
@@ -415,8 +704,8 @@ app.post('/api/requests', (req, res) => {
     const logs = createUpdatedLogs(
       LOG_TYPES.OPERATION,
       `👷 ${newRequest.workerName}氏の停電依頼を発行し\n子札を貸出予約しました。`,
-      latest.logs,
-      latest.logSettings?.maxSize || 500,
+      logsBefore,
+      logSettings?.maxSize || 500,
     );
     const changedMccbs = getChangedMccbs(beforeMccbList, currentMccbList);
 
@@ -430,6 +719,7 @@ app.post('/api/requests', (req, res) => {
       requests,
       logs,
       changedMccbs,
+      version: store.getVersion(),
     });
   } catch (error) {
     console.error("停電作業依頼発行失敗:", error);
@@ -440,16 +730,22 @@ app.post('/api/requests', (req, res) => {
 /** 停電作業依頼の完了・解約と子札返却 */
 app.delete('/api/requests/:id', (req, res) => {
   try {
-    const latest = store.readAll();
-    const beforeMccbList = latest.mccbList;
-    let currentMccbList = cloneMccbListForMutation(beforeMccbList);
-    const currentRequests = latest.requests || [];
-    const currentHistory = latest.requestHistory || [];
+    const currentRequests = store.readCollection('requests') || [];
+    const currentHistory = store.readCollection('requestHistory') || [];
+    const historySettings = store.readCollection('historySettings');
+    const logsBefore = store.readCollection('logs');
+    const logSettings = store.readCollection('logSettings');
     const reqToDelete = currentRequests.find((request) => request.id === req.params.id);
 
     if (!reqToDelete) {
       return res.status(404).json({ error: '対象の依頼が見つかりません。' });
     }
+
+    const affectedMccbIds = Object.values(reqToDelete.reservedCards || {})
+      .map((resInfo) => resInfo?.actualMccbId)
+      .filter(Boolean);
+    const beforeMccbList = store.readMccbsByIds(affectedMccbIds);
+    let currentMccbList = cloneMccbListForMutation(beforeMccbList);
 
     if (reqToDelete.reservedCards) {
       Object.keys(reqToDelete.reservedCards).forEach((targetId) => {
@@ -484,13 +780,13 @@ app.delete('/api/requests/:id', (req, res) => {
       completedTimestamp: getTimestamp(),
     };
     const requests = currentRequests.filter((request) => request.id !== req.params.id);
-    const maxHistorySize = latest.historySettings?.maxSize || 500;
+    const maxHistorySize = historySettings?.maxSize || 500;
     const requestHistory = [completedRequest, ...currentHistory].slice(0, maxHistorySize);
     const logs = createUpdatedLogs(
       LOG_TYPES.OPERATION,
       `👷 ${reqToDelete.workerName || "作業者"}氏の作業完了に伴い\n子札が返却されました。`,
-      latest.logs,
-      latest.logSettings?.maxSize || 500,
+      logsBefore,
+      logSettings?.maxSize || 500,
     );
     const changedMccbs = getChangedMccbs(beforeMccbList, currentMccbList);
 
@@ -505,6 +801,7 @@ app.delete('/api/requests/:id', (req, res) => {
       requestHistory,
       logs,
       changedMccbs,
+      version: store.getVersion(),
     });
   } catch (error) {
     console.error("停電作業依頼完了失敗:", error);

@@ -102,10 +102,12 @@ function AppContent() {
                     addCategory={controller.addCategory}
                     updateCategory={controller.updateCategory}
                     deleteCategory={controller.deleteCategory}
-                    logs={controller.logs}
+                    logs={controller.pagedLogs}
+                    logPageInfo={controller.logPageInfo}
                     logSettings={controller.logSettings}
                     onChangeMaxLogSize={controller.changeMaxLogSize}
                     onClearAllLogs={controller.clearAllLogs}
+                    onChangeLogPage={controller.fetchLogsPage}
                     deviceGroups={controller.deviceGroups}
                     addDeviceGroup={controller.addDeviceGroup}
                     updateDeviceGroup={controller.updateDeviceGroup}
@@ -162,9 +164,11 @@ function AppContent() {
             element={
               <RequestListPanel
                 requests={controller.requests}
-                requestHistory={controller.requestHistory}
+                requestHistory={controller.pagedRequestHistory}
+                historyPageInfo={controller.historyPageInfo}
                 mccbList={controller.mccbList}
                 onDeleteRequest={controller.deleteRequest}
+                onChangeHistoryPage={controller.fetchRequestHistoryPage}
               />
             }
           />

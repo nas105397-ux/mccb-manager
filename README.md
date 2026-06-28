@@ -190,7 +190,9 @@
 
 ## 📊 データ構造
 
-### MCCBデータ（mccb_data.json）
+### MCCBデータ（data/mccb_data.sqlite）
+
+運用データは `data/mccb_data.sqlite` に保存されます。`data/mccb_data.json` は初回移行や復旧時の元データとして使用できます。
 
 ```json
 {
@@ -272,7 +274,7 @@ package.json
 package-lock.json
 server.js
 ecosystem.config.cjs
-mccb_data.json
+data/
 dist/
 deploy/
 README.md
@@ -515,7 +517,7 @@ Chromiumの `GetVSyncParametersIfAvailable() failed` やGoogle API/GCM系のロ�
 - ⚠️ 停電操作は重大な影響があります
 - 📋 管理者権限は信頼できるユーザーのみに付与してください
 - 📝 すべての操作ログは記録されます（監査用）
-- 💾 データはブラウザのローカルストレージ + `mccb_data.json` に保存されます
+- 💾 運用データはサーバー側の `data/mccb_data.sqlite` に保存されます
 
 ---
 
