@@ -113,7 +113,6 @@ const RequestMccbRow = React.memo(
 export default function RequestFormPanel({
   mccbList,
   onAddRequest,
-  requests = [],
   deviceGroups = [],
 }) {
   const {
@@ -288,8 +287,6 @@ export default function RequestFormPanel({
         workerName={workerName}
         workContent={workContent}
         selectedMccbIds={selectedMccbIds}
-        mccbList={mccbList}
-        requests={requests}
         dummyNames={dummyNames}
       />
     </div>

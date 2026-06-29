@@ -280,6 +280,162 @@ function getChangedMccbs(beforeList, afterList) {
   });
 }
 
+function getDateCode(date = new Date()) {
+  return `${date.getFullYear().toString().slice(-2)}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function buildRequestAssignment(newRequest) {
+  const currentRequests = store.readCollection('requests') || [];
+  const targetMccbs = store.readMccbsByIds(newRequest.targetMccbIds);
+  const dummyMccbs = store.readDummyMccbs();
+  const beforeMccbList = dedupeMccbs([...targetMccbs, ...dummyMccbs]);
+  let currentMccbList = cloneMccbListForMutation(beforeMccbList);
+
+  const actualReservations = new Map();
+  currentRequests.forEach((request) => {
+    if (!request.reservedCards) return;
+    Object.entries(request.reservedCards).forEach(([, resInfo]) => {
+      if (!resInfo || !resInfo.actualMccbId) return;
+      const actualId = resInfo.actualMccbId;
+      if (!actualReservations.has(actualId)) {
+        actualReservations.set(actualId, new Map());
+      }
+      const cardMap = actualReservations.get(actualId);
+      if (resInfo.cardNo != null) {
+        cardMap.set(resInfo.cardNo, request.workerName);
+      }
+    });
+  });
+
+  currentMccbList = currentMccbList.map((mccb) => {
+    const cardMap = actualReservations.get(mccb.id);
+    const updatedCards = mccb.childCards.map((card) => {
+      if (cardMap && cardMap.has(card.id)) {
+        return {
+          ...card,
+          isBorrowed: true,
+          workerName: cardMap.get(card.id) || "",
+        };
+      }
+      return {
+        ...card,
+        isBorrowed: !!card.isBorrowed,
+        workerName: card.workerName || "",
+      };
+    });
+    return { ...mccb, childCards: updatedCards };
+  });
+
+  const reservedCards = {};
+  for (const targetId of newRequest.targetMccbIds) {
+    const originalMccb = currentMccbList.find((mccb) => mccb.id === targetId);
+    if (!originalMccb) {
+      reservedCards[targetId] = {
+        actualMccbId: null,
+        cardNo: null,
+        displayName: "空きなし",
+        customDummyName: null,
+      };
+      continue;
+    }
+
+    const { finalMccb, availableIdx } = findAvailableCard(
+      targetId,
+      originalMccb,
+      currentMccbList,
+      currentRequests,
+    );
+
+    if (finalMccb && availableIdx !== -1) {
+      currentMccbList = currentMccbList.map((mccb) => {
+        if (mccb.id === finalMccb.id) {
+          const updatedCards = [...mccb.childCards];
+          updatedCards[availableIdx] = {
+            ...updatedCards[availableIdx],
+            isBorrowed: true,
+            workerName: newRequest.workerName,
+          };
+          return { ...mccb, childCards: updatedCards };
+        }
+        return mccb;
+      });
+
+      const assignedCardNo =
+        finalMccb.childCards[availableIdx]?.id ?? availableIdx + 1;
+
+      reservedCards[targetId] = {
+        actualMccbId: finalMccb.id,
+        cardNo: assignedCardNo,
+        displayName: finalMccb.name,
+        customDummyName: newRequest.dummyNames?.[targetId] || null,
+      };
+    } else {
+      reservedCards[targetId] = {
+        actualMccbId: null,
+        cardNo: null,
+        displayName: "空きなし",
+        customDummyName: null,
+      };
+    }
+  }
+
+  return {
+    currentRequests,
+    beforeMccbList,
+    currentMccbList,
+    finalRequest: { ...newRequest, reservedCards },
+  };
+}
+
+function buildRequestPreviewItems(finalRequest, assignmentMccbList) {
+  const mccbById = new Map(assignmentMccbList.map((mccb) => [mccb.id, mccb]));
+  const dateCode = getDateCode();
+
+  return (finalRequest.targetMccbIds || [])
+    .map((targetId) => {
+      const originalMccb = mccbById.get(targetId);
+      const reserveInfo = finalRequest.reservedCards?.[targetId];
+      const actualMccb = reserveInfo?.actualMccbId
+        ? mccbById.get(reserveInfo.actualMccbId)
+        : null;
+
+      if (!originalMccb && !reserveInfo) return null;
+
+      const finalMccb = actualMccb || originalMccb;
+      const isOriginalDummy = isDummyMccb(originalMccb);
+      const isAllocatedFromDummy =
+        !!actualMccb && !!originalMccb && actualMccb.id !== originalMccb.id;
+      const cardNo = reserveInfo?.cardNo ?? 1;
+
+      let name = originalMccb?.name || reserveInfo?.displayName || "空きなし";
+      if (isOriginalDummy && reserveInfo?.customDummyName) {
+        name = `${originalMccb.name} (${reserveInfo.customDummyName})`;
+      } else if (isAllocatedFromDummy) {
+        name = `${actualMccb.name} (${originalMccb.name})`;
+      }
+
+      const cardLabel = isAllocatedFromDummy
+        ? `代替:${actualMccb.name} No.${cardNo}`
+        : `子札 No.${cardNo}`;
+      const generatedCardNo = finalMccb
+        ? `${dateCode}-${finalMccb.id.slice(-4)}-${cardNo}`
+        : `${dateCode}-NONE-${cardNo}`;
+
+      return {
+        ...(originalMccb || {}),
+        id: targetId,
+        room: originalMccb?.room || finalMccb?.room || "",
+        name,
+        cardLabel,
+        generatedCardNo,
+        isDummy: isAllocatedFromDummy || isOriginalDummy,
+        allocatedDummyName: actualMccb?.name || null,
+        reserveInfo,
+      };
+    })
+    .filter(Boolean);
+}
+
 ensureDefaultDatabasePath();
 
 const store = createMccbStore({
@@ -686,6 +842,27 @@ app.patch('/api/admin/request-history', (req, res) => {
 });
 
 /** 停電作業依頼の発行と子札予約 */
+app.post('/api/requests/preview', (req, res) => {
+  try {
+    const previewRequest = req.body?.request;
+    if (!previewRequest || !Array.isArray(previewRequest.targetMccbIds)) {
+      return res.status(400).json({ error: '依頼プレビューデータが不正です。' });
+    }
+
+    const { finalRequest, currentMccbList } = buildRequestAssignment(previewRequest);
+
+    res.json({
+      status: 'success',
+      request: finalRequest,
+      previewItems: buildRequestPreviewItems(finalRequest, currentMccbList),
+      version: store.getVersion(),
+    });
+  } catch (error) {
+    console.error("停電作業依頼プレビュー作成失敗", error);
+    res.status(500).json({ error: '停電作業依頼プレビューの作成に失敗しました' });
+  }
+});
+
 app.post('/api/requests', (req, res) => {
   try {
     const newRequest = req.body?.request;
