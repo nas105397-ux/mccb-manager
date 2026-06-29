@@ -53,9 +53,11 @@ try {
     'node_modules',
     'server.js',
     'dbStore.js',
+    'src/shared',
     'ecosystem.config.cjs',
     'dist',
-    'deploy'
+    'deploy',
+    'README.md'
   ) | ForEach-Object { Copy-RepoItem $_ }
 
   Compress-Archive -Path (Join-Path $StageDir '*') -DestinationPath $ZipPath -Force

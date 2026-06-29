@@ -266,22 +266,80 @@ npm start
 node server.js
 ```
 
-### Raspberry Pi 5 常時運用（PCビルド + PM2 + nginx + X11 kiosk）
+### Raspberry Pi 5 常時運用（PCビルド + systemd + nginx + X11 kiosk）
 
 本番運用では、開発とビルドはPCで行い、Raspberry Pi 5は実行専用にします。Pi上ではViteビルドを行わず、PCで生成した `dist/` をExpressが配信します。
 
 推奨構成:
 
 ```text
-PM2: Node/Expressサーバーを常駐
+systemd: Node/Expressサーバーを常駐
 nginx: 80番ポートで公開し、localhost:5000へリバースプロキシ
 X11 + Chromium kiosk: FHD操作画面と4Kダッシュボードを2画面固定表示
 ```
 
-#### 1. PCでビルド
+#### 推奨: Windows PCからSSHデプロイ
+
+Piをインターネットへ接続しない運用では、この方法を使います。PC側でビルドし、`node_modules` も含めてPiへ転送します。
+
+事前にPiイメージへ入れておくもの:
+
+```text
+Node.js 24以上
+unzip
+systemd
+nginx（80番公開する場合）
+chromium または chromium-browser、xset（kiosk表示する場合）
+```
+
+PowerShellから直接実行:
+
+```powershell
+.\deploy\raspi\deploy-over-ssh.ps1 -Target pi@192.168.1.50
+```
+
+クリック実行する場合:
+
+```text
+deploy\raspi\deploy-over-ssh.cmd
+```
+
+主なオプション:
+
+```powershell
+# SSHポート指定
+.\deploy\raspi\deploy-over-ssh.ps1 -Target pi@192.168.1.50 -Port 2222
+
+# 配置先指定
+.\deploy\raspi\deploy-over-ssh.ps1 -Target pi@192.168.1.50 -AppDir '/home/pi/mccb-manager'
+
+# デプロイ後にkioskも起動
+.\deploy\raspi\deploy-over-ssh.ps1 -Target pi@192.168.1.50 -StartKiosk
+```
+
+このスクリプトは以下を行います。
+
+```text
+1. PC側で npm ci（node_modules が無い場合）
+2. PC側で npm run build
+3. 配布ZIPを作成
+4. PiへSSH転送
+5. Pi側へ展開
+6. systemdサービス登録/再起動
+7. nginxがあれば80番公開設定
+8. Chromium環境があればkioskユーザーサービス登録
+```
+
+Pi側の `data/` はアップロードで上書きしません。既存の `data/mccb_data.sqlite` と `data/backups/` は保持されます。
+
+詳細は [deploy/raspi/README-ssh-deploy.md](deploy/raspi/README-ssh-deploy.md) を参照してください。
+
+#### 手動配布する場合
+
+PCでビルド:
 
 ```bash
-npm install
+npm ci
 npm run build
 ```
 
@@ -290,24 +348,21 @@ Piへ渡す最小構成:
 ```text
 package.json
 package-lock.json
+node_modules/
 server.js
+dbStore.js
+src/shared/
 ecosystem.config.cjs
-data/
 dist/
 deploy/
 README.md
 ```
 
-Pi側の配置先は `/home/pi/mccb-manager` を想定しています。別の場所に置く場合は `ecosystem.config.cjs` と `deploy/kiosk/mccb-kiosk.service` のパスを合わせてください。
+新規導入時だけ、必要に応じて `data/mccb_data.json` を配置します。既存運用中のPiでは `data/` を上書きしないでください。
 
-#### 2. Piで本番依存関係を入れる
+Pi側の配置先は `/home/pi/mccb-manager` を想定しています。
 
-```bash
-cd /home/pi/mccb-manager
-npm ci --omit=dev
-```
-
-#### 3. サーバーを手動起動で確認
+#### 手動起動確認
 
 ```bash
 cd /home/pi/mccb-manager
@@ -323,31 +378,23 @@ http://<Raspberry PiのIP>:5000/#/monitor
 
 確認できたら `Ctrl + C` で停止します。
 
-#### 4. PM2でサーバーを常駐
+#### systemdでサーバーを常駐
 
 ```bash
 cd /home/pi/mccb-manager
-npm install -g pm2
-pm2 start ecosystem.config.cjs
-pm2 save
-pm2 startup
+APP_DIR=/home/pi/mccb-manager ENABLE_KIOSK=1 bash deploy/raspi/setup-system.sh
 ```
-
-`pm2 startup` のあとに表示される `sudo ...` コマンドをコピーして実行してください。
 
 確認:
 
 ```bash
-pm2 status
-pm2 logs mccb-manager --lines 50
+systemctl status mccb-manager.service
+journalctl -u mccb-manager.service --no-pager -n 80
 ```
 
-#### 5. nginxで80番ポート公開
+#### nginxで80番ポート公開
 
 ```bash
-sudo apt update
-sudo apt install nginx
-
 cd /home/pi/mccb-manager
 sudo cp deploy/nginx/mccb-manager.conf /etc/nginx/sites-available/mccb-manager
 sudo ln -s /etc/nginx/sites-available/mccb-manager /etc/nginx/sites-enabled/mccb-manager
@@ -372,7 +419,7 @@ ls -l /etc/nginx/sites-enabled/
 systemctl status nginx
 ```
 
-#### 6. X11 kioskを手動起動で確認
+#### X11 kioskを手動起動で確認
 
 Raspberry Pi OSはX11に切り替えて運用します。SSHからX11上の画面に出す場合は `DISPLAY=:0` を付けます。
 
@@ -408,7 +455,7 @@ pkill chromium
 DISPLAY=:0 ENABLE_GPU_TUNING=0 APP_URL=http://127.0.0.1 ./deploy/kiosk/start-kiosk.sh
 ```
 
-#### 7. kioskを自動起動
+#### kioskを自動起動
 
 ```bash
 cd /home/pi/mccb-manager
@@ -434,7 +481,7 @@ journalctl --user -u mccb-kiosk.service --no-pager -n 80
 loginctl enable-linger pi
 ```
 
-#### 8. スリープ・画面OFFを無効化
+#### スリープ・画面OFFを無効化
 
 `deploy/kiosk/mccb-kiosk.service` には以下を入れています。
 
@@ -458,7 +505,7 @@ Screen Saver timeout: 0
 DPMS is Disabled
 ```
 
-#### 9. kioskで日本語入力を使う
+#### kioskで日本語入力を使う
 
 X11 + Chromium kioskで日本語入力する場合は、Piに `fcitx5-mozc` を入れます。
 
@@ -502,12 +549,13 @@ systemctl --user restart mccb-kiosk.service
 fcitx5-configtool
 ```
 
-#### 10. 運用確認コマンド
+#### 運用確認コマンド
 
 ```bash
+systemctl status mccb-manager.service
+journalctl -u mccb-manager.service --no-pager -n 80
 systemctl --user status mccb-kiosk.service
 DISPLAY=:0 xset q
-pm2 status
 systemctl status nginx
 vcgencmd measure_temp
 vcgencmd get_throttled
@@ -520,7 +568,7 @@ ps -eo pid,ppid,cmd,%mem,%cpu --sort=-%cpu | head -20
 
 ```text
 mccb-kiosk.service: active (running)
-PM2 mccb-manager: online
+mccb-manager.service: active (running)
 nginx: active (running)
 throttled=0x0
 温度: 75度未満なら概ね良好

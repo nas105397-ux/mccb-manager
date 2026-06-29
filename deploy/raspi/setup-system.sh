@@ -52,7 +52,7 @@ Restart=always
 RestartSec=5
 
 [Install]
-WantedBy=default.target
+WantedBy=multi-user.target
 SERVICE
 
 sudo systemctl daemon-reload

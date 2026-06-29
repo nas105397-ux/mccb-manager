@@ -2,7 +2,7 @@
 
 この手順は、Raspberry Pi をインターネットへ接続しない運用を前提にしています。
 
-PC 側でアプリをビルドし、`dist/`、サーバーファイル、`deploy/`、`node_modules` をまとめて SSH で Raspberry Pi へ転送します。Raspberry Pi 側のセットアップでは `apt`、NodeSource、`npm install` は実行しません。
+PC 側でアプリをビルドし、`dist/`、サーバーファイル、`src/shared/`、`deploy/`、`node_modules` をまとめて SSH で Raspberry Pi へ転送します。Raspberry Pi 側のセットアップでは `apt`、NodeSource、`npm install` は実行しません。
 
 ## Raspberry Pi イメージの事前準備
 
@@ -10,7 +10,8 @@ Raspberry Pi をオフライン運用にする前に、イメージへ以下を�
 
 - Node.js 24 以上
 - `unzip`
-- `systemd --user`
+- `systemd`
+- `systemd --user`（kiosk表示を使う場合）
 - 80 番ポートで公開する場合は `nginx`
 - kiosk 表示を使う場合は `chromium` または `chromium-browser` と `xset`
 
@@ -54,14 +55,29 @@ SSH ポートが 22 以外の場合:
 
 1. PC 側で `node_modules` が無ければ `npm ci` を実行します。
 2. PC 側で `npm run build` を実行します。
-3. アプリ本体と `node_modules` を zip 化します。
+3. アプリ本体、`src/shared/`、`node_modules` を zip 化します。
 4. Raspberry Pi の `/tmp/mccb-manager-deploy.zip` へ転送します。
 5. 既定では Raspberry Pi の `$HOME/mccb-manager` へ展開します。
 6. `mccb-manager.service` を systemd のシステムサービスとして登録します。
 7. `nginx` が入っている場合だけ、80 番ポート公開の設定を行います。
 8. Chromium と `xset` が入っている場合だけ、kiosk サービスを登録します。
 
-PC 側の `data/` ディレクトリはアップロードしません。Raspberry Pi 側にある `data/mccb_data.sqlite` とバックアップは保持されます。
+PC 側の `data/` ディレクトリはアップロードしません。Raspberry Pi 側にある `data/mccb_data.sqlite` と `data/backups/` は保持されます。
+
+配布ZIPに含める主な内容:
+
+```text
+package.json
+package-lock.json
+node_modules/
+server.js
+dbStore.js
+src/shared/
+ecosystem.config.cjs
+dist/
+deploy/
+README.md
+```
 
 ## アクセス URL
 
