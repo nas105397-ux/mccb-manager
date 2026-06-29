@@ -96,12 +96,14 @@ function AppContent() {
                     mccbList={controller.mccbList}
                     rooms={controller.rooms}
                     categories={controller.categories}
+                    categoryColors={controller.categoryColors}
                     addRoom={controller.addRoom}
                     updateRoom={controller.updateRoom}
                     deleteRoom={controller.deleteRoom}
                     addCategory={controller.addCategory}
                     updateCategory={controller.updateCategory}
                     deleteCategory={controller.deleteCategory}
+                    updateCategoryColor={controller.updateCategoryColor}
                     logs={controller.pagedLogs}
                     logPageInfo={controller.logPageInfo}
                     logSettings={controller.logSettings}
@@ -126,6 +128,7 @@ function AppContent() {
                     onSelect={controller.handleSelect}
                     onToggleFavorite={controller.handleToggleFavorite}
                     activeMccbIds={controller.activeMccbIds}
+                    categoryColors={controller.categoryColors}
                   />
                 </div>
 

@@ -1,23 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { VariableSizeGrid as Grid } from 'react-window';
-
-/** 区分バッジの色クラス */
-const CATEGORY_COLORS = {
-  '1スト': 'bg-white text-gray-900 border-gray-300 shadow-sm',
-  '2スト': 'bg-black text-white border-gray-700',
-  '3スト': 'bg-red-600 text-white border-red-600',
-  '4スト': 'bg-blue-600 text-white border-blue-600',
-  '5スト': 'bg-yellow-400 text-gray-900 border-yellow-400',
-  '6スト': 'bg-green-600 text-white border-green-600',
-  共通: 'bg-gray-100 text-gray-700 border-gray-300',
-};
-
-const getCategoryBadgeClass = (category, isDarkMode) => {
-  if (CATEGORY_COLORS[category]) return `border ${CATEGORY_COLORS[category]}`;
-  return isDarkMode
-    ? 'border bg-gray-800 text-gray-300 border-gray-700'
-    : 'border bg-gray-50 text-gray-600 border-gray-200';
-};
+import { getCategoryBadgeClass } from '../shared/categoryColorUtils';
 
 const getColumnCountFromLayout = (colLayout, width) => {
   if (colLayout === 'auto') return Math.max(1, Math.floor(width / 330));
@@ -65,7 +48,13 @@ const WorkerBadge = memo(function WorkerBadge({ card, isDarkMode }) {
   );
 });
 
-const OffMccbCard = memo(function OffMccbCard({ mccb, workers, isAlternative, isDarkMode }) {
+const OffMccbCard = memo(function OffMccbCard({
+  mccb,
+  workers,
+  isAlternative,
+  isDarkMode,
+  categoryColors,
+}) {
   return (
     <div
       className={`border-4 rounded-xl p-5 shadow-xl flex flex-col justify-between min-h-[200px] transition-colors will-change-transform h-full ${
@@ -83,7 +72,7 @@ const OffMccbCard = memo(function OffMccbCard({ mccb, workers, isAlternative, is
           >
             {mccb.room}
           </span>
-          <span className={`text-xs px-2.5 py-0.5 rounded font-black shrink-0 ${getCategoryBadgeClass(mccb.category, isDarkMode)}`}>
+          <span className={`text-xs border px-2.5 py-0.5 rounded font-black shrink-0 ${getCategoryBadgeClass(mccb.category, categoryColors, isDarkMode)}`}>
             {mccb.category}
           </span>
         </div>
@@ -143,6 +132,7 @@ const MeasuredOffMccbCard = memo(function MeasuredOffMccbCard({
   itemIndex,
   rowIndex,
   isDarkMode,
+  categoryColors,
   onHeightMeasured,
 }) {
   const wrapperRef = useRef(null);
@@ -176,12 +166,18 @@ const MeasuredOffMccbCard = memo(function MeasuredOffMccbCard({
         workers={meta.workers}
         isAlternative={meta.isAlternative}
         isDarkMode={isDarkMode}
+        categoryColors={categoryColors}
       />
     </div>
   );
 });
 
-export default function VirtualizedOffMccbGrid({ items, colLayout, isDarkMode }) {
+export default function VirtualizedOffMccbGrid({
+  items,
+  colLayout,
+  isDarkMode,
+  categoryColors = {},
+}) {
   const containerRef = useRef(null);
   const gridRef = useRef(null);
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
@@ -332,6 +328,7 @@ export default function VirtualizedOffMccbGrid({ items, colLayout, isDarkMode })
                   itemIndex={index}
                   rowIndex={rowIndex}
                   isDarkMode={isDarkMode}
+                  categoryColors={categoryColors}
                   onHeightMeasured={onHeightMeasured}
                 />
               </div>

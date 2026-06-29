@@ -13,6 +13,10 @@ import {
   LOG_TYPES,
   normalizeLogs,
 } from './src/shared/appConstants.js';
+import {
+  DEFAULT_CATEGORY_COLOR_KEYS,
+  normalizeCategoryColors,
+} from './src/shared/categoryColorUtils.js';
 
 const app = express();
 
@@ -85,6 +89,7 @@ const DEFAULT_DATA = {
   mccbList: DEFAULT_MCCB,
   rooms: DEFAULT_ROOMS,
   categories: DEFAULT_CATEGORIES,
+  categoryColors: normalizeCategoryColors(DEFAULT_CATEGORIES, DEFAULT_CATEGORY_COLOR_KEYS),
   logs: [{ id: "INIT", timestamp: getTimestamp(), type: LOG_TYPES.SYSTEM, message: "システムログ機能が初期化されました。" }],
   logSettings: { maxSize: DEFAULT_MAX_SIZE },
   requests: [],
@@ -763,16 +768,62 @@ app.patch('/api/admin/categories', (req, res) => {
   try {
     const categories = Array.isArray(req.body?.categories) ? req.body.categories : null;
     const mccbList = Array.isArray(req.body?.mccbList) ? req.body.mccbList : null;
+    const incomingCategoryColors =
+      req.body?.categoryColors && typeof req.body.categoryColors === 'object'
+        ? req.body.categoryColors
+        : store.readCollection('categoryColors');
     if (!categories || !mccbList) {
       return res.status(400).json({ error: '区分マスター更新データが不正です。' });
     }
 
+    const categoryColors = normalizeCategoryColors(categories, incomingCategoryColors);
     store.writeMccbs(mccbList);
-    store.writeCollection('categories', categories);
-    res.json({ status: 'success', categories, mccbList, version: store.getVersion() });
+    store.writeCollections({ categories, categoryColors });
+    res.json({
+      status: 'success',
+      categories,
+      categoryColors,
+      mccbList,
+      version: store.getVersion(),
+    });
   } catch (error) {
     console.error("区分マスター更新失敗:", error);
     res.status(500).json({ error: '区分マスターの更新に失敗しました' });
+  }
+});
+
+/** 区分色マスター更新 */
+app.patch('/api/admin/category-colors', (req, res) => {
+  try {
+    const categoryColors =
+      req.body?.categoryColors && typeof req.body.categoryColors === 'object'
+        ? req.body.categoryColors
+        : null;
+    if (!categoryColors) {
+      return res.status(400).json({ error: '区分色マスター更新データが不正です。' });
+    }
+
+    const categories = store.readCollection('categories');
+    const normalizedCategoryColors = normalizeCategoryColors(categories, categoryColors);
+    store.writeCollection('categoryColors', normalizedCategoryColors);
+
+    const logs = createUpdatedLogs(
+      LOG_TYPES.MASTER_UPDATE,
+      '区分マスターの表示色を更新しました。',
+      store.readCollection('logs'),
+      store.readCollection('logSettings')?.maxSize || DEFAULT_MAX_SIZE,
+    );
+    store.writeCollection('logs', logs);
+
+    res.json({
+      status: 'success',
+      categoryColors: normalizedCategoryColors,
+      logs,
+      version: store.getVersion(),
+    });
+  } catch (error) {
+    console.error("区分色マスター更新失敗:", error);
+    res.status(500).json({ error: '区分色マスターの更新に失敗しました' });
   }
 });
 

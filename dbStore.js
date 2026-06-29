@@ -4,6 +4,7 @@ import { DatabaseSync } from 'node:sqlite';
 const COLLECTION_KEYS = [
   'rooms',
   'categories',
+  'categoryColors',
   'logs',
   'logSettings',
   'requests',
@@ -32,6 +33,7 @@ const normalizeData = (data, defaults) => {
     mccbList: source.mccbList || (isArrayPayload ? data : defaults.mccbList),
     rooms: source.rooms || defaults.rooms,
     categories: source.categories || defaults.categories,
+    categoryColors: source.categoryColors || defaults.categoryColors,
     logs: source.logs || defaults.logs,
     logSettings: source.logSettings || defaults.logSettings,
     requests: source.requests || defaults.requests,
@@ -457,6 +459,7 @@ export function createMccbStore({ dbPath, defaults }) {
       ...readCollections([
         'rooms',
         'categories',
+        'categoryColors',
         'logSettings',
         'requests',
         'deviceGroups',

@@ -5,6 +5,7 @@ import {
   DEFAULT_ROOMS,
   LOG_TYPES,
 } from "../shared/appConstants";
+import { normalizeCategoryColors } from "../shared/categoryColorUtils";
 
 const API_URL = "/api/mccb";
 const CORE_API_URL = `${API_URL}?core=1`;
@@ -41,6 +42,10 @@ const parseServerData = (data) => {
     mccbList: source.mccbList || (isArrayPayload ? data : []),
     rooms: source.rooms || DEFAULT_ROOMS,
     categories: source.categories || DEFAULT_CATEGORIES,
+    categoryColors: normalizeCategoryColors(
+      source.categories || DEFAULT_CATEGORIES,
+      source.categoryColors || {},
+    ),
     logs: Array.isArray(source.logs) ? source.logs : [],
     logSettings: source.logSettings || { maxSize: DEFAULT_MAX_SIZE },
     requests: source.requests || [],
@@ -58,6 +63,9 @@ export function useMccbData() {
   const [mccbList, setMccbList] = useState([]);
   const [rooms, setRooms] = useState(DEFAULT_ROOMS);
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+  const [categoryColors, setCategoryColors] = useState(() =>
+    normalizeCategoryColors(DEFAULT_CATEGORIES),
+  );
   const [logs, setLogs] = useState([]);
   const [pagedLogs, setPagedLogs] = useState([]);
   const [logPageInfo, setLogPageInfo] = useState(() =>
@@ -151,6 +159,7 @@ export function useMccbData() {
       setMccbList(parsed.mccbList);
       setRooms(parsed.rooms);
       setCategories(parsed.categories);
+      setCategoryColors(parsed.categoryColors);
       if (!data.core) {
         setLogs(parsed.logs);
         applyLogsPageFromArray(parsed.logs);
@@ -433,22 +442,31 @@ export function useMccbData() {
       const trimmed = categoryName.trim();
       if (trimmed && !categories.includes(trimmed)) {
         const nextCategories = [...categories, trimmed];
+        const nextCategoryColors = normalizeCategoryColors(nextCategories, {
+          ...categoryColors,
+        });
         setCategories(nextCategories);
+        setCategoryColors(nextCategoryColors);
         runSyncTask(async () => {
           const res = await fetch("/api/admin/categories", {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ categories: nextCategories, mccbList }),
+            body: JSON.stringify({
+              categories: nextCategories,
+              categoryColors: nextCategoryColors,
+              mccbList,
+            }),
           });
           if (!res.ok) throw new Error(`区分追加に失敗しました (${res.status})`);
           const result = await res.json();
           if (Array.isArray(result.categories)) setCategories(result.categories);
+          if (result.categoryColors) setCategoryColors(result.categoryColors);
           if (Array.isArray(result.mccbList)) setMccbList(result.mccbList);
           applyVersion(result.version);
         });
       }
     },
-    [applyVersion, categories, mccbList, runSyncTask],
+    [applyVersion, categories, categoryColors, mccbList, runSyncTask],
   );
 
   const updateCategory = useCallback(
@@ -459,23 +477,33 @@ export function useMccbData() {
           m.category === oldName ? { ...m, category: trimmed } : m,
         );
         const nextCats = categories.map((c) => (c === oldName ? trimmed : c));
+        const nextCategoryColors = normalizeCategoryColors(nextCats, {
+          ...categoryColors,
+          [trimmed]: categoryColors[oldName],
+        });
         setMccbList(nextList);
         setCategories(nextCats);
+        setCategoryColors(nextCategoryColors);
         runSyncTask(async () => {
           const res = await fetch("/api/admin/categories", {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ categories: nextCats, mccbList: nextList }),
+            body: JSON.stringify({
+              categories: nextCats,
+              categoryColors: nextCategoryColors,
+              mccbList: nextList,
+            }),
           });
           if (!res.ok) throw new Error(`区分編集に失敗しました (${res.status})`);
           const result = await res.json();
           if (Array.isArray(result.categories)) setCategories(result.categories);
+          if (result.categoryColors) setCategoryColors(result.categoryColors);
           if (Array.isArray(result.mccbList)) setMccbList(result.mccbList);
           applyVersion(result.version);
         });
       }
     },
-    [applyVersion, categories, mccbList, runSyncTask],
+    [applyVersion, categories, categoryColors, mccbList, runSyncTask],
   );
 
   const deleteCategory = useCallback(
@@ -485,22 +513,58 @@ export function useMccbData() {
         window.confirm(`削除しますか？`)
       ) {
         const nextCategories = categories.filter((c) => c !== categoryName);
+        const nextCategoryColors = normalizeCategoryColors(
+          nextCategories,
+          categoryColors,
+        );
         setCategories(nextCategories);
+        setCategoryColors(nextCategoryColors);
         runSyncTask(async () => {
           const res = await fetch("/api/admin/categories", {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ categories: nextCategories, mccbList }),
+            body: JSON.stringify({
+              categories: nextCategories,
+              categoryColors: nextCategoryColors,
+              mccbList,
+            }),
           });
           if (!res.ok) throw new Error(`区分削除に失敗しました (${res.status})`);
           const result = await res.json();
           if (Array.isArray(result.categories)) setCategories(result.categories);
+          if (result.categoryColors) setCategoryColors(result.categoryColors);
           if (Array.isArray(result.mccbList)) setMccbList(result.mccbList);
           applyVersion(result.version);
         });
       }
     },
-    [applyVersion, categories, mccbList, runSyncTask],
+    [applyVersion, categories, categoryColors, mccbList, runSyncTask],
+  );
+
+  const updateCategoryColor = useCallback(
+    (categoryName, colorKey) => {
+      if (!categories.includes(categoryName)) return;
+
+      const nextCategoryColors = normalizeCategoryColors(categories, {
+        ...categoryColors,
+        [categoryName]: colorKey,
+      });
+      setCategoryColors(nextCategoryColors);
+
+      runSyncTask(async () => {
+        const res = await fetch("/api/admin/category-colors", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ categoryColors: nextCategoryColors }),
+        });
+        if (!res.ok) throw new Error(`区分色変更に失敗しました (${res.status})`);
+        const result = await res.json();
+        if (result.categoryColors) setCategoryColors(result.categoryColors);
+        if (Array.isArray(result.logs)) applyLogs(result.logs);
+        applyVersion(result.version);
+      });
+    },
+    [applyLogs, applyVersion, categories, categoryColors, runSyncTask],
   );
 
   // --- システムログ制御 ---
@@ -887,6 +951,7 @@ export function useMccbData() {
     mccbList,
     rooms,
     categories,
+    categoryColors,
     logs,
     pagedLogs,
     logPageInfo,
@@ -912,6 +977,7 @@ export function useMccbData() {
     addCategory,
     updateCategory,
     deleteCategory,
+    updateCategoryColor,
     changeMaxLogSize,
     clearAllLogs,
     fetchLogsPage,

@@ -10,7 +10,7 @@ const VERSION_URL = `${API_URL}/version`;
 const ACTIVITY_LOG_LIMIT = 20;
 const LOGS_PAGE_URL = `/api/logs?page=1&pageSize=${ACTIVITY_LOG_LIMIT}`;
 export const POLL_INTERVAL = 15000;
-const INITIAL_DATA = { mccbList: [], logs: [], requests: [] };
+const INITIAL_DATA = { mccbList: [], logs: [], requests: [], categoryColors: {} };
 
 const getInitialDarkMode = () => {
   const savedMode = localStorage.getItem('dashboard_is_dark_mode');
@@ -52,6 +52,7 @@ export function useDashboardController() {
           mccbList: latest.mccbList || [],
           logs: logsPage.items || [],
           requests: latest.requests || [],
+          categoryColors: latest.categoryColors || {},
         });
       } catch (err) {
         if (!disposed) {
@@ -143,5 +144,6 @@ export function useDashboardController() {
     processedOffMccbs,
     stats,
     recentLogs,
+    categoryColors: data.categoryColors,
   };
 }

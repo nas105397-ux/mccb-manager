@@ -80,6 +80,7 @@ export default function DashboardView({ onClose }) {
     processedOffMccbs,
     stats,
     recentLogs,
+    categoryColors,
   } = useDashboardController();
 
   // --- ローディング画面 ---
@@ -198,6 +199,7 @@ export default function DashboardView({ onClose }) {
                 items={processedOffMccbs}
                 colLayout={colLayout}
                 isDarkMode={isDarkMode}
+                categoryColors={categoryColors}
               />
             )}
           </div>

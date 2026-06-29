@@ -16,6 +16,7 @@ export default function VirtualizedMccbGrid({
   onSelect,
   onToggleFavorite,
   activeMccbIds = new Set(),
+  categoryColors = {},
   // カード高さ推定値、列間（水平方向）ギャップ、行間（垂直方向）ギャップ
   estimatedCardHeight = 180,
   hGap = 12,
@@ -84,6 +85,7 @@ export default function VirtualizedMccbGrid({
               onToggleFavorite={onToggleFavorite}
               hasActiveRequest={hasActive}
               className="h-full"
+              categoryColors={categoryColors}
             />
           </div>,
         );

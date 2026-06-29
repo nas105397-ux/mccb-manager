@@ -1,20 +1,6 @@
 import React from "react";
 import { useMccbCardController } from "../hooks/useMccbCardController";
-
-// ==========================================
-// 定数定義
-// ==========================================
-
-/** 区分バッジの色クラス */
-const CATEGORY_COLORS = {
-  "1スト": "bg-white text-gray-900 border-gray-350 shadow-sm",
-  "2スト": "bg-black text-white border-black",
-  "3スト": "bg-red-600 text-white border-red-600",
-  "4スト": "bg-blue-600 text-white border-blue-600",
-  "5スト": "bg-yellow-400 text-gray-900 border-yellow-400",
-  "6スト": "bg-green-600 text-white border-green-600",
-  共通: "bg-gray-100 text-gray-700 border-gray-300",
-};
+import { getCategoryBadgeClass } from "../shared/categoryColorUtils";
 
 /** カード状態別ボーダー・背景クラス */
 const CARD_STATUS_CLASS = {
@@ -36,6 +22,7 @@ function MccbCard({
   onToggleFavorite,
   hasActiveRequest = false,
   className = "",
+  categoryColors = {},
 }) {
   const {
     id: mccbId,
@@ -49,8 +36,7 @@ function MccbCard({
   const { handleSelect, handleKeyDown, handleToggleFavorite } =
     useMccbCardController({ mccbId, isFavorite, onSelect, onToggleFavorite });
 
-  const badgeColor =
-    CATEGORY_COLORS[category] ?? "bg-gray-50 text-gray-600 border-gray-200";
+  const badgeColor = getCategoryBadgeClass(category, categoryColors);
   const cardStatusCls = isPowerOff
     ? CARD_STATUS_CLASS.powerOff
     : hasActiveRequest
@@ -139,6 +125,7 @@ export default React.memo(
     prev?.mccb?.isPowerOff === next?.mccb?.isPowerOff &&
     prev?.mccb?.isFavorite === next?.mccb?.isFavorite &&
     prev?.mccb?.name === next?.mccb?.name &&
+    prev?.categoryColors === next?.categoryColors &&
     prev?.borrowedCount === next?.borrowedCount &&
     prev?.hasActiveRequest === next?.hasActiveRequest,
 );
