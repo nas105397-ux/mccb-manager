@@ -17,6 +17,7 @@ import {
   DEFAULT_CATEGORY_COLOR_KEYS,
   normalizeCategoryColors,
 } from './src/shared/categoryColorUtils.js';
+import { countBorrowedCards } from './src/shared/mccbViewUtils.js';
 
 const app = express();
 
@@ -148,10 +149,6 @@ function createPage(items, page = 1, pageSize = 50) {
     totalPages,
     version: store.getVersion(),
   };
-}
-
-function countBorrowedCards(mccb) {
-  return mccb?.childCards?.filter((card) => card.isBorrowed).length || 0;
 }
 
 function createMccbChangeLog(before, after) {

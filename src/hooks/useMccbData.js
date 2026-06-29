@@ -271,11 +271,6 @@ export function useMccbData() {
 
   // --- 各種ビジネスロジック関数群 (useCallbackで完全キャッシュ化) ---
 
-  /** 対象設備の貸出中子札数を取得 */
-  const getBorrowedCount = useCallback((mccb) => {
-    return mccb ? mccb.childCards.filter((c) => c.isBorrowed).length : 0;
-  }, []);
-
   /** 設備の個別新規マスタ登録 */
   const saveMccbEntry = useCallback(
     (entry) => {
@@ -970,7 +965,6 @@ export function useMccbData() {
     saveMccbEntry,
     deleteMccb,
     importFromCSV,
-    getBorrowedCount,
     addRoom,
     updateRoom,
     deleteRoom,
