@@ -18,6 +18,16 @@ Raspberry Pi をオフライン運用にする前に、イメージへ以下を�
 
 ## Windows PowerShell からデプロイ
 
+`deploy-over-ssh.ps1` をダブルクリックすると、実行されずにエディタで開く場合があります。その場合は次のどちらかで実行してください。
+
+### クリックして実行する場合
+
+`deploy\raspi\deploy-over-ssh.cmd` をダブルクリックしてください。接続先、SSH ポート、配置先を順番に入力できます。
+
+### PowerShell から直接実行する場合
+
+リポジトリのルートで PowerShell を開いて、次を実行します。
+
 ```powershell
 .\deploy\raspi\deploy-over-ssh.ps1 -Target pi@192.168.1.50
 ```
