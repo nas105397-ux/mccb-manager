@@ -185,7 +185,7 @@ export default function DashboardView({ onClose }) {
 
           <div className="flex-1 min-h-0 flex">
             {stats.offCount === 0 ? (
-              <div className={`h-full flex flex-col items-center justify-center border-2 border-dashed rounded-xl space-y-4 ${
+              <div className={`h-full flex-1 flex flex-col items-center justify-center border-2 border-dashed rounded-xl space-y-4 ${
                 isDarkMode ? 'text-gray-500 border-gray-800 bg-gray-900/30' : 'text-gray-400 border-gray-300 bg-gray-50'
               }`}>
                 <span className="text-6xl animate-pulse will-change-transform">🟢</span>
