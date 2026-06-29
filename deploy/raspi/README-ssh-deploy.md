@@ -73,7 +73,6 @@ node_modules/
 server.js
 dbStore.js
 src/shared/
-ecosystem.config.cjs
 dist/
 deploy/
 README.md

@@ -192,7 +192,7 @@
 
 ### MCCBデータ（data/mccb_data.sqlite）
 
-運用データは `data/mccb_data.sqlite` に保存されます。`data/mccb_data.json` は初回移行や復旧時の元データとして使用できます。
+運用データは `data/mccb_data.sqlite` に保存されます。
 
 バックアップは `data/backups/` に保存されます。サーバー起動時に1回、その後24時間ごとに自動作成され、最新10件を保持します。管理画面から手動作成もできます。
 
@@ -352,13 +352,12 @@ node_modules/
 server.js
 dbStore.js
 src/shared/
-ecosystem.config.cjs
 dist/
 deploy/
 README.md
 ```
 
-新規導入時だけ、必要に応じて `data/mccb_data.json` を配置します。既存運用中のPiでは `data/` を上書きしないでください。
+既存運用中のPiでは `data/` を上書きしないでください。復旧は `data/backups/` のSQLiteバックアップから行います。
 
 Pi側の配置先は `/home/pi/mccb-manager` を想定しています。
 
@@ -604,7 +603,7 @@ Chromiumの `GetVSyncParametersIfAvailable() failed` やGoogle API/GCM系のロ�
 - **UI**: Tailwind CSS
 - **Routing**: React Router
 - **Backend**: Node.js (Express)
-- **Data**: JSON（ローカルストレージ）
+- **Data**: SQLite（サーバー側 `data/mccb_data.sqlite`）
 
 ---
 

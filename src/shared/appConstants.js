@@ -29,15 +29,9 @@ export const LOG_TYPES = Object.freeze({
   SYSTEM: "システム",
 });
 
-export const LEGACY_LOG_TYPE_MAP = Object.freeze({
-  マスタ変更: LOG_TYPES.MASTER_UPDATE,
-  設定変更: LOG_TYPES.SYSTEM,
-});
-
 const LOG_TYPE_VALUES = new Set(Object.values(LOG_TYPES));
 
 export const normalizeLogType = (type) => {
-  if (LEGACY_LOG_TYPE_MAP[type]) return LEGACY_LOG_TYPE_MAP[type];
   return LOG_TYPE_VALUES.has(type) ? type : LOG_TYPES.SYSTEM;
 };
 

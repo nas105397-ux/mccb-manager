@@ -54,7 +54,6 @@ try {
     'server.js',
     'dbStore.js',
     'src/shared',
-    'ecosystem.config.cjs',
     'dist',
     'deploy',
     'README.md'

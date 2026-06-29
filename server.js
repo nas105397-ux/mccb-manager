@@ -26,10 +26,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const DATA_DIR = path.join(__dirname, 'data');
-const FILE_PATH = path.join(DATA_DIR, 'mccb_data.json');
 const BACKUP_DIR = path.join(DATA_DIR, 'backups');
-const LEGACY_JSON_PATH = path.join(__dirname, 'mccb_data.json');
-const LEGACY_DB_PATH = path.join(__dirname, 'mccb_data.sqlite');
 const DB_PATH = process.env.MCCB_DB_PATH || path.join(DATA_DIR, 'mccb_data.sqlite');
 const PORT = process.env.PORT || 5000;
 const BACKUP_MAX_FILES = Number(process.env.MCCB_BACKUP_MAX_FILES || 10);
@@ -46,21 +43,6 @@ function ensureDefaultDatabasePath() {
   if (process.env.MCCB_DB_PATH) return;
 
   fs.mkdirSync(DATA_DIR, { recursive: true });
-
-  if (!fs.existsSync(FILE_PATH) && fs.existsSync(LEGACY_JSON_PATH)) {
-    fs.copyFileSync(LEGACY_JSON_PATH, FILE_PATH);
-  }
-
-  if (!fs.existsSync(DB_PATH) && fs.existsSync(LEGACY_DB_PATH)) {
-    fs.copyFileSync(LEGACY_DB_PATH, DB_PATH);
-
-    for (const suffix of ['-wal', '-shm']) {
-      const legacySidecar = `${LEGACY_DB_PATH}${suffix}`;
-      if (fs.existsSync(legacySidecar)) {
-        fs.copyFileSync(legacySidecar, `${DB_PATH}${suffix}`);
-      }
-    }
-  }
 }
 
 const createDefaultChildCards = () =>
@@ -479,7 +461,6 @@ ensureDefaultDatabasePath();
 
 const store = createMccbStore({
   dbPath: DB_PATH,
-  jsonPath: FILE_PATH,
   defaults: DEFAULT_DATA,
 });
 
@@ -629,29 +610,26 @@ app.post('/api/admin/backups', (req, res) => {
   }
 });
 
-/** 設備マスタ＆ステータスデータの保存更新 (POST) */
-app.post('/api/mccb', (req, res) => {
+/** CSV取込による設備マスタ一括上書き */
+app.post('/api/admin/mccb-import', (req, res) => {
   try {
-    const normalizedBody = {
-      ...req.body,
-      mccbList: Array.isArray(req.body?.mccbList)
-        ? req.body.mccbList.map((mccb, index) =>
-            normalizeMccbForCreate(mccb, index),
-          )
-        : req.body?.mccbList,
-      logs: normalizeLogs(req.body?.logs),
-    };
-    const saved = store.saveAll(normalizedBody);
-    let logs = null;
-    if (req.body?.logMessage) {
-      logs = createUpdatedLogs(
-        req.body.logType || LOG_TYPES.SYSTEM,
-        req.body.logMessage,
-        store.readCollection('logs'),
-        store.readCollection('logSettings')?.maxSize || DEFAULT_MAX_SIZE,
-      );
-      store.writeCollection('logs', logs);
+    const entries = Array.isArray(req.body?.entries) ? req.body.entries : null;
+    if (!entries) {
+      return res.status(400).json({ error: 'CSV取込データが不正です。' });
     }
+
+    const current = store.readAll();
+    const mccbList = entries.map((mccb, index) =>
+      normalizeMccbForCreate(mccb, index),
+    );
+    const saved = store.saveAll({ ...current, mccbList });
+    const logs = createUpdatedLogs(
+      LOG_TYPES.MASTER_CREATE,
+      `CSVから ${mccbList.length} 件の設備データが一括上書きインポートされました。`,
+      store.readCollection('logs'),
+      store.readCollection('logSettings')?.maxSize || DEFAULT_MAX_SIZE,
+    );
+    store.writeCollection('logs', logs);
 
     res.json({
       status: 'success',
@@ -660,8 +638,8 @@ app.post('/api/mccb', (req, res) => {
       version: store.getVersion() || saved.version,
     });
   } catch (error) {
-    console.error("SQLiteデータ書き込み失敗:", error);
-    res.status(500).json({ error: 'データベースの書き込みに失敗しました' });
+    console.error("CSV設備取込失敗:", error);
+    res.status(500).json({ error: 'CSV設備データの取り込みに失敗しました' });
   }
 });
 

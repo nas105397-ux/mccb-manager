@@ -260,83 +260,6 @@ export function useMccbData() {
     );
   }, []);
 
-  /** 共通：ローカル状態変更およびサーバーへのPOST送信一括処理 */
-  const saveToServer = useCallback(
-    (
-      nextMccbList,
-      nextRooms = rooms,
-      nextCategories = categories,
-      nextLogs = logs,
-      nextSettings = logSettings,
-      nextRequests = requests,
-      nextDeviceGroups = deviceGroups,
-      nextHistory = requestHistory,
-      nextHistorySettings = historySettings,
-      logOptions = null,
-    ) => {
-      setMccbList(nextMccbList);
-      setRooms(nextRooms);
-      setCategories(nextCategories);
-      setLogs(nextLogs);
-      const nextLogPageInfo = createPageInfo(1, LOG_PAGE_SIZE, nextLogs.length);
-      setLogPageInfo(nextLogPageInfo);
-      setPagedLogs(getPageSlice(nextLogs, nextLogPageInfo));
-      setLogSettings(nextSettings);
-      setRequests(nextRequests);
-      setDeviceGroups(nextDeviceGroups);
-      setRequestHistory(nextHistory);
-      const nextHistoryPageInfo = createPageInfo(
-        1,
-        HISTORY_PAGE_SIZE,
-        nextHistory.length,
-      );
-      setHistoryPageInfo(nextHistoryPageInfo);
-      setPagedRequestHistory(getPageSlice(nextHistory, nextHistoryPageInfo));
-      setHistorySettings(nextHistorySettings);
-
-      runSyncTask(async () => {
-        const res = await fetch(API_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            mccbList: nextMccbList,
-            rooms: nextRooms,
-            categories: nextCategories,
-            logs: nextLogs,
-            logSettings: nextSettings,
-            requests: nextRequests,
-            deviceGroups: nextDeviceGroups,
-            requestHistory: nextHistory,
-            historySettings: nextHistorySettings,
-            ...(logOptions || {}),
-          }),
-        });
-        const result = await res.json();
-        if (Array.isArray(result.mccbList)) {
-          setMccbList(result.mccbList);
-        }
-        if (Array.isArray(result.logs)) {
-          applyLogs(result.logs);
-        }
-        if (result.version) {
-          lastVersion.current = Number(result.version);
-        }
-      });
-    },
-    [
-      rooms,
-      categories,
-      logs,
-      logSettings,
-      requests,
-      deviceGroups,
-      requestHistory,
-      historySettings,
-      applyLogs,
-      runSyncTask,
-    ],
-  );
-
   // --- 各種ビジネスロジック関数群 (useCallbackで完全キャッシュ化) ---
 
   /** 対象設備の貸出中子札数を取得 */
@@ -736,25 +659,26 @@ export function useMccbData() {
               `⚠️ 注意 ⚠️\n現在登録されているすべての設備データを消去し、CSVの ${parsedEntries.length} 件で完全に【データ上書き】しますか？`,
             )
           ) {
-            const newMccbList = parsedEntries;
-            saveToServer(
-              newMccbList,
-              rooms,
-              categories,
-              logs,
-              logSettings,
-              requests,
-              deviceGroups,
-              requestHistory,
-              historySettings,
-              {
-                logType: LOG_TYPES.MASTER_CREATE,
-                logMessage: `CSVから ${newMccbList.length} 件の設備データが一括上書きインポートされました。`,
-              },
-            );
-            alert(
-              `CSVから ${newMccbList.length} 件のマスタデータを正常に上書き取り込みしました。`,
-            );
+            runSyncTask(async () => {
+              const res = await fetch("/api/admin/mccb-import", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ entries: parsedEntries }),
+              });
+              if (!res.ok) throw new Error(`CSV取込に失敗しました (${res.status})`);
+
+              const result = await res.json();
+              if (Array.isArray(result.mccbList)) {
+                setMccbList(result.mccbList);
+              }
+              if (Array.isArray(result.logs)) {
+                applyLogs(result.logs);
+              }
+              applyVersion(result.version);
+              alert(
+                `CSVから ${parsedEntries.length} 件のマスタデータを正常に上書き取り込みしました。`,
+              );
+            });
           }
         } else {
           alert("有効なCSVデータが解析できませんでした。");
@@ -765,13 +689,9 @@ export function useMccbData() {
     [
       rooms,
       categories,
-      logs,
-      logSettings,
-      requests,
-      deviceGroups,
-      requestHistory,
-      historySettings,
-      saveToServer,
+      applyLogs,
+      applyVersion,
+      runSyncTask,
     ],
   );
 

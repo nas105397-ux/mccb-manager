@@ -63,7 +63,7 @@ const createBackupFileName = () => {
   ].join('_') + '.sqlite';
 };
 
-export function createMccbStore({ dbPath, jsonPath, defaults }) {
+export function createMccbStore({ dbPath, defaults }) {
   const db = new DatabaseSync(dbPath);
   let lastCheckpointAt = 0;
 
@@ -545,12 +545,7 @@ export function createMccbStore({ dbPath, jsonPath, defaults }) {
   };
 
   if (!hasRows()) {
-    if (fs.existsSync(jsonPath)) {
-      const rawData = fs.readFileSync(jsonPath, 'utf-8');
-      saveAll(parseJson(rawData, defaults));
-    } else {
-      saveAll(defaults);
-    }
+    saveAll(defaults);
   }
 
   if (getVersion() === 0) {
