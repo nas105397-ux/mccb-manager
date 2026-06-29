@@ -3,7 +3,7 @@ module.exports = {
     {
       name: 'mccb-manager',
       script: 'server.js',
-      cwd: '/home/pi/mccb-manager',
+      cwd: process.env.MCCB_APP_DIR || '/home/pi/mccb-manager',
       interpreter: 'node',
       env: {
         NODE_ENV: 'production',

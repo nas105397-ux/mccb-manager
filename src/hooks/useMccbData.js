@@ -1,40 +1,20 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import {
+  DEFAULT_CATEGORIES,
+  DEFAULT_MAX_SIZE,
+  DEFAULT_ROOMS,
+  LOG_TYPES,
+} from "../shared/appConstants";
 
 const API_URL = "/api/mccb";
 const CORE_API_URL = `${API_URL}?core=1`;
 const VERSION_URL = `${API_URL}/version`;
 const LOGS_PAGE_URL = "/api/logs";
 const HISTORY_PAGE_URL = "/api/request-history";
-const DEFAULT_ROOMS = [
-  "1階高圧電気室",
-  "1階電気室",
-  "2階電気室",
-  "2次トーチ電気室",
-  "LT-UT電気室",
-  "水処理電気室",
-];
-const DEFAULT_CATEGORIES = [
-  "1スト",
-  "2スト",
-  "3スト",
-  "4スト",
-  "5スト",
-  "6スト",
-  "共通",
-];
 const POLL_INTERVAL = 5000; // 3s -> 5s に緩和
-const DEFAULT_MAX_SIZE = 500;
 const LOG_PAGE_SIZE = 50;
 const HISTORY_PAGE_SIZE = 20;
 const CHILD_CARD_COUNT = 5;
-const LOG_TYPES = Object.freeze({
-  OPERATION: "操作",
-  CARD_LOAN: "札貸出",
-  MASTER_CREATE: "マスタ登録",
-  MASTER_UPDATE: "マスタ編集",
-  MASTER_DELETE: "マスタ削除",
-  SYSTEM: "システム",
-});
 
 const LEGACY_LOG_TYPE_MAP = Object.freeze({
   マスタ変更: LOG_TYPES.MASTER_UPDATE,
@@ -45,23 +25,6 @@ const LOG_TYPE_VALUES = new Set(Object.values(LOG_TYPES));
 // ==========================================
 // 1. フック外の共通ユーティリティ関数群 (純粋関数)
 // ==========================================
-
-/** 現在時刻のフォーマット文字列を取得 */
-const getTimestamp = () => {
-  const now = new Date();
-  return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, "0")}-${now.getDate().toString().padStart(2, "0")} ${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}:${now.getSeconds().toString().padStart(2, "0")}`;
-};
-
-/** 共通ログ更新処理 */
-const createUpdatedLogs = (type, message, currentLogs, maxSize) => {
-  const newLog = {
-    id: `LOG-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-    timestamp: getTimestamp(),
-    type,
-    message,
-  };
-  return [newLog, ...currentLogs].slice(0, maxSize);
-};
 
 /** MCCB共通ID生成 */
 const createMccbId = (suffix = "") =>
@@ -343,6 +306,7 @@ export function useMccbData() {
       nextDeviceGroups = deviceGroups,
       nextHistory = requestHistory,
       nextHistorySettings = historySettings,
+      logOptions = null,
     ) => {
       setMccbList(nextMccbList);
       setRooms(nextRooms);
@@ -378,9 +342,13 @@ export function useMccbData() {
             deviceGroups: nextDeviceGroups,
             requestHistory: nextHistory,
             historySettings: nextHistorySettings,
+            ...(logOptions || {}),
           }),
         });
         const result = await res.json();
+        if (Array.isArray(result.logs)) {
+          applyLogs(result.logs);
+        }
         if (result.version) {
           lastVersion.current = Number(result.version);
         }
@@ -395,6 +363,7 @@ export function useMccbData() {
       deviceGroups,
       requestHistory,
       historySettings,
+      applyLogs,
       runSyncTask,
     ],
   );
@@ -816,20 +785,20 @@ export function useMccbData() {
               isFavorite: false,
               childCards: createDefaultChildCards(),
             }));
-            const nextLogs = createUpdatedLogs(
-              LOG_TYPES.MASTER_CREATE,
-              `CSVから ${newMccbList.length} 件の設備データが一括上書きインポートされました。`,
-              logs,
-              logSettings.maxSize,
-            );
             saveToServer(
               newMccbList,
               rooms,
               categories,
-              nextLogs,
+              logs,
               logSettings,
               requests,
               deviceGroups,
+              requestHistory,
+              historySettings,
+              {
+                logType: LOG_TYPES.MASTER_CREATE,
+                logMessage: `CSVから ${newMccbList.length} 件の設備データが一括上書きインポートされました。`,
+              },
             );
             alert(
               `CSVから ${newMccbList.length} 件のマスタデータを正常に上書き取り込みしました。`,
@@ -848,6 +817,8 @@ export function useMccbData() {
       logSettings,
       requests,
       deviceGroups,
+      requestHistory,
+      historySettings,
       saveToServer,
     ],
   );

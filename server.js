@@ -5,6 +5,12 @@ import path from 'path';
 import os from 'os'; 
 import { fileURLToPath } from 'url';
 import { createMccbStore } from './dbStore.js';
+import {
+  DEFAULT_CATEGORIES,
+  DEFAULT_MAX_SIZE,
+  DEFAULT_ROOMS,
+  LOG_TYPES,
+} from './src/shared/appConstants.js';
 
 const app = express();
 
@@ -59,8 +65,8 @@ function ensureDefaultDatabasePath() {
 const DEFAULT_MCCB = [
   { 
     id: "SAMPLE-1", 
-    room: "1階高圧電気室", 
-    category: "1スト", 
+    room: DEFAULT_ROOMS[0], 
+    category: DEFAULT_CATEGORIES[0], 
     name: "No.1加熱炉 送風ファン用MCCB", 
     isPowerOff: false, 
     isFavorite: false, 
@@ -68,26 +74,16 @@ const DEFAULT_MCCB = [
   }
 ];
 
-const DEFAULT_ROOMS = ['1階高圧電気室', '1階電気室', '2階電気室', '2次トーチ電気室', 'LT-UT電気室', '水処理電気室'];
-const DEFAULT_CATEGORIES = ['1スト', '2スト', '3スト', '4スト', '5スト', '6スト', '共通'];
-const LOG_TYPES = Object.freeze({
-  OPERATION: "操作",
-  CARD_LOAN: "札貸出",
-  MASTER_CREATE: "マスタ登録",
-  MASTER_UPDATE: "マスタ編集",
-  MASTER_DELETE: "マスタ削除",
-  SYSTEM: "システム",
-});
 const DEFAULT_DATA = {
   mccbList: DEFAULT_MCCB,
   rooms: DEFAULT_ROOMS,
   categories: DEFAULT_CATEGORIES,
-  logs: [{ id: "INIT", timestamp: getTimestamp(), type: "システム", message: "システムログ機能が初期化されました。" }],
-  logSettings: { maxSize: 500 },
+  logs: [{ id: "INIT", timestamp: getTimestamp(), type: LOG_TYPES.SYSTEM, message: "システムログ機能が初期化されました。" }],
+  logSettings: { maxSize: DEFAULT_MAX_SIZE },
   requests: [],
   deviceGroups: [],
   requestHistory: [],
-  historySettings: { maxSize: 500 }
+  historySettings: { maxSize: DEFAULT_MAX_SIZE }
 };
 
 // ==========================================
@@ -460,7 +456,7 @@ function createDatabaseBackup(reason = '手動') {
     LOG_TYPES.SYSTEM,
     `${reason}DBバックアップを作成しました: ${backup.fileName}`,
     store.readCollection('logs'),
-    store.readCollection('logSettings')?.maxSize || 500,
+    store.readCollection('logSettings')?.maxSize || DEFAULT_MAX_SIZE,
   );
   store.writeCollection('logs', logs);
 
@@ -584,7 +580,18 @@ app.post('/api/admin/backups', (req, res) => {
 app.post('/api/mccb', (req, res) => {
   try {
     const saved = store.saveAll(req.body);
-    res.json({ status: 'success', version: saved.version });
+    let logs = null;
+    if (req.body?.logMessage) {
+      logs = createUpdatedLogs(
+        req.body.logType || LOG_TYPES.SYSTEM,
+        req.body.logMessage,
+        store.readCollection('logs'),
+        store.readCollection('logSettings')?.maxSize || DEFAULT_MAX_SIZE,
+      );
+      store.writeCollection('logs', logs);
+    }
+
+    res.json({ status: 'success', logs, version: store.getVersion() || saved.version });
   } catch (error) {
     console.error("SQLiteデータ書き込み失敗:", error);
     res.status(500).json({ error: 'データベースの書き込みに失敗しました' });
@@ -614,7 +621,7 @@ app.patch('/api/mccb/:id', (req, res) => {
         changeLog.type,
         changeLog.message,
         logs,
-        logSettings?.maxSize || 500,
+        logSettings?.maxSize || DEFAULT_MAX_SIZE,
       );
       store.writeCollection('logs', logs);
     }
@@ -644,7 +651,7 @@ app.post('/api/mccbs', (req, res) => {
       LOG_TYPES.MASTER_CREATE,
       `設備「${mccb.name}」が登録されました。`,
       store.readCollection('logs'),
-      store.readCollection('logSettings')?.maxSize || 500,
+      store.readCollection('logSettings')?.maxSize || DEFAULT_MAX_SIZE,
     );
     store.writeCollection('logs', logs);
 
@@ -672,7 +679,7 @@ app.delete('/api/mccbs/:id', (req, res) => {
       LOG_TYPES.MASTER_DELETE,
       `設備「${result.deleted.name}」が削除されました。`,
       store.readCollection('logs'),
-      store.readCollection('logSettings')?.maxSize || 500,
+      store.readCollection('logSettings')?.maxSize || DEFAULT_MAX_SIZE,
     );
     store.writeCollection('logs', logs);
 
@@ -741,7 +748,7 @@ app.patch('/api/admin/device-groups', (req, res) => {
         req.body.logType || LOG_TYPES.MASTER_UPDATE,
         req.body.logMessage,
         store.readCollection('logs'),
-        store.readCollection('logSettings')?.maxSize || 500,
+        store.readCollection('logSettings')?.maxSize || DEFAULT_MAX_SIZE,
       );
       store.writeCollection('logs', logs);
     }
@@ -824,7 +831,7 @@ app.patch('/api/admin/request-history', (req, res) => {
         ? "停電作業の依頼履歴がすべてクリアされました。"
         : `最大依頼履歴数が ${historySettings.maxSize} 件に変更されました。`,
       currentLogs,
-      logSettings?.maxSize || 500,
+      logSettings?.maxSize || DEFAULT_MAX_SIZE,
     );
 
     store.writeCollections({ requestHistory, historySettings, logs });
@@ -870,109 +877,21 @@ app.post('/api/requests', (req, res) => {
       return res.status(400).json({ error: '依頼データが不正です。' });
     }
 
-    const currentRequests = store.readCollection('requests') || [];
     const logsBefore = store.readCollection('logs');
     const logSettings = store.readCollection('logSettings');
-    const targetMccbs = store.readMccbsByIds(newRequest.targetMccbIds);
-    const dummyMccbs = store.readDummyMccbs();
-    const beforeMccbList = dedupeMccbs([...targetMccbs, ...dummyMccbs]);
-    let currentMccbList = cloneMccbListForMutation(beforeMccbList);
+    const {
+      currentRequests,
+      beforeMccbList,
+      currentMccbList,
+      finalRequest,
+    } = buildRequestAssignment(newRequest);
 
-    const actualReservations = new Map();
-    currentRequests.forEach((request) => {
-      if (!request.reservedCards) return;
-      Object.entries(request.reservedCards).forEach(([, resInfo]) => {
-        if (!resInfo || !resInfo.actualMccbId) return;
-        const actualId = resInfo.actualMccbId;
-        if (!actualReservations.has(actualId)) {
-          actualReservations.set(actualId, new Map());
-        }
-        const cardMap = actualReservations.get(actualId);
-        if (resInfo.cardNo != null) {
-          cardMap.set(resInfo.cardNo, request.workerName);
-        }
-      });
-    });
-
-    currentMccbList = currentMccbList.map((mccb) => {
-      const cardMap = actualReservations.get(mccb.id);
-      const updatedCards = mccb.childCards.map((card) => {
-        if (cardMap && cardMap.has(card.id)) {
-          return {
-            ...card,
-            isBorrowed: true,
-            workerName: cardMap.get(card.id) || "",
-          };
-        }
-        return {
-          ...card,
-          isBorrowed: !!card.isBorrowed,
-          workerName: card.workerName || "",
-        };
-      });
-      return { ...mccb, childCards: updatedCards };
-    });
-
-    const reservedCards = {};
-    for (const targetId of newRequest.targetMccbIds) {
-      const originalMccb = currentMccbList.find((mccb) => mccb.id === targetId);
-      if (!originalMccb) {
-        reservedCards[targetId] = {
-          actualMccbId: null,
-          cardNo: null,
-          displayName: "空きなし",
-          customDummyName: null,
-        };
-        continue;
-      }
-
-      const { finalMccb, availableIdx } = findAvailableCard(
-        targetId,
-        originalMccb,
-        currentMccbList,
-        currentRequests,
-      );
-
-      if (finalMccb && availableIdx !== -1) {
-        currentMccbList = currentMccbList.map((mccb) => {
-          if (mccb.id === finalMccb.id) {
-            const updatedCards = [...mccb.childCards];
-            updatedCards[availableIdx] = {
-              ...updatedCards[availableIdx],
-              isBorrowed: true,
-              workerName: newRequest.workerName,
-            };
-            return { ...mccb, childCards: updatedCards };
-          }
-          return mccb;
-        });
-
-        const assignedCardNo =
-          finalMccb.childCards[availableIdx]?.id ?? availableIdx + 1;
-
-        reservedCards[targetId] = {
-          actualMccbId: finalMccb.id,
-          cardNo: assignedCardNo,
-          displayName: finalMccb.name,
-          customDummyName: newRequest.dummyNames?.[targetId] || null,
-        };
-      } else {
-        reservedCards[targetId] = {
-          actualMccbId: null,
-          cardNo: null,
-          displayName: "空きなし",
-          customDummyName: null,
-        };
-      }
-    }
-
-    const finalRequest = { ...newRequest, reservedCards };
     const requests = [finalRequest, ...currentRequests];
     const logs = createUpdatedLogs(
       LOG_TYPES.OPERATION,
       `👷 ${newRequest.workerName}氏の停電依頼を発行し\n子札を貸出予約しました。`,
       logsBefore,
-      logSettings?.maxSize || 500,
+      logSettings?.maxSize || DEFAULT_MAX_SIZE,
     );
     const changedMccbs = getChangedMccbs(beforeMccbList, currentMccbList);
 
@@ -1047,13 +966,13 @@ app.delete('/api/requests/:id', (req, res) => {
       completedTimestamp: getTimestamp(),
     };
     const requests = currentRequests.filter((request) => request.id !== req.params.id);
-    const maxHistorySize = historySettings?.maxSize || 500;
+    const maxHistorySize = historySettings?.maxSize || DEFAULT_MAX_SIZE;
     const requestHistory = [completedRequest, ...currentHistory].slice(0, maxHistorySize);
     const logs = createUpdatedLogs(
       LOG_TYPES.OPERATION,
       `👷 ${reqToDelete.workerName || "作業者"}氏の作業完了に伴い\n子札が返却されました。`,
       logsBefore,
-      logSettings?.maxSize || 500,
+      logSettings?.maxSize || DEFAULT_MAX_SIZE,
     );
     const changedMccbs = getChangedMccbs(beforeMccbList, currentMccbList);
 
