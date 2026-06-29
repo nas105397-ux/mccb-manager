@@ -18,6 +18,7 @@ export const DEFAULT_CATEGORIES = [
 ];
 
 export const DEFAULT_MAX_SIZE = 500;
+export const DEFAULT_CHILD_CARD_COUNT = 5;
 
 export const LOG_TYPES = Object.freeze({
   OPERATION: "操作",
@@ -27,3 +28,23 @@ export const LOG_TYPES = Object.freeze({
   MASTER_DELETE: "マスタ削除",
   SYSTEM: "システム",
 });
+
+export const LEGACY_LOG_TYPE_MAP = Object.freeze({
+  マスタ変更: LOG_TYPES.MASTER_UPDATE,
+  設定変更: LOG_TYPES.SYSTEM,
+});
+
+const LOG_TYPE_VALUES = new Set(Object.values(LOG_TYPES));
+
+export const normalizeLogType = (type) => {
+  if (LEGACY_LOG_TYPE_MAP[type]) return LEGACY_LOG_TYPE_MAP[type];
+  return LOG_TYPE_VALUES.has(type) ? type : LOG_TYPES.SYSTEM;
+};
+
+export const normalizeLogs = (logs) => {
+  if (!Array.isArray(logs)) return [];
+  return logs.map((log) => ({
+    ...log,
+    type: normalizeLogType(log.type),
+  }));
+};

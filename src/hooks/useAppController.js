@@ -1,6 +1,11 @@
 import { useState, useMemo, useCallback, useDeferredValue } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useMccbData } from "./useMccbData";
+import {
+  applyNameOverlaysToMccbs,
+  createBorrowedCountMap,
+  createRequestNameOverlayMap,
+} from "../shared/mccbViewUtils";
 
 export function useAppController() {
   const {
@@ -38,6 +43,7 @@ export function useAppController() {
     addDeviceGroup,
     updateDeviceGroup,
     deleteDeviceGroup,
+    createDatabaseBackup,
   } = useMccbData();
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -81,35 +87,8 @@ export function useAppController() {
   }, [requests]);
 
   const processedMccbList = useMemo(() => {
-    const nameOverlayMap = new Map();
-
-    requests.forEach((req) => {
-      if (!req.reservedCards) return;
-
-      Object.entries(req.reservedCards).forEach(([originalId, resInfo]) => {
-        if (!resInfo || !resInfo.actualMccbId) return;
-
-        if (originalId !== resInfo.actualMccbId) {
-          const originalMccb = mccbList.find((m) => m.id === originalId);
-          if (originalMccb) {
-            nameOverlayMap.set(resInfo.actualMccbId, ` (${originalMccb.name})`);
-          }
-          return;
-        }
-
-        if (resInfo.customDummyName) {
-          nameOverlayMap.set(
-            resInfo.actualMccbId,
-            ` (${resInfo.customDummyName})`,
-          );
-        }
-      });
-    });
-
-    return mccbList.map((mccb) => {
-      const suffix = nameOverlayMap.get(mccb.id);
-      return suffix ? { ...mccb, name: `${mccb.name}${suffix}` } : mccb;
-    });
+    const nameOverlayMap = createRequestNameOverlayMap(requests, mccbList);
+    return applyNameOverlaysToMccbs(mccbList, nameOverlayMap);
   }, [mccbList, requests]);
 
   const deferredSearch = useDeferredValue(searchTerm);
@@ -138,15 +117,10 @@ export function useAppController() {
     activeMccbIds,
   ]);
 
-  const borrowedCountMap = useMemo(() => {
-    const map = {};
-    mccbList.forEach((m) => {
-      map[m.id] = m.childCards
-        ? m.childCards.filter((c) => c.isBorrowed).length
-        : 0;
-    });
-    return map;
-  }, [mccbList]);
+  const borrowedCountMap = useMemo(
+    () => createBorrowedCountMap(mccbList),
+    [mccbList],
+  );
 
   const currentMccb = useMemo(() => {
     if (!selectedMccbId) {
@@ -275,6 +249,7 @@ export function useAppController() {
     addDeviceGroup,
     updateDeviceGroup,
     deleteDeviceGroup,
+    createDatabaseBackup,
     // 新規追加: アクティブな MCCB ID の集合（MCCB カード再描画最適化に利用）
     activeMccbIds,
   };

@@ -1,4 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  countBorrowedCards,
+  createRequestNameOverlayMap,
+} from '../shared/mccbViewUtils';
 
 const API_URL = '/api/mccb';
 const CORE_API_URL = `${API_URL}?core=1`;
@@ -91,34 +95,17 @@ export function useDashboardController() {
   }, []);
 
   const { processedOffMccbs, stats } = useMemo(() => {
-    const nameOverlayMap = new Map();
-    const mccbById = new Map(data.mccbList.map((m) => [m.id, m]));
-
-    if (Array.isArray(data.requests)) {
-      data.requests.forEach((req) => {
-        if (!req.reservedCards) return;
-
-        Object.entries(req.reservedCards).forEach(([originalId, resInfo]) => {
-          if (!resInfo || !resInfo.actualMccbId) return;
-
-          if (originalId !== resInfo.actualMccbId) {
-            const originalMccb = mccbById.get(originalId);
-            if (originalMccb) {
-              nameOverlayMap.set(resInfo.actualMccbId, ` (${originalMccb.name})`);
-            }
-          } else if (resInfo.customDummyName) {
-            nameOverlayMap.set(resInfo.actualMccbId, ` (${resInfo.customDummyName})`);
-          }
-        });
-      });
-    }
+    const nameOverlayMap = createRequestNameOverlayMap(
+      data.requests,
+      data.mccbList,
+    );
 
     let onCount = 0;
     let totalBorrowedCards = 0;
     const offMccbs = [];
 
     data.mccbList.forEach((mccb) => {
-      const borrowedCount = mccb.childCards?.reduce((count, card) => count + (card.isBorrowed ? 1 : 0), 0) || 0;
+      const borrowedCount = countBorrowedCards(mccb);
       totalBorrowedCards += borrowedCount;
 
       if (mccb.isPowerOff) {

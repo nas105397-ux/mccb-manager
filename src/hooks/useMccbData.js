@@ -14,44 +14,10 @@ const HISTORY_PAGE_URL = "/api/request-history";
 const POLL_INTERVAL = 5000; // 3s -> 5s に緩和
 const LOG_PAGE_SIZE = 50;
 const HISTORY_PAGE_SIZE = 20;
-const CHILD_CARD_COUNT = 5;
-
-const LEGACY_LOG_TYPE_MAP = Object.freeze({
-  マスタ変更: LOG_TYPES.MASTER_UPDATE,
-  設定変更: LOG_TYPES.SYSTEM,
-});
-const LOG_TYPE_VALUES = new Set(Object.values(LOG_TYPES));
 
 // ==========================================
 // 1. フック外の共通ユーティリティ関数群 (純粋関数)
 // ==========================================
-
-/** MCCB共通ID生成 */
-const createMccbId = (suffix = "") =>
-  `MCCB-${Date.now()}${suffix !== "" ? `-${suffix}` : ""}`;
-
-/** 子札初期配列を生成 */
-const createDefaultChildCards = () => {
-  return Array.from({ length: CHILD_CARD_COUNT }, (_, i) => ({
-    id: i + 1,
-    isBorrowed: false,
-    workerName: "",
-  }));
-};
-
-/** 旧バージョンのログタイプを現在の分類へ正規化 */
-const normalizeLogType = (type) => {
-  if (LEGACY_LOG_TYPE_MAP[type]) return LEGACY_LOG_TYPE_MAP[type];
-  return LOG_TYPE_VALUES.has(type) ? type : LOG_TYPES.SYSTEM;
-};
-
-const normalizeLogs = (logs) => {
-  if (!Array.isArray(logs)) return [];
-  return logs.map((log) => ({
-    ...log,
-    type: normalizeLogType(log.type),
-  }));
-};
 
 const createPageInfo = (page = 1, pageSize = 50, total = 0) => ({
   page,
@@ -75,7 +41,7 @@ const parseServerData = (data) => {
     mccbList: source.mccbList || (isArrayPayload ? data : []),
     rooms: source.rooms || DEFAULT_ROOMS,
     categories: source.categories || DEFAULT_CATEGORIES,
-    logs: normalizeLogs(source.logs || []),
+    logs: Array.isArray(source.logs) ? source.logs : [],
     logSettings: source.logSettings || { maxSize: DEFAULT_MAX_SIZE },
     requests: source.requests || [],
     deviceGroups: source.deviceGroups || [],
@@ -116,15 +82,15 @@ export function useMccbData() {
   const lastVersion = useRef(0);
 
   const applyLogs = useCallback((nextLogs) => {
-    const normalizedLogs = normalizeLogs(nextLogs);
-    setLogs(normalizedLogs);
+    const safeLogs = Array.isArray(nextLogs) ? nextLogs : [];
+    setLogs(safeLogs);
     const nextPageInfo = createPageInfo(
       1,
       LOG_PAGE_SIZE,
-      normalizedLogs.length,
+      safeLogs.length,
     );
     setLogPageInfo(nextPageInfo);
-    setPagedLogs(getPageSlice(normalizedLogs, nextPageInfo));
+    setPagedLogs(getPageSlice(safeLogs, nextPageInfo));
   }, []);
 
   const applyRequestHistory = useCallback((nextHistory) => {
@@ -203,7 +169,7 @@ export function useMccbData() {
       fetch(`${LOGS_PAGE_URL}?page=1&pageSize=${LOG_PAGE_SIZE}`)
         .then((res) => res.json())
         .then((result) => {
-          setPagedLogs(normalizeLogs(result.items || []));
+          setPagedLogs(Array.isArray(result.items) ? result.items : []);
           setLogPageInfo(
             createPageInfo(
               result.page || 1,
@@ -268,7 +234,7 @@ export function useMccbData() {
     );
     if (!res.ok) throw new Error(`ログページ取得に失敗しました (${res.status})`);
     const result = await res.json();
-    setPagedLogs(normalizeLogs(result.items || []));
+    setPagedLogs(Array.isArray(result.items) ? result.items : []);
     setLogPageInfo(
       createPageInfo(
         result.page || 1,
@@ -346,6 +312,9 @@ export function useMccbData() {
           }),
         });
         const result = await res.json();
+        if (Array.isArray(result.mccbList)) {
+          setMccbList(result.mccbList);
+        }
         if (Array.isArray(result.logs)) {
           applyLogs(result.logs);
         }
@@ -378,27 +347,16 @@ export function useMccbData() {
   /** 設備の個別新規マスタ登録 */
   const saveMccbEntry = useCallback(
     (entry) => {
-      const newMccb = {
-        ...entry,
-        id: createMccbId(),
-        isPowerOff: false,
-        isFavorite: false,
-        childCards: createDefaultChildCards(),
-      };
-
-      setMccbList((prev) => [...prev, newMccb]);
       runSyncTask(async () => {
         const res = await fetch("/api/mccbs", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mccb: newMccb }),
+          body: JSON.stringify({ mccb: entry }),
         });
         if (!res.ok) throw new Error(`設備登録に失敗しました (${res.status})`);
         const result = await res.json();
         if (result.mccb) {
-          setMccbList((prev) =>
-            prev.map((mccb) => (mccb.id === result.mccb.id ? result.mccb : mccb)),
-          );
+          setMccbList((prev) => [...prev, result.mccb]);
         }
         if (Array.isArray(result.logs)) applyLogs(result.logs);
         applyVersion(result.version);
@@ -433,7 +391,7 @@ export function useMccbData() {
           );
         }
         if (Array.isArray(result.logs)) {
-          const nextLogs = normalizeLogs(result.logs);
+          const nextLogs = Array.isArray(result.logs) ? result.logs : [];
           setLogs(nextLogs);
           const nextPageInfo = createPageInfo(1, LOG_PAGE_SIZE, nextLogs.length);
           setLogPageInfo(nextPageInfo);
@@ -778,13 +736,7 @@ export function useMccbData() {
               `⚠️ 注意 ⚠️\n現在登録されているすべての設備データを消去し、CSVの ${parsedEntries.length} 件で完全に【データ上書き】しますか？`,
             )
           ) {
-            const newMccbList = parsedEntries.map((e, idx) => ({
-              ...e,
-              id: createMccbId(idx),
-              isPowerOff: false,
-              isFavorite: false,
-              childCards: createDefaultChildCards(),
-            }));
+            const newMccbList = parsedEntries;
             saveToServer(
               newMccbList,
               rooms,
@@ -943,7 +895,7 @@ export function useMccbData() {
           setRequests(result.requests);
         }
         if (Array.isArray(result.logs)) {
-          const nextLogs = normalizeLogs(result.logs);
+          const nextLogs = Array.isArray(result.logs) ? result.logs : [];
           setLogs(nextLogs);
           const nextPageInfo = createPageInfo(1, LOG_PAGE_SIZE, nextLogs.length);
           setLogPageInfo(nextPageInfo);
@@ -997,7 +949,7 @@ export function useMccbData() {
           );
         }
         if (Array.isArray(result.logs)) {
-          const nextLogs = normalizeLogs(result.logs);
+          const nextLogs = Array.isArray(result.logs) ? result.logs : [];
           setLogs(nextLogs);
           const nextPageInfo = createPageInfo(1, LOG_PAGE_SIZE, nextLogs.length);
           setLogPageInfo(nextPageInfo);

@@ -7,9 +7,11 @@ import { fileURLToPath } from 'url';
 import { createMccbStore } from './dbStore.js';
 import {
   DEFAULT_CATEGORIES,
+  DEFAULT_CHILD_CARD_COUNT,
   DEFAULT_MAX_SIZE,
   DEFAULT_ROOMS,
   LOG_TYPES,
+  normalizeLogs,
 } from './src/shared/appConstants.js';
 
 const app = express();
@@ -61,6 +63,29 @@ function ensureDefaultDatabasePath() {
   }
 }
 
+const createDefaultChildCards = () =>
+  Array.from({ length: DEFAULT_CHILD_CARD_COUNT }, (_, i) => ({
+    id: i + 1,
+    isBorrowed: false,
+    workerName: '',
+  }));
+
+const createMccbId = (suffix = '') =>
+  `MCCB-${Date.now()}${suffix !== '' ? `-${suffix}` : ''}`;
+
+const normalizeMccbForCreate = (mccb, suffix = '') => ({
+  ...mccb,
+  id: mccb?.id || createMccbId(suffix),
+  room: mccb?.room || DEFAULT_ROOMS[0],
+  category: mccb?.category || DEFAULT_CATEGORIES[0],
+  name: mccb?.name || '',
+  isPowerOff: !!mccb?.isPowerOff,
+  isFavorite: !!mccb?.isFavorite,
+  childCards: Array.isArray(mccb?.childCards)
+    ? mccb.childCards
+    : createDefaultChildCards(),
+});
+
 // マスタデータ初期化用デフォルト値
 const DEFAULT_MCCB = [
   { 
@@ -70,7 +95,7 @@ const DEFAULT_MCCB = [
     name: "No.1加熱炉 送風ファン用MCCB", 
     isPowerOff: false, 
     isFavorite: false, 
-    childCards: Array.from({ length: 5 }, (_, i) => ({ id: i + 1, isBorrowed: false, workerName: '' })) 
+    childCards: createDefaultChildCards(), 
   }
 ];
 
@@ -117,7 +142,25 @@ function createUpdatedLogs(type, message, currentLogs, maxSize) {
     type,
     message,
   };
-  return [newLog, ...currentLogs].slice(0, maxSize);
+  return [newLog, ...normalizeLogs(currentLogs)].slice(0, maxSize);
+}
+
+function createPage(items, page = 1, pageSize = 50) {
+  const normalizedItems = Array.isArray(items) ? items : [];
+  const safePageSize = Math.max(1, Number(pageSize) || 50);
+  const total = normalizedItems.length;
+  const totalPages = Math.max(1, Math.ceil(total / safePageSize));
+  const safePage = Math.min(Math.max(1, Number(page) || 1), totalPages);
+  const start = (safePage - 1) * safePageSize;
+
+  return {
+    items: normalizedItems.slice(start, start + safePageSize),
+    page: safePage,
+    pageSize: safePageSize,
+    total,
+    totalPages,
+    version: store.getVersion(),
+  };
 }
 
 function countBorrowedCards(mccb) {
@@ -440,6 +483,15 @@ const store = createMccbStore({
   defaults: DEFAULT_DATA,
 });
 
+function normalizeStoredLogs() {
+  const currentLogs = store.readCollection('logs');
+  const normalizedLogs = normalizeLogs(currentLogs);
+  if (JSON.stringify(currentLogs) !== JSON.stringify(normalizedLogs)) {
+    store.writeCollection('logs', normalizedLogs);
+  }
+}
+
+normalizeStoredLogs();
 store.checkpointWal({ force: true, mode: 'TRUNCATE' });
 
 const walCheckpointTimer = setInterval(() => {
@@ -510,7 +562,8 @@ process.once('SIGTERM', () => shutdown('SIGTERM'));
 /** 設備マスタ＆ステータスデータの取得 (GET) */
 app.get('/api/mccb', (req, res) => {
   try {
-    res.json(req.query.core === '1' ? store.readCoreData() : store.readAll());
+    const data = req.query.core === '1' ? store.readCoreData() : store.readAll();
+    res.json({ ...data, logs: normalizeLogs(data.logs) });
   } catch (error) {
     console.error("SQLiteデータ読み込み失敗:", error);
     res.status(500).json({ error: 'サーバーデータの読み込みに失敗しました。' });
@@ -531,8 +584,8 @@ app.get('/api/mccb/version', (req, res) => {
 app.get('/api/logs', (req, res) => {
   try {
     res.json(
-      store.readCollectionPage(
-        'logs',
+      createPage(
+        normalizeLogs(store.readCollection('logs')),
         Number(req.query.page || 1),
         Number(req.query.pageSize || 50),
       ),
@@ -579,7 +632,16 @@ app.post('/api/admin/backups', (req, res) => {
 /** 設備マスタ＆ステータスデータの保存更新 (POST) */
 app.post('/api/mccb', (req, res) => {
   try {
-    const saved = store.saveAll(req.body);
+    const normalizedBody = {
+      ...req.body,
+      mccbList: Array.isArray(req.body?.mccbList)
+        ? req.body.mccbList.map((mccb, index) =>
+            normalizeMccbForCreate(mccb, index),
+          )
+        : req.body?.mccbList,
+      logs: normalizeLogs(req.body?.logs),
+    };
+    const saved = store.saveAll(normalizedBody);
     let logs = null;
     if (req.body?.logMessage) {
       logs = createUpdatedLogs(
@@ -591,7 +653,12 @@ app.post('/api/mccb', (req, res) => {
       store.writeCollection('logs', logs);
     }
 
-    res.json({ status: 'success', logs, version: store.getVersion() || saved.version });
+    res.json({
+      status: 'success',
+      mccbList: saved.mccbList,
+      logs,
+      version: store.getVersion() || saved.version,
+    });
   } catch (error) {
     console.error("SQLiteデータ書き込み失敗:", error);
     res.status(500).json({ error: 'データベースの書き込みに失敗しました' });
@@ -641,8 +708,8 @@ app.patch('/api/mccb/:id', (req, res) => {
 /** 設備マスタ1件の新規登録 */
 app.post('/api/mccbs', (req, res) => {
   try {
-    const mccb = req.body?.mccb;
-    if (!mccb?.id) {
+    const mccb = normalizeMccbForCreate(req.body?.mccb);
+    if (!mccb.name) {
       return res.status(400).json({ error: '設備データが不正です。' });
     }
 
