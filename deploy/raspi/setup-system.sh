@@ -102,6 +102,10 @@ ExecStartPre=/usr/bin/xset s off
 ExecStartPre=/usr/bin/xset -dpms
 ExecStartPre=/usr/bin/xset s noblank
 ExecStart=$APP_DIR/deploy/kiosk/start-kiosk.sh
+ExecStopPost=-/usr/bin/pkill -u %u -f /tmp/mccb-kiosk-
+KillMode=mixed
+TimeoutStopSec=10
+SendSIGKILL=yes
 Restart=always
 RestartSec=5
 

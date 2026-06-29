@@ -38,6 +38,22 @@ read -r MAIN_SIZE MAIN_POSITION < <(parse_geometry "$MAIN_GEOMETRY")
 read -r DASHBOARD_SIZE DASHBOARD_POSITION < <(parse_geometry "$DASHBOARD_GEOMETRY")
 read -r -a EXTRA_CHROMIUM_FLAGS <<< "$CHROMIUM_FLAGS"
 
+CHROMIUM_PIDS=()
+
+cleanup() {
+  trap - TERM INT HUP EXIT
+
+  for pid in "${CHROMIUM_PIDS[@]}"; do
+    if kill -0 "$pid" >/dev/null 2>&1; then
+      kill "$pid" >/dev/null 2>&1 || true
+    fi
+  done
+
+  wait "${CHROMIUM_PIDS[@]}" >/dev/null 2>&1 || true
+}
+
+trap cleanup TERM INT HUP EXIT
+
 if [ "$ENABLE_FCITX" = "1" ] && command -v fcitx5 >/dev/null 2>&1; then
   export GTK_IM_MODULE="${GTK_IM_MODULE:-fcitx}"
   export QT_IM_MODULE="${QT_IM_MODULE:-fcitx}"
@@ -88,6 +104,7 @@ fi
   --window-position="$MAIN_POSITION" \
   --window-size="$MAIN_SIZE" \
   "${APP_URL}/#/" &
+CHROMIUM_PIDS+=("$!")
 
 "$CHROMIUM_BIN" \
   "${BASE_CHROMIUM_FLAGS[@]}" \
@@ -103,5 +120,6 @@ fi
   --window-position="$DASHBOARD_POSITION" \
   --window-size="$DASHBOARD_SIZE" \
   "${APP_URL}/#/monitor" &
+CHROMIUM_PIDS+=("$!")
 
-wait
+wait "${CHROMIUM_PIDS[@]}"
