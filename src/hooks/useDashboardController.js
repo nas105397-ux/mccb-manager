@@ -7,7 +7,8 @@ import {
 const API_URL = '/api/mccb';
 const CORE_API_URL = `${API_URL}?core=1`;
 const VERSION_URL = `${API_URL}/version`;
-const LOGS_PAGE_URL = '/api/logs?page=1&pageSize=40';
+const ACTIVITY_LOG_LIMIT = 20;
+const LOGS_PAGE_URL = `/api/logs?page=1&pageSize=${ACTIVITY_LOG_LIMIT}`;
 export const POLL_INTERVAL = 15000;
 const INITIAL_DATA = { mccbList: [], logs: [], requests: [] };
 
@@ -127,7 +128,10 @@ export function useDashboardController() {
     };
   }, [data.mccbList, data.requests]);
 
-  const recentLogs = useMemo(() => (Array.isArray(data.logs) ? data.logs.slice(0, 40) : []), [data.logs]);
+  const recentLogs = useMemo(
+    () => (Array.isArray(data.logs) ? data.logs.slice(0, ACTIVITY_LOG_LIMIT) : []),
+    [data.logs],
+  );
 
   return {
     data,
