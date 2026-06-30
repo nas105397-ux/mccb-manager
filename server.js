@@ -303,6 +303,14 @@ function getChangedMccbs(beforeList, afterList) {
   });
 }
 
+function preservePowerStateForRequestChanges(beforeList, changedMccbs) {
+  const beforeById = new Map(beforeList.map((mccb) => [mccb.id, mccb]));
+  return changedMccbs.map((mccb) => ({
+    ...mccb,
+    isPowerOff: beforeById.get(mccb.id)?.isPowerOff ?? mccb.isPowerOff,
+  }));
+}
+
 function getDateCode(date = new Date()) {
   return `${date.getFullYear().toString().slice(-2)}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
 }
@@ -1054,7 +1062,10 @@ app.post('/api/requests', (req, res) => {
       logsBefore,
       logSettings?.maxSize || DEFAULT_MAX_SIZE,
     );
-    const changedMccbs = getChangedMccbs(beforeMccbList, currentMccbList);
+    const changedMccbs = preservePowerStateForRequestChanges(
+      beforeMccbList,
+      getChangedMccbs(beforeMccbList, currentMccbList),
+    );
 
     store.writeMccbs(changedMccbs);
     store.writeCollection('requests', requests);
@@ -1135,7 +1146,10 @@ app.delete('/api/requests/:id', (req, res) => {
       logsBefore,
       logSettings?.maxSize || DEFAULT_MAX_SIZE,
     );
-    const changedMccbs = getChangedMccbs(beforeMccbList, currentMccbList);
+    const changedMccbs = preservePowerStateForRequestChanges(
+      beforeMccbList,
+      getChangedMccbs(beforeMccbList, currentMccbList),
+    );
 
     store.writeMccbs(changedMccbs);
     store.writeCollection('requests', requests);

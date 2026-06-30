@@ -21,9 +21,20 @@ export function useRequestListController({ requests = [], requestHistory = [], m
         if (!targetMccb) return null;
 
         const reserveInfo = req.reservedCards?.[targetId];
-        const mccbDisplayName = reserveInfo?.customDummyName
-          ? `${targetMccb.name} (${reserveInfo.customDummyName})`
-          : targetMccb.name;
+        const actualMccb = reserveInfo?.actualMccbId
+          ? mccbMap.get(reserveInfo.actualMccbId)
+          : null;
+        const isOriginalDummy =
+          targetMccb.isDummy || targetMccb.name?.includes("ダミー");
+        const isAllocatedFromDummy =
+          !!actualMccb && actualMccb.id !== targetMccb.id;
+
+        let mccbDisplayName = targetMccb.name;
+        if (isOriginalDummy && reserveInfo?.customDummyName) {
+          mccbDisplayName = `${targetMccb.name} (${reserveInfo.customDummyName})`;
+        } else if (isAllocatedFromDummy) {
+          mccbDisplayName = `${actualMccb.name} (${targetMccb.name})`;
+        }
 
         return {
           id: targetId,
@@ -31,6 +42,7 @@ export function useRequestListController({ requests = [], requestHistory = [], m
           name: mccbDisplayName,
           isPowerOff: targetMccb.isPowerOff,
           reserveInfo,
+          isAllocatedFromDummy,
         };
       })
       .filter(Boolean);

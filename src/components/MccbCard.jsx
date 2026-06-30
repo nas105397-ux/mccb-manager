@@ -4,6 +4,8 @@ import { getCategoryBadgeClass } from "../shared/categoryColorUtils";
 
 /** カード状態別ボーダー・背景クラス */
 const CARD_STATUS_CLASS = {
+  returnedPowerOff:
+    "border-sky-500 bg-sky-50/60",
   powerOff:
     "border-red-500   bg-red-50/20",
   activeRequest:
@@ -37,7 +39,10 @@ function MccbCard({
     useMccbCardController({ mccbId, isFavorite, onSelect, onToggleFavorite });
 
   const badgeColor = getCategoryBadgeClass(category, categoryColors);
-  const cardStatusCls = isPowerOff
+  const isReturnedPowerOff = isPowerOff && borrowedCount === 0;
+  const cardStatusCls = isReturnedPowerOff
+    ? CARD_STATUS_CLASS.returnedPowerOff
+    : isPowerOff
     ? CARD_STATUS_CLASS.powerOff
     : hasActiveRequest
       ? CARD_STATUS_CLASS.activeRequest
@@ -86,10 +91,10 @@ function MccbCard({
       <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-100 text-xs font-bold">
         {isPowerOff ? (
           <>
-            <span className="text-red-600 flex items-center gap-1 shrink-0">
-              🔴 操作禁止
+            <span className={`${isReturnedPowerOff ? "text-sky-700" : "text-red-600"} flex items-center gap-1 shrink-0`}>
+              {isReturnedPowerOff ? "✅ 札返却済み" : "🔴 操作禁止"}
             </span>
-            <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 font-mono">
+            <span className={`${isReturnedPowerOff ? "text-sky-800 bg-sky-100 border-sky-300" : "text-amber-700 bg-amber-50 border-amber-200"} px-2 py-0.5 rounded border font-mono`}>
               子札: {borrowedCount} 枚
             </span>
           </>
@@ -125,6 +130,8 @@ export default React.memo(
     prev?.mccb?.isPowerOff === next?.mccb?.isPowerOff &&
     prev?.mccb?.isFavorite === next?.mccb?.isFavorite &&
     prev?.mccb?.name === next?.mccb?.name &&
+    prev?.mccb?.room === next?.mccb?.room &&
+    prev?.mccb?.category === next?.mccb?.category &&
     prev?.categoryColors === next?.categoryColors &&
     prev?.borrowedCount === next?.borrowedCount &&
     prev?.hasActiveRequest === next?.hasActiveRequest,

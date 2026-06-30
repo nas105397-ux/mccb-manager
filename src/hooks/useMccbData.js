@@ -33,6 +33,11 @@ const getPageSlice = (items, pageInfo) => {
   return safeItems.slice(start, start + pageInfo.pageSize);
 };
 
+const mergeChildCardChanges = (currentMccb, changedMccb) => ({
+  ...currentMccb,
+  childCards: changedMccb.childCards || currentMccb.childCards,
+});
+
 /** サーバー受信データのパース・デフォルト値マージ */
 const parseServerData = (data) => {
   const source = data && typeof data === "object" ? data : {};
@@ -910,7 +915,10 @@ export function useMccbData() {
             const changedById = new Map(
               result.changedMccbs.map((mccb) => [mccb.id, mccb]),
             );
-            return prev.map((mccb) => changedById.get(mccb.id) || mccb);
+            return prev.map((mccb) => {
+              const changedMccb = changedById.get(mccb.id);
+              return changedMccb ? mergeChildCardChanges(mccb, changedMccb) : mccb;
+            });
           });
         }
         if (Array.isArray(result.requests)) {
@@ -952,7 +960,10 @@ export function useMccbData() {
             const changedById = new Map(
               result.changedMccbs.map((mccb) => [mccb.id, mccb]),
             );
-            return prev.map((mccb) => changedById.get(mccb.id) || mccb);
+            return prev.map((mccb) => {
+              const changedMccb = changedById.get(mccb.id);
+              return changedMccb ? mergeChildCardChanges(mccb, changedMccb) : mccb;
+            });
           });
         }
         if (Array.isArray(result.requests)) {

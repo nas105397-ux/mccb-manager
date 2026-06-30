@@ -103,10 +103,16 @@ export function useAppController() {
     return applyNameOverlaysToMccbs(mccbList, nameOverlayMap);
   }, [mccbList, requests]);
 
+  const borrowedCountMap = useMemo(
+    () => createBorrowedCountMap(mccbList),
+    [mccbList],
+  );
+
   const filteredMccbList = useMemo(() => {
     const lowerSearch = debouncedSearchTerm.trim().toLowerCase();
 
     return processedMccbList.filter((mccb) => {
+      const borrowedCount = borrowedCountMap[mccb.id] ?? 0;
       const matchesSearch =
         !lowerSearch || mccb.name.toLowerCase().includes(lowerSearch);
       const matchesRoom = filterRoom === "すべて" || mccb.room === filterRoom;
@@ -114,6 +120,7 @@ export function useAppController() {
         filterStatus === "すべて" ||
         (filterStatus === "送電中" && !mccb.isPowerOff) ||
         (filterStatus === "停電中" && mccb.isPowerOff) ||
+        (filterStatus === "札返却済み" && mccb.isPowerOff && borrowedCount === 0) ||
         (filterStatus === "依頼発行中" && activeMccbIds.has(mccb.id));
       const matchesFavorite = !filterFavorite || mccb.isFavorite;
 
@@ -126,12 +133,8 @@ export function useAppController() {
     filterStatus,
     filterFavorite,
     activeMccbIds,
+    borrowedCountMap,
   ]);
-
-  const borrowedCountMap = useMemo(
-    () => createBorrowedCountMap(mccbList),
-    [mccbList],
-  );
 
   const currentMccb = useMemo(() => {
     if (!selectedMccbId) {
