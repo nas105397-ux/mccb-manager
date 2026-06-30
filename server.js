@@ -482,6 +482,8 @@ const walCheckpointTimer = setInterval(() => {
 }, WAL_CHECKPOINT_INTERVAL_MS);
 walCheckpointTimer.unref?.();
 
+let httpServer = null;
+
 function createDatabaseBackup(reason = '手動') {
   const backup = store.createBackup({
     backupDir: BACKUP_DIR,
@@ -531,8 +533,17 @@ function shutdown(signal) {
   console.log(`\n${signal} を受信したため、SQLiteを安全に終了します。`);
   clearInterval(walCheckpointTimer);
   backupTimers.forEach((timer) => clearInterval(timer));
-  store.close();
-  process.exit(0);
+  const closeStoreAndExit = () => {
+    store.close();
+    process.exit(0);
+  };
+
+  if (httpServer) {
+    httpServer.close(closeStoreAndExit);
+    return;
+  }
+
+  closeStoreAndExit();
 }
 
 process.once('SIGINT', () => shutdown('SIGINT'));
@@ -1103,11 +1114,16 @@ app.get('/{*splat}', (req, res) => {
 // ==========================================
 // 4. サーバーの起動
 // ==========================================
-app.listen(PORT, () => {
+httpServer = app.listen(PORT, () => {
   const localIp = getLocalIpAddress();
   console.log(`==================================================`);
   console.log(` 🚀 禁止札データ(SQLite) ＆ Webサーバーが一体型で正常稼働しました`);
   console.log(` 🌐 接続URL: http://${localIp}:${PORT}`);
   console.log(` 💾 DB: ${DB_PATH}`);
   console.log(`==================================================`);
+});
+
+httpServer.on('error', (error) => {
+  console.error("Webサーバー起動失敗:", error);
+  process.exit(1);
 });

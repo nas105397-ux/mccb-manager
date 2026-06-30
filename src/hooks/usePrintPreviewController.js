@@ -3,8 +3,6 @@ import { useEffect, useMemo, useState } from 'react';
 const REQUEST_PREVIEW_URL = '/api/requests/preview';
 
 export function usePrintPreviewController({
-  workerName,
-  workContent,
   selectedMccbIds,
   dummyNames,
 }) {
@@ -16,12 +14,10 @@ export function usePrintPreviewController({
 
   const previewRequest = useMemo(
     () => ({
-      workerName,
-      workContent,
       targetMccbIds: selectedMccbIds,
       dummyNames,
     }),
-    [workerName, workContent, selectedMccbIds, dummyNames],
+    [selectedMccbIds, dummyNames],
   );
   const previewKey = useMemo(
     () => JSON.stringify(previewRequest),

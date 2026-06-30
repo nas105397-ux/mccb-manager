@@ -12,6 +12,21 @@ fi
 
 cd "$APP_DIR"
 
+export PATH="$HOME/.local/bin:$HOME/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:$PATH"
+
+if ! command -v node >/dev/null 2>&1; then
+  for nvm_dir in "${NVM_DIR:-}" "$HOME/.nvm" "/usr/local/nvm"; do
+    if [ -n "$nvm_dir" ] && [ -s "$nvm_dir/nvm.sh" ]; then
+      # shellcheck source=/dev/null
+      . "$nvm_dir/nvm.sh"
+      if command -v nvm >/dev/null 2>&1; then
+        nvm use --silent default >/dev/null 2>&1 || nvm use --silent "$NODE_MAJOR_MIN" >/dev/null 2>&1 || true
+      fi
+      break
+    fi
+  done
+fi
+
 if ! command -v node >/dev/null 2>&1; then
   echo "Node.js is not installed. Install Node.js ${NODE_MAJOR_MIN}+ on the Raspberry Pi image before offline deployment." >&2
   exit 1
@@ -47,7 +62,7 @@ User=$USER
 WorkingDirectory=$APP_DIR
 Environment=NODE_ENV=production
 Environment=PORT=5000
-ExecStart=$NODE_BIN server.js
+ExecStart=$NODE_BIN $APP_DIR/server.js
 Restart=always
 RestartSec=5
 

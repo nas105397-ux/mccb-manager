@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import PrintPreviewForm from "./PrintPreviewForm";
 import { useRequestFormController } from "../hooks/useRequestFormController";
 import { VariableSizeList as List } from "react-window";
@@ -124,6 +124,7 @@ export default function RequestFormPanel({
     searchQuery,
     setSearchQuery,
     dummyNames,
+    selectedMccbIdSet,
     filteredMccbList,
     handleToggleMccb,
     handleDummyNameChange,
@@ -132,17 +133,50 @@ export default function RequestFormPanel({
   } = useRequestFormController({ mccbList, onAddRequest });
 
   const listRef = useRef(null);
+  const previousSelectedSetRef = useRef(selectedMccbIdSet);
+  const previousFilteredLengthRef = useRef(filteredMccbList.length);
+  const filteredIndexById = useMemo(() => {
+    const indexById = new Map();
+    filteredMccbList.forEach((mccb, index) => {
+      indexById.set(mccb.id, index);
+    });
+    return indexById;
+  }, [filteredMccbList]);
 
   useEffect(() => {
-    // 選択状態や絞り込みが変わったら行高さを再計測する。
+    // 選択状態や絞り込みが変わったら、必要な位置から行高さを再計測する。
     // 代替名称の入力値は高さに影響しないため、入力中のフォーカス維持を優先する。
-    if (
-      listRef.current &&
-      typeof listRef.current.resetAfterIndex === "function"
-    ) {
-      listRef.current.resetAfterIndex(0, true);
+    if (!listRef.current || typeof listRef.current.resetAfterIndex !== "function") {
+      previousSelectedSetRef.current = selectedMccbIdSet;
+      previousFilteredLengthRef.current = filteredMccbList.length;
+      return;
     }
-  }, [selectedMccbIds, filteredMccbList.length]);
+
+    let resetIndex = Infinity;
+
+    if (previousFilteredLengthRef.current !== filteredMccbList.length) {
+      resetIndex = 0;
+    } else {
+      const previousSet = previousSelectedSetRef.current;
+      selectedMccbIdSet.forEach((id) => {
+        if (!previousSet.has(id) && filteredIndexById.has(id)) {
+          resetIndex = Math.min(resetIndex, filteredIndexById.get(id));
+        }
+      });
+      previousSet.forEach((id) => {
+        if (!selectedMccbIdSet.has(id) && filteredIndexById.has(id)) {
+          resetIndex = Math.min(resetIndex, filteredIndexById.get(id));
+        }
+      });
+    }
+
+    if (Number.isFinite(resetIndex)) {
+      listRef.current.resetAfterIndex(resetIndex, true);
+    }
+
+    previousSelectedSetRef.current = selectedMccbIdSet;
+    previousFilteredLengthRef.current = filteredMccbList.length;
+  }, [selectedMccbIdSet, filteredMccbList.length, filteredIndexById]);
 
   // --- 画面レンダリング ---
   return (
@@ -192,7 +226,7 @@ export default function RequestFormPanel({
                 const groupIds = group.mccbIds || [];
                 const isActive =
                   groupIds.length > 0 &&
-                  groupIds.every((id) => selectedMccbIds.includes(id));
+                  groupIds.every((id) => selectedMccbIdSet.has(id));
                 return (
                   <button
                     key={group.id}
@@ -235,7 +269,7 @@ export default function RequestFormPanel({
               itemSize={(index) => {
                 const mccb = filteredMccbList[index];
                 if (!mccb) return ROW_HEIGHT_COLLAPSED + ROW_GAP;
-                const isSelected = selectedMccbIds.includes(mccb.id);
+                const isSelected = selectedMccbIdSet.has(mccb.id);
                 const isDummy = mccb.isDummy || mccb.name?.includes("ダミー");
                 if (!isSelected) return ROW_HEIGHT_COLLAPSED + ROW_GAP; // 標準行高さ + ギャップ
                 const base = isDummy
@@ -258,7 +292,7 @@ export default function RequestFormPanel({
                     >
                       <RequestMccbRow
                         mccb={mccb}
-                        isSelected={selectedMccbIds.includes(mccb.id)}
+                        isSelected={selectedMccbIdSet.has(mccb.id)}
                         onToggle={handleToggleMccb}
                         dummyName={dummyNames[mccb.id]}
                         onDummyNameChange={handleDummyNameChange}

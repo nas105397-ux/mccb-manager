@@ -16,8 +16,6 @@ export default function PrintPreviewForm({
     isPreviewLoading,
     previewError,
   } = usePrintPreviewController({
-    workerName,
-    workContent,
     selectedMccbIds,
     dummyNames,
   });

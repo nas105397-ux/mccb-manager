@@ -17,8 +17,18 @@ $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..')
 $TempRoot = Join-Path ([System.IO.Path]::GetTempPath()) "mccb-manager-deploy-$([guid]::NewGuid())"
 $StageDir = Join-Path $TempRoot 'package'
 $ZipPath = Join-Path $TempRoot 'mccb-manager-deploy.zip'
+$RemoteScriptPath = Join-Path $TempRoot 'mccb-manager-remote-deploy.sh'
 $RemoteZip = '/tmp/mccb-manager-deploy.zip'
+$RemoteScriptFile = '/tmp/mccb-manager-remote-deploy.sh'
 $StartKioskValue = if ($StartKiosk.IsPresent) { '1' } else { '0' }
+
+function Assert-NativeCommandSucceeded {
+  param([string]$Action)
+
+  if ($LASTEXITCODE -ne 0) {
+    throw "$Action failed with exit code $LASTEXITCODE."
+  }
+}
 
 function Copy-RepoItem {
   param([string]$Path)
@@ -29,6 +39,56 @@ function Copy-RepoItem {
 
   New-Item -ItemType Directory -Force -Path $DestinationParent | Out-Null
   Copy-Item -Path $Source -Destination $Destination -Recurse -Force
+}
+
+function Convert-StagedUnixLineEndings {
+  $Patterns = @('*.sh', '*.service', '*.conf')
+  foreach ($Pattern in $Patterns) {
+    Get-ChildItem -Path $StageDir -Filter $Pattern -Recurse -File | ForEach-Object {
+      $Content = [System.IO.File]::ReadAllText($_.FullName)
+      $Content = $Content -replace "`r`n", "`n"
+      $Content = $Content -replace "`r", "`n"
+      [System.IO.File]::WriteAllText(
+        $_.FullName,
+        $Content,
+        [System.Text.UTF8Encoding]::new($false)
+      )
+    }
+  }
+}
+
+function Compress-StagedPackage {
+  if (Test-Path $ZipPath) {
+    Remove-Item -LiteralPath $ZipPath -Force
+  }
+
+  Add-Type -AssemblyName System.IO.Compression
+  Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+  $Zip = [System.IO.Compression.ZipFile]::Open(
+    $ZipPath,
+    [System.IO.Compression.ZipArchiveMode]::Create
+  )
+
+  try {
+    $BasePath = [System.IO.Path]::GetFullPath($StageDir).TrimEnd('\', '/')
+
+    Get-ChildItem -LiteralPath $StageDir -Recurse -File -Force | ForEach-Object {
+      $FullPath = [System.IO.Path]::GetFullPath($_.FullName)
+      $RelativePath = $FullPath.Substring($BasePath.Length).TrimStart('\', '/')
+      $EntryName = $RelativePath -replace '\\', '/'
+
+      [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+        $Zip,
+        $FullPath,
+        $EntryName,
+        [System.IO.Compression.CompressionLevel]::Optimal
+      ) | Out-Null
+    }
+  }
+  finally {
+    $Zip.Dispose()
+  }
 }
 
 try {
@@ -59,9 +119,12 @@ try {
     'README.md'
   ) | ForEach-Object { Copy-RepoItem $_ }
 
-  Compress-Archive -Path (Join-Path $StageDir '*') -DestinationPath $ZipPath -Force
+  Convert-StagedUnixLineEndings
+
+  Compress-StagedPackage
 
   scp -P $Port $ZipPath "${Target}:$RemoteZip"
+  Assert-NativeCommandSucceeded 'scp upload'
 
   $RemoteScript = @'
 set -euo pipefail
@@ -69,7 +132,16 @@ set -euo pipefail
 APP_DIR="$1"
 START_KIOSK="$2"
 REMOTE_ZIP="/tmp/mccb-manager-deploy.zip"
-STAGE_DIR="/tmp/mccb-manager-deploy"
+STAGE_DIR="/tmp/mccb-manager-deploy-$(id -u)-$$"
+
+cleanup_stage_dir() {
+  if [ -n "${STAGE_DIR:-}" ] && [ -d "$STAGE_DIR" ]; then
+    chmod -R u+rwX "$STAGE_DIR" >/dev/null 2>&1 || true
+    rm -rf "$STAGE_DIR" >/dev/null 2>&1 || true
+  fi
+}
+
+trap cleanup_stage_dir EXIT
 
 case "$APP_DIR" in
   "~")
@@ -88,7 +160,6 @@ if ! command -v unzip >/dev/null 2>&1; then
   echo "unzip is not installed on the Raspberry Pi. Install it in the offline image before deployment." >&2
   exit 1
 fi
-rm -rf "$STAGE_DIR"
 mkdir -p "$STAGE_DIR"
 unzip -q -o "$REMOTE_ZIP" -d "$STAGE_DIR"
 cp -a "$STAGE_DIR"/. "$APP_DIR"/
@@ -107,13 +178,31 @@ hostname -I | awk '{print "  http://"$1"/#/"}'
 hostname -I | awk '{print "  http://"$1"/#/monitor"}'
 echo
 echo "Service status:"
-systemctl status mccb-manager.service --no-pager -n 8
+for i in $(seq 1 12); do
+  if systemctl is-active --quiet mccb-manager.service; then
+    break
+  fi
+  sleep 1
+done
+systemctl status mccb-manager.service --no-pager -n 8 || true
 if command -v nginx >/dev/null 2>&1; then
-  systemctl status nginx --no-pager -n 5
+  systemctl status nginx --no-pager -n 5 || true
 fi
 '@
 
-  $RemoteScript | ssh -p $Port $Target "bash -s -- '$AppDir' '$StartKioskValue'"
+  $RemoteScript = $RemoteScript -replace "`r`n", "`n"
+  $RemoteScript = $RemoteScript -replace "`r", "`n"
+  [System.IO.File]::WriteAllText(
+    $RemoteScriptPath,
+    $RemoteScript,
+    [System.Text.UTF8Encoding]::new($false)
+  )
+
+  scp -P $Port $RemoteScriptPath "${Target}:$RemoteScriptFile"
+  Assert-NativeCommandSucceeded 'remote script upload'
+
+  ssh -tt -p $Port $Target "bash '$RemoteScriptFile' '$AppDir' '$StartKioskValue'"
+  Assert-NativeCommandSucceeded 'remote deploy'
 }
 finally {
   if (Test-Path $TempRoot) {

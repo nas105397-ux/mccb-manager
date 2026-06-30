@@ -8,6 +8,10 @@ export function useRequestFormController({ mccbList, onAddRequest }) {
   const [dummyNames, setDummyNames]         = useState({});
 
   const deferredSearchQuery = useDeferredValue(searchQuery);
+  const selectedMccbIdSet = useMemo(
+    () => new Set(selectedMccbIds),
+    [selectedMccbIds],
+  );
 
   const handleToggleMccb = useCallback((id) => {
     setSelectedMccbIds((prev) =>
@@ -23,9 +27,11 @@ export function useRequestFormController({ mccbList, onAddRequest }) {
     if (!groupMccbIds?.length) return;
 
     setSelectedMccbIds((prev) => {
-      const isAllSelected = groupMccbIds.every((id) => prev.includes(id));
+      const prevSet = new Set(prev);
+      const groupSet = new Set(groupMccbIds);
+      const isAllSelected = groupMccbIds.every((id) => prevSet.has(id));
       return isAllSelected
-        ? prev.filter((id) => !groupMccbIds.includes(id))
+        ? prev.filter((id) => !groupSet.has(id))
         : Array.from(new Set([...prev, ...groupMccbIds]));
     });
   }, []);
@@ -65,6 +71,7 @@ export function useRequestFormController({ mccbList, onAddRequest }) {
     searchQuery,
     setSearchQuery,
     dummyNames,
+    selectedMccbIdSet,
     filteredMccbList,
     handleToggleMccb,
     handleDummyNameChange,
