@@ -13,7 +13,7 @@ export default function Header({
   rooms = []
 }) {
   return (
-    <div className="bg-white p-4 rounded-xl shadow-sm mb-4 border border-gray-200">
+    <div className="bg-white p-4 rounded-xl mb-4 border border-gray-200">
       
       {/* 🔝 SECTION 1: システムタイトル & ステータスカウンター */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-3 border-b border-gray-100">
@@ -83,9 +83,9 @@ export default function Header({
         <div className="flex items-center">
           <button
             onClick={() => setFilterFavorite(!filterFavorite)}
-            className={`flex items-center gap-1 text-sm font-bold p-1.5 rounded-lg border transition-all cursor-pointer shadow-sm ${
+            className={`flex items-center gap-1 text-sm font-bold p-1.5 rounded-lg border cursor-pointer ${
               filterFavorite
-                ? 'bg-amber-400 text-gray-900 border-amber-400 hover:bg-amber-500 font-black scale-102'
+                ? 'bg-amber-400 text-gray-900 border-amber-400 font-black'
                 : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
             }`}
           >

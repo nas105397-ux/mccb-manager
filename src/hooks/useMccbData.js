@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { startTransition, useState, useEffect, useRef, useCallback } from "react";
 import {
   DEFAULT_CATEGORIES,
   DEFAULT_MAX_SIZE,
@@ -319,10 +319,53 @@ export function useMccbData() {
         }
         if (Array.isArray(result.logs)) {
           const nextLogs = Array.isArray(result.logs) ? result.logs : [];
-          setLogs(nextLogs);
-          const nextPageInfo = createPageInfo(1, LOG_PAGE_SIZE, nextLogs.length);
-          setLogPageInfo(nextPageInfo);
-          setPagedLogs(getPageSlice(nextLogs, nextPageInfo));
+          startTransition(() => {
+            setLogs(nextLogs);
+            const nextPageInfo = createPageInfo(1, LOG_PAGE_SIZE, nextLogs.length);
+            setLogPageInfo(nextPageInfo);
+            setPagedLogs(getPageSlice(nextLogs, nextPageInfo));
+          });
+        }
+        if (result.version) {
+          lastVersion.current = Number(result.version);
+        }
+      });
+    },
+    [runSyncTask],
+  );
+
+  /** 停電・送電状態だけを更新する軽量操作 */
+  const updateMccbPower = useCallback(
+    (id, isPowerOff) => {
+      setMccbList((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, isPowerOff } : item)),
+      );
+
+      runSyncTask(async () => {
+        const res = await fetch(`${API_URL}/${encodeURIComponent(id)}/power`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isPowerOff }),
+        });
+
+        if (!res.ok) {
+          throw new Error(`停電・送電状態の更新に失敗しました (${res.status})`);
+        }
+
+        const result = await res.json();
+        if (result.mccb) {
+          setMccbList((prev) =>
+            prev.map((item) => (item.id === result.mccb.id ? result.mccb : item)),
+          );
+        }
+        if (Array.isArray(result.logs)) {
+          const nextLogs = Array.isArray(result.logs) ? result.logs : [];
+          startTransition(() => {
+            setLogs(nextLogs);
+            const nextPageInfo = createPageInfo(1, LOG_PAGE_SIZE, nextLogs.length);
+            setLogPageInfo(nextPageInfo);
+            setPagedLogs(getPageSlice(nextLogs, nextPageInfo));
+          });
         }
         if (result.version) {
           lastVersion.current = Number(result.version);
@@ -962,6 +1005,7 @@ export function useMccbData() {
     deleteDeviceGroup,
     createDatabaseBackup,
     updateMccb,
+    updateMccbPower,
     saveMccbEntry,
     deleteMccb,
     importFromCSV,

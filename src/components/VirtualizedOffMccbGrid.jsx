@@ -32,7 +32,7 @@ const getColumnCountFromLayout = (colLayout, width) => {
 const WorkerBadge = memo(function WorkerBadge({ card, isDarkMode }) {
   return (
     <span
-      className={`text-sm border-2 px-3 py-1 rounded font-black flex items-center gap-2 shadow-md whitespace-nowrap ${
+      className={`text-sm border-2 px-3 py-1 rounded font-black flex items-center gap-2 whitespace-nowrap ${
         isDarkMode ? 'bg-gray-950 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-800'
       }`}
     >
@@ -57,9 +57,9 @@ const OffMccbCard = memo(function OffMccbCard({
 }) {
   return (
     <div
-      className={`border-4 rounded-xl p-5 shadow-xl flex flex-col justify-between min-h-[200px] transition-colors will-change-transform h-full ${
+      className={`border-2 rounded-xl p-5 flex flex-col justify-between min-h-[200px] h-full ${
         isDarkMode
-          ? 'from-gray-800 to-gray-850 bg-gradient-to-b border-red-600'
+          ? 'bg-gray-800 border-red-600'
           : 'bg-red-50/40 border-red-500'
       }`}
     >
@@ -94,7 +94,7 @@ const OffMccbCard = memo(function OffMccbCard({
           <div className="flex flex-wrap gap-2">
             {workers.length === 0 ? (
               <span
-                className={`text-xs font-black px-2.5 py-1 rounded animate-pulse border will-change-transform ${
+                className={`text-xs font-black px-2.5 py-1 rounded border ${
                   isDarkMode ? 'bg-amber-950/40 border-amber-900 text-amber-400' : 'bg-amber-50 border-amber-200 text-amber-700'
                 }`}
               >

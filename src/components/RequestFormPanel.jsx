@@ -15,16 +15,16 @@ const INPUT_SEARCH_CLASS =
   "border p-2 rounded text-xs w-full focus:outline-none mb-2 focus:border-blue-500";
 /** ダミー代替名入力クラス */
 const INPUT_DUMMY_CLASS =
-  "border p-1.5 rounded text-[11px] w-full bg-white focus:outline-none font-medium text-gray-700 shadow-inner";
+  "border p-1.5 rounded text-[11px] w-full bg-white focus:outline-none font-medium text-gray-700";
 /** 設備行：選択中クラス */
 const ROW_SELECTED_CLASS =
-  "p-2 rounded border transition-all duration-150 will-change-transform bg-blue-50/30 border-blue-200 text-blue-900 shadow-sm";
+  "p-2 rounded border bg-blue-50/30 border-blue-200 text-blue-900";
 /** 設備行：通常クラス */
 const ROW_DEFAULT_CLASS =
-  "p-2 rounded border transition-all duration-150 will-change-transform bg-white border-gray-200 text-gray-700 hover:bg-gray-50";
+  "p-2 rounded border bg-white border-gray-200 text-gray-700 hover:bg-gray-50";
 /** グループボタン共通ベース */
 const BTN_GROUP_BASE =
-  "px-2.5 py-1.5 rounded text-[11px] font-black border transition-all cursor-pointer shadow-sm transform active:scale-95";
+  "px-2.5 py-1.5 rounded text-[11px] font-black border cursor-pointer";
 
 // 仮想リストの行高さ/ギャップ（px）
 const ROW_HEIGHT_COLLAPSED = 40;
@@ -182,7 +182,7 @@ export default function RequestFormPanel({
   return (
     <div className="flex flex-col lg:flex-row gap-6 items-start print:block print:space-y-0 print:p-0">
       {/* 左側：入力設定フォームパネル (印刷時は非表示) */}
-      <div className="w-full lg:w-1/3 bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4 print:hidden shrink-0 lg:sticky lg:top-4">
+      <div className="w-full lg:w-1/3 bg-white p-6 rounded-xl border border-gray-200 space-y-4 print:hidden shrink-0 lg:sticky lg:top-4">
         <h2 className="text-sm font-black text-gray-700 border-b pb-2">
           📝 停電依頼書の作成・印刷用フォーム
         </h2>
@@ -309,7 +309,7 @@ export default function RequestFormPanel({
         <div className="pt-2">
           <button
             onClick={handlePrint}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-black px-6 py-2.5 rounded-lg text-sm shadow-md cursor-pointer w-full transform active:scale-[0.98] transition-all"
+            className="bg-blue-600 hover:bg-blue-700 text-white font-black px-6 py-2.5 rounded-lg text-sm cursor-pointer w-full"
           >
             🖨️ 停電依頼を発行して印刷
           </button>

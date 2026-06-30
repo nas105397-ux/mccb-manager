@@ -111,7 +111,8 @@ Environment=APP_URL=http://127.0.0.1
 Environment=MAIN_GEOMETRY=1920x1080+0+0
 Environment=DASHBOARD_GEOMETRY=3840x2160+1920+0
 Environment=DASHBOARD_SCALE=1.5
-Environment=CHROMIUM_FLAGS=--disable-features=OptimizationGuideModelDownloading,OnDeviceModelExecution --disable-gpu-vsync
+Environment=ENABLE_GPU_TUNING=0
+Environment=CHROMIUM_FLAGS=--disable-gpu-vsync
 ExecStartPre=/bin/sleep 8
 ExecStartPre=/usr/bin/xset s off
 ExecStartPre=/usr/bin/xset -dpms

@@ -4,7 +4,7 @@ import { useControlModalController } from '../hooks/useControlModalController';
 // ==========================================
 // 1. メインコンポーネント (ControlModal)
 // ==========================================
-export default function ControlModal({ mccb, onClose, onUpdate, onDelete, isAdmin, rooms, categories }) {
+export default function ControlModal({ mccb, onClose, onUpdate, onUpdatePower, onDelete, isAdmin, rooms, categories }) {
   const {
     isPowerOff,
     room,
@@ -18,17 +18,17 @@ export default function ControlModal({ mccb, onClose, onUpdate, onDelete, isAdmi
     handleReturnCard,
     handleBorrowCard,
     handleSaveMaster,
-  } = useControlModalController({ mccb, onUpdate });
+  } = useControlModalController({ mccb, onUpdate, onUpdatePower });
 
   // --- 画面レンダリング ---
   return (
     <div 
       onClick={onClose}
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 print:hidden"
+      className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 print:hidden"
     >
       <div 
         onClick={(e) => e.stopPropagation()} 
-        className="bg-white rounded-2xl border border-gray-200 shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] transition-all transform scale-100"
+        className="bg-white rounded-2xl border border-gray-200 w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]"
       >
         
         {/* 🔝 SECTION 1: モーダルヘッダー */}
@@ -44,7 +44,7 @@ export default function ControlModal({ mccb, onClose, onUpdate, onDelete, isAdmi
 
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded-full w-10 h-10 flex items-center justify-center text-3xl font-black transition-all cursor-pointer focus:outline-none"
+            className="text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded-full w-10 h-10 flex items-center justify-center text-3xl font-black cursor-pointer focus:outline-none"
             title="閉じる"
           >
             ×
@@ -55,7 +55,7 @@ export default function ControlModal({ mccb, onClose, onUpdate, onDelete, isAdmi
         <div className="p-6 overflow-y-auto space-y-6 flex-1 text-sm text-gray-700">
           
           {/* ⚡ SECTION 2: 停電・送電ステータス切り替えトグル */}
-          <div className="bg-gray-50 p-4 rounded-xl border flex items-center justify-between shadow-sm">
+          <div className="bg-gray-50 p-4 rounded-xl border flex items-center justify-between">
             <div>
               <p className="font-black text-gray-800">⚡ 設備停電ステータス</p>
               <p className="text-xs text-gray-400 mt-0.5">※依頼発行とは別に、主幹の開閉状態を直接操作ロックします</p>
@@ -69,7 +69,7 @@ export default function ControlModal({ mccb, onClose, onUpdate, onDelete, isAdmi
               onClick={handleTogglePower}
               disabled={isSendingBlocked}
               title={isSendingBlocked ? '未返却の子札があるため送電できません' : undefined}
-              className={`px-5 py-2 rounded-xl text-xs font-black shadow transition-all border ${
+              className={`px-5 py-2 rounded-xl text-xs font-black border ${
                 isSendingBlocked
                   ? 'bg-gray-300 text-gray-500 border-gray-400 cursor-not-allowed opacity-60'
                   : isPowerOff
@@ -90,7 +90,7 @@ export default function ControlModal({ mccb, onClose, onUpdate, onDelete, isAdmi
             <div className="grid grid-cols-1 gap-2">
               {mccb.childCards.map((card) => (
                 <CardRow 
-                  key={`${card.id}-${card.isBorrowed ? 'borrowed' : 'free'}`} 
+                  key={`${card.id}-${card.isBorrowed ? 'borrowed' : 'free'}`}
                   card={card} 
                   onBorrow={(name) => handleBorrowCard(card.id, name)} 
                   onReturn={() => handleReturnCard(card.id)} 
@@ -141,13 +141,13 @@ export default function ControlModal({ mccb, onClose, onUpdate, onDelete, isAdmi
               <div className="flex justify-between items-center pt-2">
                 <button
                   onClick={() => onDelete(mccb.id)}
-                  className="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-4 py-2 rounded-lg text-xs border border-red-200 cursor-pointer transition-all"
+                  className="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-4 py-2 rounded-lg text-xs border border-red-200 cursor-pointer"
                 >
                   🗑️ 設備マスタを完全削除
                 </button>
                 <button
                   onClick={handleSaveMaster}
-                  className="bg-gray-800 hover:bg-gray-900 text-white font-black px-5 py-2 rounded-lg text-xs shadow cursor-pointer transition-all"
+                  className="bg-gray-800 hover:bg-gray-900 text-white font-black px-5 py-2 rounded-lg text-xs cursor-pointer"
                 >
                   💾 マスタ変更内容を保存
                 </button>
@@ -168,7 +168,7 @@ function CardRow({ card, onBorrow, onReturn }) {
   const [inputName, setInputName] = useState('');
 
   return (
-    <div className={`p-3 rounded-xl border flex flex-wrap items-center justify-between gap-2 text-xs transition-colors ${
+    <div className={`p-3 rounded-xl border flex flex-wrap items-center justify-between gap-2 text-xs ${
       card.isBorrowed ? 'bg-amber-50/40 border-amber-200' : 'bg-gray-50/50 border-gray-200'
     }`}>
       <div className="flex items-center gap-2">
@@ -190,7 +190,7 @@ function CardRow({ card, onBorrow, onReturn }) {
         {card.isBorrowed ? (
           <button
             onClick={onReturn}
-            className="bg-white hover:bg-gray-100 text-gray-700 font-bold px-3 py-1 rounded border border-gray-300 shadow-sm cursor-pointer transition-all"
+            className="bg-white hover:bg-gray-100 text-gray-700 font-bold px-3 py-1 rounded border border-gray-300 cursor-pointer"
           >
             ↩️ 札を返却（フリーに戻す）
           </button>
@@ -205,7 +205,7 @@ function CardRow({ card, onBorrow, onReturn }) {
             />
             <button
               onClick={() => onBorrow(inputName)}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-black px-3 py-1.5 rounded shadow-sm cursor-pointer transition-all"
+              className="bg-blue-600 hover:bg-blue-700 text-white font-black px-3 py-1.5 rounded cursor-pointer"
             >
               🔖 貸出
             </button>

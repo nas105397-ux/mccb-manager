@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useDeferredValue } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useMccbData } from "./useMccbData";
 import {
@@ -46,9 +46,11 @@ export function useAppController() {
     updateDeviceGroup,
     deleteDeviceGroup,
     createDatabaseBackup,
+    updateMccbPower,
   } = useMccbData();
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("すべて");
   const [filterRoom, setFilterRoom] = useState("すべて");
   const [filterFavorite, setFilterFavorite] = useState(false);
@@ -59,6 +61,14 @@ export function useAppController() {
   const location = useLocation();
   const navigate = useNavigate();
   const activeTab = location.pathname;
+
+  useEffect(() => {
+    const timerId = window.setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 200);
+
+    return () => window.clearTimeout(timerId);
+  }, [searchTerm]);
 
   const handleToggleAdmin = useCallback(() => {
     if (!isAdmin) {
@@ -93,13 +103,12 @@ export function useAppController() {
     return applyNameOverlaysToMccbs(mccbList, nameOverlayMap);
   }, [mccbList, requests]);
 
-  const deferredSearch = useDeferredValue(searchTerm);
-
   const filteredMccbList = useMemo(() => {
-    const lowerSearch = deferredSearch.toLowerCase();
+    const lowerSearch = debouncedSearchTerm.trim().toLowerCase();
 
     return processedMccbList.filter((mccb) => {
-      const matchesSearch = mccb.name.toLowerCase().includes(lowerSearch);
+      const matchesSearch =
+        !lowerSearch || mccb.name.toLowerCase().includes(lowerSearch);
       const matchesRoom = filterRoom === "すべて" || mccb.room === filterRoom;
       const matchesStatus =
         filterStatus === "すべて" ||
@@ -112,7 +121,7 @@ export function useAppController() {
     });
   }, [
     processedMccbList,
-    deferredSearch,
+    debouncedSearchTerm,
     filterRoom,
     filterStatus,
     filterFavorite,
@@ -232,6 +241,7 @@ export function useAppController() {
     handleToggleFavorite,
     goTo,
     updateMccb,
+    updateMccbPower,
     saveMccbEntry,
     deleteMccb,
     importFromCSV,

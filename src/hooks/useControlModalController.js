@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 
-export function useControlModalController({ mccb, onUpdate }) {
+export function useControlModalController({ mccb, onUpdate, onUpdatePower }) {
   const [masterDrafts, setMasterDrafts] = useState({});
 
   const currentDraft = masterDrafts[mccb.id] ?? {
@@ -55,8 +55,13 @@ export function useControlModalController({ mccb, onUpdate }) {
     if (isSendingBlocked) return;
 
     const nextStatus = !mccb.isPowerOff;
+    if (onUpdatePower) {
+      onUpdatePower(mccb.id, nextStatus);
+      return;
+    }
+
     onUpdate({ ...mccb, isPowerOff: nextStatus });
-  }, [isSendingBlocked, mccb, onUpdate]);
+  }, [isSendingBlocked, mccb, onUpdate, onUpdatePower]);
 
   const handleReturnCard = useCallback((cardId) => {
     const updatedCards = mccb.childCards.map((card) => {

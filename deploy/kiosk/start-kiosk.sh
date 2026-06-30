@@ -6,7 +6,7 @@ MAIN_GEOMETRY="${MAIN_GEOMETRY:-1920x1080+0+0}"
 DASHBOARD_GEOMETRY="${DASHBOARD_GEOMETRY:-3840x2160+1920+0}"
 CHROMIUM_BIN="${CHROMIUM_BIN:-}"
 CHROMIUM_FLAGS="${CHROMIUM_FLAGS:-}"
-ENABLE_GPU_TUNING="${ENABLE_GPU_TUNING:-1}"
+ENABLE_GPU_TUNING="${ENABLE_GPU_TUNING:-0}"
 ENABLE_FCITX="${ENABLE_FCITX:-1}"
 MAIN_PROFILE_DIR="${MAIN_PROFILE_DIR:-/tmp/mccb-kiosk-main}"
 DASHBOARD_PROFILE_DIR="${DASHBOARD_PROFILE_DIR:-/tmp/mccb-kiosk-dashboard}"
@@ -69,14 +69,20 @@ BASE_CHROMIUM_FLAGS=(
   --no-first-run
   --no-default-browser-check
   --disable-background-networking
+  --disable-background-timer-throttling
+  --disable-client-side-phishing-detection
   --disable-component-update
   --disable-default-apps
   --disable-extensions
   --disable-features=OptimizationGuideModelDownloading,OnDeviceModelExecution,Translate
+  --disable-hang-monitor
   --disable-popup-blocking
   --disable-prompt-on-repost
+  --disable-renderer-backgrounding
+  --disable-smooth-scrolling
   --disable-sync
   --disable-translate
+  --disable-dev-shm-usage
   --metrics-recording-only
   --password-store=basic
 )

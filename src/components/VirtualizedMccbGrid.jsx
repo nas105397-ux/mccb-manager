@@ -10,6 +10,18 @@ const getColumnsFromWidth = (width) => {
   return 1;
 };
 
+const getAvailableListHeight = (containerElement) => {
+  if (typeof window === "undefined") return 400;
+
+  if (!containerElement) {
+    return Math.max(window.innerHeight - 260, 300);
+  }
+
+  const rect = containerElement.getBoundingClientRect();
+  const bottomPadding = 16;
+  return Math.max(window.innerHeight - rect.top - bottomPadding, 300);
+};
+
 export default function VirtualizedMccbGrid({
   items = [],
   borrowedCountMap = {},
@@ -29,10 +41,7 @@ export default function VirtualizedMccbGrid({
   );
   const [columns, setColumns] = useState(getColumnsFromWidth(containerWidth));
   const [listHeight, setListHeight] = useState(
-    Math.max(
-      (typeof window !== "undefined" ? window.innerHeight : 800) - 260,
-      400,
-    ),
+    getAvailableListHeight(null),
   );
 
   useEffect(() => {
@@ -42,7 +51,7 @@ export default function VirtualizedMccbGrid({
         : window.innerWidth;
       setContainerWidth(width);
       setColumns(getColumnsFromWidth(width));
-      setListHeight(Math.max(window.innerHeight - 260, 400));
+      setListHeight(getAvailableListHeight(containerRef.current));
     };
 
     measure();
@@ -115,7 +124,7 @@ export default function VirtualizedMccbGrid({
   };
 
   return (
-    <div ref={containerRef} className="mt-4 w-full">
+    <div ref={containerRef} className="w-full h-full min-h-0">
       <List
         height={listHeight}
         itemCount={rowCount}

@@ -696,6 +696,63 @@ app.patch('/api/mccb/:id', (req, res) => {
   }
 });
 
+/** 設備の停電・送電状態のみを更新する専用API */
+app.patch('/api/mccb/:id/power', (req, res) => {
+  try {
+    const nextIsPowerOff = req.body?.isPowerOff;
+    if (typeof nextIsPowerOff !== 'boolean') {
+      return res.status(400).json({ error: '停電・送電状態が不正です。' });
+    }
+
+    const current = store.readCollection('mccbList');
+    const target = current.find((mccb) => mccb.id === req.params.id);
+    if (!target) {
+      return res.status(404).json({ error: '更新対象の設備が見つかりません。' });
+    }
+
+    if (!nextIsPowerOff && hasBorrowedChildCard(target)) {
+      return res.status(409).json({ error: '未返却の子札があるため送電できません。' });
+    }
+
+    if (target.isPowerOff === nextIsPowerOff) {
+      return res.json({
+        status: 'success',
+        mccb: target,
+        logs: normalizeLogs(store.readCollection('logs')),
+        version: store.getVersion(),
+      });
+    }
+
+    const result = store.updateMccb({ ...target, isPowerOff: nextIsPowerOff });
+    if (!result) {
+      return res.status(404).json({ error: '更新対象の設備が見つかりません。' });
+    }
+
+    const changeLog = createMccbChangeLog(result.before, result.after);
+    let logs = store.readCollection('logs');
+    if (changeLog) {
+      const logSettings = store.readCollection('logSettings');
+      logs = createUpdatedLogs(
+        changeLog.type,
+        changeLog.message,
+        logs,
+        logSettings?.maxSize || DEFAULT_MAX_SIZE,
+      );
+      store.writeCollection('logs', logs);
+    }
+
+    res.json({
+      status: 'success',
+      mccb: result.after,
+      logs,
+      version: store.getVersion(),
+    });
+  } catch (error) {
+    console.error("SQLite設備停電・送電更新失敗:", error);
+    res.status(500).json({ error: '停電・送電状態の更新に失敗しました' });
+  }
+});
+
 /** 設備マスタ1件の新規登録 */
 app.post('/api/mccbs', (req, res) => {
   try {

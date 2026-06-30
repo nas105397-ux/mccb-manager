@@ -9,7 +9,7 @@ const CORE_API_URL = `${API_URL}?core=1`;
 const VERSION_URL = `${API_URL}/version`;
 const ACTIVITY_LOG_LIMIT = 20;
 const LOGS_PAGE_URL = `/api/logs?page=1&pageSize=${ACTIVITY_LOG_LIMIT}`;
-export const POLL_INTERVAL = 15000;
+export const POLL_INTERVAL = 30000;
 const INITIAL_DATA = { mccbList: [], logs: [], requests: [], categoryColors: {} };
 
 const getInitialDarkMode = () => {

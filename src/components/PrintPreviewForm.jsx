@@ -21,7 +21,7 @@ export default function PrintPreviewForm({
   });
 
   return (
-    <div className="w-full lg:w-2/3 bg-white p-6 rounded-xl shadow-sm border border-gray-200 print:border-0 print:shadow-none print:p-0 print:w-[78mm] print:mx-auto">
+    <div className="w-full lg:w-2/3 bg-white p-6 rounded-xl border border-gray-200 print:border-0 print:shadow-none print:p-0 print:w-[78mm] print:mx-auto">
       {/* レシート外枠：高コントラスト現場用デザイン */}
       <div className="border border-gray-300 p-4 space-y-4 text-black bg-white print:border-0 print:p-1 font-mono text-xs">
         {/* 🔝 レシートヘッダー */}

@@ -5,11 +5,11 @@ import { getCategoryBadgeClass } from "../shared/categoryColorUtils";
 /** カード状態別ボーダー・背景クラス */
 const CARD_STATUS_CLASS = {
   powerOff:
-    "border-red-500   bg-red-50/20   hover:border-red-500   ring-2 ring-red-200/70",
+    "border-red-500   bg-red-50/20",
   activeRequest:
-    "border-amber-500 bg-amber-50/20 hover:border-amber-500 ring-2 ring-amber-200/70",
+    "border-amber-500 bg-amber-50/20",
   normal:
-    "border-gray-300  bg-gray-50/20  hover:border-gray-400  ring-2 ring-gray-200/70",
+    "border-gray-300  bg-gray-50/20",
 };
 
 // ==========================================
@@ -47,16 +47,16 @@ function MccbCard({
     <div
       onClick={handleSelect}
       onKeyDown={handleKeyDown}
-      className={`bg-white p-4 rounded-xl border shadow-sm relative flex flex-col justify-between min-h-[140px] transition-all duration-200 hover:shadow-md cursor-pointer will-change-transform ${cardStatusCls} ${className}`}
+      className={`bg-white p-4 rounded-xl border relative flex flex-col justify-between min-h-[140px] cursor-pointer ${cardStatusCls} ${className}`}
       role="button"
       tabIndex={0}
     >
       {/* ⭐ お気に入りトグルボタン */}
       <button
         onClick={handleToggleFavorite}
-        className={`absolute top-3 right-3 text-lg transition-transform duration-200 transform hover:scale-125 focus:outline-none will-change-transform cursor-pointer z-10 ${
+        className={`absolute top-3 right-3 text-lg focus:outline-none cursor-pointer z-10 ${
           isFavorite
-            ? "text-amber-500 font-bold drop-shadow-sm"
+            ? "text-amber-500 font-bold"
             : "text-gray-300 hover:text-amber-400"
         }`}
         title={isFavorite ? "お気に入り解除" : "お気に入り登録"}

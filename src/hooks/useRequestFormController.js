@@ -1,13 +1,21 @@
-import { useCallback, useDeferredValue, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 export function useRequestFormController({ mccbList, onAddRequest }) {
   const [workerName, setWorkerName]         = useState('');
   const [workContent, setWorkContent]       = useState('');
   const [selectedMccbIds, setSelectedMccbIds] = useState([]);
   const [searchQuery, setSearchQuery]       = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [dummyNames, setDummyNames]         = useState({});
 
-  const deferredSearchQuery = useDeferredValue(searchQuery);
+  useEffect(() => {
+    const timerId = window.setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 200);
+
+    return () => window.clearTimeout(timerId);
+  }, [searchQuery]);
+
   const selectedMccbIdSet = useMemo(
     () => new Set(selectedMccbIds),
     [selectedMccbIds],
@@ -53,14 +61,14 @@ export function useRequestFormController({ mccbList, onAddRequest }) {
   }, [workerName, workContent, selectedMccbIds, dummyNames, onAddRequest]);
 
   const filteredMccbList = useMemo(() => {
-    const query = deferredSearchQuery.toLowerCase().trim();
+    const query = debouncedSearchQuery.toLowerCase().trim();
     if (!query) return mccbList;
     return mccbList.filter(
       (mccb) =>
         mccb.name?.toLowerCase().includes(query) ||
         mccb.room?.toLowerCase().includes(query)
     );
-  }, [mccbList, deferredSearchQuery]);
+  }, [mccbList, debouncedSearchQuery]);
 
   return {
     workerName,

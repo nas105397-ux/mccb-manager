@@ -36,40 +36,45 @@ export function usePrintPreviewController({
       return () => abortController.abort();
     }
 
-    fetch(REQUEST_PREVIEW_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal: abortController.signal,
-      body: JSON.stringify({
-        request: previewRequest,
-      }),
-    })
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`プレビュー作成に失敗しました (${res.status})`);
-        }
-        return res.json();
+    const timerId = window.setTimeout(() => {
+      fetch(REQUEST_PREVIEW_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: abortController.signal,
+        body: JSON.stringify({
+          request: previewRequest,
+        }),
       })
-      .then((result) => {
-        if (!abortController.signal.aborted) {
+        .then((res) => {
+          if (!res.ok) {
+            throw new Error(`プレビュー作成に失敗しました (${res.status})`);
+          }
+          return res.json();
+        })
+        .then((result) => {
+          if (!abortController.signal.aborted) {
+            setPreviewState({
+              key: previewKey,
+              items: result.previewItems || [],
+              error: '',
+            });
+          }
+        })
+        .catch((error) => {
+          if (error.name === 'AbortError') return;
+          console.error('停電依頼プレビュー作成エラー:', error);
           setPreviewState({
             key: previewKey,
-            items: result.previewItems || [],
-            error: '',
+            items: [],
+            error: error.message || 'プレビュー作成に失敗しました',
           });
-        }
-      })
-      .catch((error) => {
-        if (error.name === 'AbortError') return;
-        console.error('停電依頼プレビュー作成エラー:', error);
-        setPreviewState({
-          key: previewKey,
-          items: [],
-          error: error.message || 'プレビュー作成に失敗しました',
         });
-      });
+    }, 150);
 
-    return () => abortController.abort();
+    return () => {
+      window.clearTimeout(timerId);
+      abortController.abort();
+    };
   }, [previewKey, previewRequest, selectedMccbIds.length]);
 
   const hasSelection = selectedMccbIds.length > 0;

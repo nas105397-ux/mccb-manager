@@ -17,6 +17,7 @@ import {
 function AppContent() {
   // 処理ロジックは useAppController に集約し、ここではUIレンダリングに専念する
   const controller = useAppController();
+  const isFixedOperationScreen = controller.activeTab === "/" && !controller.isAdmin;
 
   // 特殊画面（フル画面モニターモード）の早期リターン
   if (controller.activeTab === "/monitor") {
@@ -27,9 +28,15 @@ function AppContent() {
   return (
     <div
       translate="no"
-      className="min-h-screen bg-gray-50 text-gray-850 p-4 font-sans print:p-0 print:bg-white"
+      className={`box-border bg-gray-50 text-gray-850 p-4 font-sans print:p-0 print:bg-white ${
+        isFixedOperationScreen ? "h-svh overflow-hidden" : "min-h-svh"
+      }`}
     >
-      <div className="max-w-7xl mx-auto space-y-4 print:space-y-0">
+      <div
+        className={`max-w-7xl mx-auto print:space-y-0 ${
+          isFixedOperationScreen ? "h-full min-h-0 flex flex-col gap-4" : "space-y-4"
+        }`}
+      >
         {/* 上部共通ヘッダー・ナビゲーションバー */}
         <div className="flex justify-between items-center bg-white p-2 rounded-xl border border-gray-200 shadow-sm print:hidden">
           <div className="flex flex-wrap gap-2">
@@ -71,7 +78,13 @@ function AppContent() {
           <Route
             path="/"
             element={
-              <>
+              <div
+                className={
+                  isFixedOperationScreen
+                    ? "flex-1 min-h-0 flex flex-col overflow-hidden"
+                    : ""
+                }
+              >
                 <Header
                   searchTerm={controller.searchTerm}
                   setSearchTerm={controller.setSearchTerm}
@@ -121,7 +134,7 @@ function AppContent() {
                   />
                 )}
 
-                <div className="mt-4">
+                <div className={isFixedOperationScreen ? "flex-1 min-h-0" : "mt-4"}>
                   <VirtualizedMccbGrid
                     items={controller.filteredMccbList}
                     borrowedCountMap={controller.borrowedCountMap}
@@ -142,13 +155,14 @@ function AppContent() {
                     }
                     onClose={controller.handleCloseModal}
                     onUpdate={controller.updateMccb}
+                    onUpdatePower={controller.updateMccbPower}
                     onDelete={controller.deleteMccb}
                     isAdmin={controller.isAdmin}
                     rooms={controller.rooms}
                     categories={controller.categories}
                   />
                 )}
-              </>
+              </div>
             }
           />
 
