@@ -21,6 +21,11 @@ $RemoteScriptPath = Join-Path $TempRoot 'mccb-manager-remote-deploy.sh'
 $RemoteZip = '/tmp/mccb-manager-deploy.zip'
 $RemoteScriptFile = '/tmp/mccb-manager-remote-deploy.sh'
 $StartKioskValue = if ($StartKiosk.IsPresent) { '1' } else { '0' }
+$SshOptions = @(
+  '-o', 'ConnectTimeout=20',
+  '-o', 'ServerAliveInterval=10',
+  '-o', 'ServerAliveCountMax=3'
+)
 
 function Assert-NativeCommandSucceeded {
   param([string]$Action)
@@ -28,6 +33,37 @@ function Assert-NativeCommandSucceeded {
   if ($LASTEXITCODE -ne 0) {
     throw "$Action failed with exit code $LASTEXITCODE."
   }
+}
+
+function Invoke-NativeCommandWithRetry {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Action,
+
+    [Parameter(Mandatory = $true)]
+    [string]$Command,
+
+    [Parameter(Mandatory = $true)]
+    [string[]]$Arguments,
+
+    [int]$MaxAttempts = 3,
+
+    [int]$RetryDelaySeconds = 5
+  )
+
+  for ($Attempt = 1; $Attempt -le $MaxAttempts; $Attempt++) {
+    & $Command @Arguments
+    if ($LASTEXITCODE -eq 0) {
+      return
+    }
+
+    if ($Attempt -lt $MaxAttempts) {
+      Write-Warning "$Action failed with exit code $LASTEXITCODE. Retrying in $RetryDelaySeconds seconds ($Attempt/$MaxAttempts)..."
+      Start-Sleep -Seconds $RetryDelaySeconds
+    }
+  }
+
+  throw "$Action failed with exit code $LASTEXITCODE."
 }
 
 function Copy-RepoItem {
@@ -123,8 +159,10 @@ try {
 
   Compress-StagedPackage
 
-  scp -P $Port $ZipPath "${Target}:$RemoteZip"
-  Assert-NativeCommandSucceeded 'scp upload'
+  Invoke-NativeCommandWithRetry `
+    -Action 'scp upload' `
+    -Command 'scp' `
+    -Arguments (@('-P', "$Port") + $SshOptions + @($ZipPath, "${Target}:$RemoteZip"))
 
   $RemoteScript = @'
 set -euo pipefail
@@ -165,10 +203,13 @@ unzip -q -o "$REMOTE_ZIP" -d "$STAGE_DIR"
 cp -a "$STAGE_DIR"/. "$APP_DIR"/
 mkdir -p "$APP_DIR/data/backups"
 cd "$APP_DIR"
-APP_DIR="$APP_DIR" ENABLE_KIOSK=1 bash deploy/raspi/setup-system.sh
+APP_DIR="$APP_DIR" ENABLE_KIOSK="$START_KIOSK" bash deploy/raspi/setup-system.sh
 
 if [ "$START_KIOSK" = "1" ]; then
-  systemctl --user restart mccb-kiosk.service
+  if ! systemctl --user restart mccb-kiosk.service; then
+    echo "kiosk service could not be started now. This is expected on Raspberry Pi OS Lite before Xorg is running."
+    echo "Reboot the Raspberry Pi after Lite kiosk setup, or start Xorg and then run: systemctl --user restart mccb-kiosk.service"
+  fi
 fi
 
 echo
@@ -198,11 +239,16 @@ fi
     [System.Text.UTF8Encoding]::new($false)
   )
 
-  scp -P $Port $RemoteScriptPath "${Target}:$RemoteScriptFile"
-  Assert-NativeCommandSucceeded 'remote script upload'
+  Invoke-NativeCommandWithRetry `
+    -Action 'remote script upload' `
+    -Command 'scp' `
+    -Arguments (@('-P', "$Port") + $SshOptions + @($RemoteScriptPath, "${Target}:$RemoteScriptFile"))
 
-  ssh -tt -p $Port $Target "bash '$RemoteScriptFile' '$AppDir' '$StartKioskValue'"
-  Assert-NativeCommandSucceeded 'remote deploy'
+  Invoke-NativeCommandWithRetry `
+    -Action 'remote deploy' `
+    -Command 'ssh' `
+    -Arguments (@('-tt', '-p', "$Port") + $SshOptions + @($Target, "bash '$RemoteScriptFile' '$AppDir' '$StartKioskValue'")) `
+    -MaxAttempts 2
 }
 finally {
   if (Test-Path $TempRoot) {

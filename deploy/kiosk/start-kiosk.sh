@@ -12,6 +12,7 @@ MAIN_PROFILE_DIR="${MAIN_PROFILE_DIR:-/tmp/mccb-kiosk-main}"
 DASHBOARD_PROFILE_DIR="${DASHBOARD_PROFILE_DIR:-/tmp/mccb-kiosk-dashboard}"
 MAIN_SCALE="${MAIN_SCALE:-1}"
 DASHBOARD_SCALE="${DASHBOARD_SCALE:-1.5}"
+DISPLAY_WAIT_SECONDS="${DISPLAY_WAIT_SECONDS:-60}"
 
 if [ -z "$CHROMIUM_BIN" ]; then
   if command -v chromium-browser >/dev/null 2>&1; then
@@ -40,6 +41,22 @@ read -r -a EXTRA_CHROMIUM_FLAGS <<< "$CHROMIUM_FLAGS"
 
 CHROMIUM_PIDS=()
 
+wait_for_display() {
+  if ! command -v xset >/dev/null 2>&1; then
+    return 0
+  fi
+
+  for _ in $(seq 1 "$DISPLAY_WAIT_SECONDS"); do
+    if xset q >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+  done
+
+  echo "X display is not ready: DISPLAY=${DISPLAY:-<unset>}" >&2
+  return 1
+}
+
 cleanup() {
   trap - TERM INT HUP EXIT
 
@@ -53,6 +70,12 @@ cleanup() {
 }
 
 trap cleanup TERM INT HUP EXIT
+
+wait_for_display
+
+xset s off >/dev/null 2>&1 || true
+xset -dpms >/dev/null 2>&1 || true
+xset s noblank >/dev/null 2>&1 || true
 
 if [ "$ENABLE_FCITX" = "1" ] && command -v fcitx5 >/dev/null 2>&1; then
   export GTK_IM_MODULE="${GTK_IM_MODULE:-fcitx}"
