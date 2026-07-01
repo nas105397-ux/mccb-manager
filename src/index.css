@@ -126,7 +126,7 @@ code {
      animations for kiosk builds.
    ========================================================== */
 
-/*@media (prefers-reduced-motion: reduce) {
+@media (prefers-reduced-motion: reduce) {
     *,
     *::before,
     *::after {
@@ -135,11 +135,10 @@ code {
         transition-duration: 0ms !important;
         scroll-behavior: auto !important;
     }
-}*/
+}
 
-/* Aggressive global override used for kiosk deployments when
-you want to disable most animations to improve performance. */
-/*
+/* Aggressive global override for kiosk / Raspberry Pi deployments.
+   Keep layout and colors, but remove expensive paint/composite effects. */
 *,
 *::before,
 *::after {
@@ -147,4 +146,6 @@ you want to disable most animations to improve performance. */
     animation-delay: 0ms !important;
     transition-duration: 0ms !important;
     scroll-behavior: auto !important;
-    }*/
+    box-shadow: none !important;
+    text-shadow: none !important;
+}

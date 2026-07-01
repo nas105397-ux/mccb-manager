@@ -28,10 +28,14 @@ const ACTIVE = {
     "text-lg font-black text-blue-800 mt-1 flex items-center gap-2 flex-wrap text-left leading-snug",
   workerSuffix: "text-xs font-bold text-gray-500",
   content: "text-xs text-gray-500 mt-1 font-bold",
+  actionButtonBase:
+    "inline-flex min-h-9 items-center justify-center rounded-lg border px-3 py-1.5 text-xs font-black shadow-sm transition-all cursor-pointer whitespace-nowrap",
   addButton:
-    "bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer whitespace-nowrap",
+    "bg-white hover:bg-emerald-50 text-emerald-700 border-emerald-200",
+  printButton:
+    "bg-white hover:bg-blue-50 text-blue-700 border-blue-200",
   deleteButton:
-    "bg-white hover:bg-red-50 text-red-600 border border-gray-200 hover:border-red-200 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all cursor-pointer whitespace-nowrap",
+    "bg-white hover:bg-red-50 text-red-700 border-red-200",
   addPanel:
     "mb-3 rounded-lg border border-emerald-200 bg-emerald-50/40 p-3 space-y-2",
   addSearch:
@@ -313,20 +317,20 @@ export default function RequestListPanel({
                     <button
                       type="button"
                       onClick={() => openAddPanel(req.id)}
-                      className={ACTIVE.addButton}
+                      className={`${ACTIVE.actionButtonBase} ${ACTIVE.addButton}`}
                     >
                       停電設備を追加
                     </button>
                     <button
                       type="button"
                       onClick={() => setPrintRequest(req)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white border border-blue-700 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer whitespace-nowrap"
+                      className={`${ACTIVE.actionButtonBase} ${ACTIVE.printButton}`}
                     >
                       依頼表を再印刷
                     </button>
                     <button
                       onClick={() => onDeleteRequest(req.id)}
-                      className={ACTIVE.deleteButton}
+                      className={`${ACTIVE.actionButtonBase} ${ACTIVE.deleteButton}`}
                     >
                       解約・作業完了 (札解放)
                     </button>
