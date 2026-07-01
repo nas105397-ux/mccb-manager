@@ -13,9 +13,14 @@ DASHBOARD_PROFILE_DIR="${DASHBOARD_PROFILE_DIR:-/tmp/mccb-kiosk-dashboard}"
 MAIN_SCALE="${MAIN_SCALE:-1}"
 DASHBOARD_SCALE="${DASHBOARD_SCALE:-1.5}"
 DISPLAY_WAIT_SECONDS="${DISPLAY_WAIT_SECONDS:-60}"
+XCURSOR_SIZE="${XCURSOR_SIZE:-24}"
+
+export XCURSOR_SIZE
 
 if [ -z "$CHROMIUM_BIN" ]; then
-  if command -v chromium-browser >/dev/null 2>&1; then
+  if [ -x /usr/lib/chromium/chromium ]; then
+    CHROMIUM_BIN="/usr/lib/chromium/chromium"
+  elif command -v chromium-browser >/dev/null 2>&1; then
     CHROMIUM_BIN="chromium-browser"
   elif command -v chromium >/dev/null 2>&1; then
     CHROMIUM_BIN="chromium"

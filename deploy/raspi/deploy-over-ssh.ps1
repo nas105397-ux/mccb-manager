@@ -194,12 +194,22 @@ case "$APP_DIR" in
 esac
 
 mkdir -p "$APP_DIR"
-if ! command -v unzip >/dev/null 2>&1; then
-  echo "unzip is not installed on the Raspberry Pi. Install it in the offline image before deployment." >&2
+mkdir -p "$STAGE_DIR"
+if command -v unzip >/dev/null 2>&1; then
+  unzip -q -o "$REMOTE_ZIP" -d "$STAGE_DIR"
+elif command -v python3 >/dev/null 2>&1; then
+  python3 - "$REMOTE_ZIP" "$STAGE_DIR" <<'PY'
+import sys
+import zipfile
+
+zip_path, stage_dir = sys.argv[1], sys.argv[2]
+with zipfile.ZipFile(zip_path) as archive:
+    archive.extractall(stage_dir)
+PY
+else
+  echo "Neither unzip nor python3 is installed on the Raspberry Pi. Install one of them before deployment." >&2
   exit 1
 fi
-mkdir -p "$STAGE_DIR"
-unzip -q -o "$REMOTE_ZIP" -d "$STAGE_DIR"
 cp -a "$STAGE_DIR"/. "$APP_DIR"/
 mkdir -p "$APP_DIR/data/backups"
 cd "$APP_DIR"

@@ -7,6 +7,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
+        sans: ['Noto Sans JP', 'Noto Sans CJK JP', 'system-ui', 'Segoe UI', 'Roboto', 'sans-serif'],
         // 💡 font-mono を使った時の最優先フォントを Inconsolata に設定
         mono: ['Inconsolata', 'Consolas', 'monospace'],
       },

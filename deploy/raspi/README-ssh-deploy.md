@@ -9,13 +9,33 @@ PC 側でアプリをビルドし、`dist/`、サーバーファイル、`src/sh
 Raspberry Pi をオフライン運用にする前に、イメージへ以下を入れておいてください。
 
 - Node.js 24 以上
-- `unzip`
+- `unzip` または `python3`（配布ZIPの展開に使用）
 - `systemd`
 - `systemd --user`（kiosk表示を使う場合）
 - 80 番ポートで公開する場合は `nginx`
 - kiosk 表示を使う場合は `chromium` または `chromium-browser` と `xset`
+- kiosk 表示で日本語を表示する場合は `fontconfig`、`fonts-noto-cjk`、`fonts-noto-cjk-extra`、`fonts-noto-color-emoji`
 
 `nginx` が無くてもアプリは動作します。その場合は 5000 番ポートでアクセスします。
+
+先に必要パッケージを入れる場合:
+
+```bash
+sudo apt update
+sudo apt install -y --no-install-recommends unzip nginx
+```
+
+kiosk表示も使う場合:
+
+```bash
+sudo apt install -y --no-install-recommends xserver-xorg xserver-xorg-legacy xinit openbox x11-xserver-utils dbus-x11 chromium fontconfig fonts-noto-cjk fonts-noto-cjk-extra fonts-noto-color-emoji
+```
+
+日本語入力も使う場合:
+
+```bash
+sudo apt install -y --no-install-recommends fontconfig fonts-noto-cjk fonts-noto-cjk-extra fcitx5 fcitx5-frontend-gtk3 fcitx5-mozc
+```
 
 ## Windows PowerShell からデプロイ
 

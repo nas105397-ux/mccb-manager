@@ -255,8 +255,9 @@ sudo apt install -y \
   xinit \
   openbox \
   x11-xserver-utils \
-  unclutter \
+  fontconfig \
   fonts-noto-cjk \
+  fonts-noto-cjk-extra \
   fonts-noto-color-emoji
 ```
 
@@ -269,7 +270,7 @@ sudo apt install -y chromium-browser || sudo apt install -y chromium
 日本語入力が必要な場合だけ、通常 OS Desktop と同じ扱いで IME を追加します。
 
 ```bash
-sudo apt install -y fcitx5 fcitx5-mozc
+sudo apt install -y fontconfig fonts-noto-cjk fonts-noto-cjk-extra fcitx5 fcitx5-frontend-gtk3 fcitx5-mozc
 ```
 
 Bluetooth キーボードやマウスを使う場合だけ、Bluetooth 関連を追加します。
@@ -331,7 +332,7 @@ nano ~/.bash_profile
 
 ```bash
 if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
-  startx -- -nocursor
+  startx
 fi
 ```
 
@@ -351,7 +352,6 @@ fi
 xset s off
 xset -dpms
 xset s noblank
-unclutter -idle 0.5 -root &
 openbox-session &
 
 sleep 3

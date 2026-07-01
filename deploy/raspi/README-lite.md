@@ -10,6 +10,7 @@ Liteではデスクトップ環境を入れず、最小のX + Openbox + Chromium
 Raspberry Pi OS Lite 64-bit
 Node.js 24+
 nginx
+unzip or python3
 MCCB Manager systemd service
 
 kiosk表示する場合:
@@ -18,6 +19,10 @@ kiosk表示する場合:
   openbox
   chromium
   x11-xserver-utils
+  fontconfig
+  fonts-noto-cjk
+  fonts-noto-cjk-extra
+  fonts-noto-color-emoji
 ```
 
 ## 1. Raspberry Pi OS Liteを書き込む
@@ -49,11 +54,46 @@ sudo reboot
 
 ## 3. Lite用の最小GUI環境を入れる
 
-アプリをPiへ配置した後でも実行できますが、先にこのスクリプトを置ける場合は以下を実行します。
+先に必要パッケージだけ手動で入れる場合は、以下を実行します。
+
+kiosk表示あり:
+
+```bash
+sudo apt update
+sudo apt install -y --no-install-recommends ca-certificates curl unzip nginx xserver-xorg xserver-xorg-legacy xinit openbox x11-xserver-utils dbus-x11 chromium fontconfig fonts-noto-cjk fonts-noto-cjk-extra fonts-noto-color-emoji
+```
+
+日本語入力も使う場合:
+
+```bash
+sudo apt install -y --no-install-recommends fontconfig fonts-noto-cjk fonts-noto-cjk-extra fcitx5 fcitx5-frontend-gtk3 fcitx5-mozc
+```
+
+Pi本体に画面を出さず、別PCやタブレットから見るだけの場合:
+
+```bash
+sudo apt update
+sudo apt install -y --no-install-recommends ca-certificates curl unzip nginx
+```
+
+`unzip` を入れない場合でも、`python3` があればデプロイZIPは展開できます。
+
+```bash
+command -v unzip || command -v python3
+```
+
+アプリをPiへ配置した後でも実行できますが、先にこのスクリプトを置ける場合は以下を実行します。上のパッケージ導入と最小Xサービス作成をまとめて行います。
 
 ```bash
 cd /home/pi/mccb-manager
 sudo TARGET_USER=pi bash deploy/raspi/setup-lite-os.sh
+```
+
+すでに必要パッケージを入れてあり、サービス作成だけ行う場合:
+
+```bash
+cd /home/pi/mccb-manager
+sudo TARGET_USER=pi SKIP_APT=1 bash deploy/raspi/setup-lite-os.sh
 ```
 
 日本語入力も入れる場合:
@@ -61,6 +101,8 @@ sudo TARGET_USER=pi bash deploy/raspi/setup-lite-os.sh
 ```bash
 sudo TARGET_USER=pi INSTALL_JAPANESE_INPUT=1 bash deploy/raspi/setup-lite-os.sh
 ```
+
+この指定では `fcitx5-mozc` を入れ、Mozcを既定の日本語入力にする設定も作成します。
 
 画面をPi本体に出さず、別PCやタブレットから見るだけならkioskは不要です。
 
@@ -111,6 +153,9 @@ mccb-xsession.service 最小X/Openbox
 mccb-kiosk.service    Chromium kiosk
 ```
 
+マウスカーソルを表示したい場合は、最新の `setup-lite-os.sh` を反映してください。Xorg起動オプションから `-nocursor` を外しています。
+カーソルが大きい場合は、kioskサービスの `XCURSOR_SIZE` を小さくします。既定は `24` です。
+
 ## 7. 状態確認
 
 ```bash
@@ -128,6 +173,69 @@ journalctl -u mccb-xsession.service --no-pager -n 80
 journalctl --user -u mccb-kiosk.service --no-pager -n 80
 ```
 
+`mccb-xsession.service` が `status=1/FAILURE` で落ちる場合は、Xwrapper設定を確認します。
+
+```bash
+cat /etc/X11/Xwrapper.config
+```
+
+以下になっていればOKです。
+
+```text
+allowed_users=anybody
+needs_root_rights=yes
+```
+
+設定を作り直す場合:
+
+```bash
+cd /home/pi/mccb-manager
+sudo TARGET_USER=pi SKIP_APT=1 bash deploy/raspi/setup-lite-os.sh
+sudo systemctl restart mccb-xsession.service
+systemctl --user restart mccb-kiosk.service
+```
+
+日本語入力を反映した直後は、ユーザー環境変数も読み直すため再起動が確実です。
+
+```bash
+sudo reboot
+```
+
+ログに `Couldn't get a file descriptor referring to the console.` が出る場合は、最新の `setup-lite-os.sh` を反映して `/dev/tty7` を使うサービス定義に更新してください。
+
+```bash
+cd /home/pi/mccb-manager
+sudo TARGET_USER=pi SKIP_APT=1 bash deploy/raspi/setup-lite-os.sh
+sudo systemctl daemon-reload
+sudo systemctl restart mccb-xsession.service
+```
+
+ログに `Cannot run in framebuffer mode. Please specify busIDs for all framebuffer devices` が出る場合は、XorgがPiのDRM/KMSデバイスを掴めていません。最新の `setup-lite-os.sh` では `/dev/dri/card*` を検出して `/etc/X11/xorg.conf.d/99-mccb-kiosk.conf` を作成します。
+
+確認:
+
+```bash
+ls -l /dev/dri
+cat /etc/X11/xorg.conf.d/99-mccb-kiosk.conf
+groups pi
+```
+
+`card0` で `no screens found` が出る場合は、HDMI出力が `card1` 側にある可能性があります。最新の `setup-lite-os.sh` は `/sys/class/drm/card*-*/status` の `connected` を見て、接続済みディスプレイの `card*` を優先します。
+
+接続状況の確認:
+
+```bash
+for f in /sys/class/drm/card*-*/status; do echo "$f: $(cat "$f")"; done
+```
+
+設定を作り直す場合:
+
+```bash
+cd /home/pi/mccb-manager
+sudo TARGET_USER=pi SKIP_APT=1 bash deploy/raspi/setup-lite-os.sh
+sudo reboot
+```
+
 ## 8. よく使う操作
 
 アプリ再起動:
@@ -140,6 +248,34 @@ kiosk再起動:
 
 ```bash
 systemctl --user restart mccb-kiosk.service
+```
+
+カーソルサイズ変更:
+
+```bash
+systemctl --user edit mccb-kiosk.service
+```
+
+```ini
+[Service]
+Environment=XCURSOR_SIZE=20
+```
+
+反映:
+
+```bash
+systemctl --user daemon-reload
+systemctl --user restart mccb-kiosk.service
+```
+
+Chromiumログに `unrecognized flag --no-decommit-pooled-pages` が出る場合は、Raspberry Pi側のChromiumラッパーが古いV8フラグを自動付与しています。最新の `start-kiosk.sh` は `/usr/lib/chromium/chromium` が存在する場合に実体バイナリを直接使い、ラッパー由来のフラグを避けます。
+
+反映:
+
+```bash
+cd /home/pi/mccb-manager
+systemctl --user restart mccb-kiosk.service
+pgrep -a chromium | head
 ```
 
 最小Xごと再起動:

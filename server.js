@@ -311,6 +311,22 @@ function preservePowerStateForRequestChanges(beforeList, changedMccbs) {
   }));
 }
 
+function mergeMccbMasterFields(incomingList, allowedFields) {
+  const currentById = new Map(store.readAll().mccbList.map((mccb) => [mccb.id, mccb]));
+  return incomingList.map((incoming) => {
+    const current = currentById.get(incoming.id);
+    if (!current) return incoming;
+
+    return allowedFields.reduce(
+      (merged, field) =>
+        Object.prototype.hasOwnProperty.call(incoming, field)
+          ? { ...merged, [field]: incoming[field] }
+          : merged,
+      current,
+    );
+  });
+}
+
 function getDateCode(date = new Date()) {
   return `${date.getFullYear().toString().slice(-2)}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
 }
@@ -712,8 +728,7 @@ app.patch('/api/mccb/:id/power', (req, res) => {
       return res.status(400).json({ error: '停電・送電状態が不正です。' });
     }
 
-    const current = store.readCollection('mccbList');
-    const target = current.find((mccb) => mccb.id === req.params.id);
+    const target = store.readMccb(req.params.id);
     if (!target) {
       return res.status(404).json({ error: '更新対象の設備が見つかりません。' });
     }
@@ -827,9 +842,10 @@ app.patch('/api/admin/rooms', (req, res) => {
       return res.status(400).json({ error: '電気室マスター更新データが不正です。' });
     }
 
-    store.writeMccbs(mccbList);
+    const mergedMccbList = mergeMccbMasterFields(mccbList, ['room']);
+    store.writeMccbs(mergedMccbList);
     store.writeCollection('rooms', rooms);
-    res.json({ status: 'success', rooms, mccbList, version: store.getVersion() });
+    res.json({ status: 'success', rooms, mccbList: mergedMccbList, version: store.getVersion() });
   } catch (error) {
     console.error("電気室マスター更新失敗:", error);
     res.status(500).json({ error: '電気室マスターの更新に失敗しました' });
@@ -850,13 +866,14 @@ app.patch('/api/admin/categories', (req, res) => {
     }
 
     const categoryColors = normalizeCategoryColors(categories, incomingCategoryColors);
-    store.writeMccbs(mccbList);
+    const mergedMccbList = mergeMccbMasterFields(mccbList, ['category']);
+    store.writeMccbs(mergedMccbList);
     store.writeCollections({ categories, categoryColors });
     res.json({
       status: 'success',
       categories,
       categoryColors,
-      mccbList,
+      mccbList: mergedMccbList,
       version: store.getVersion(),
     });
   } catch (error) {

@@ -56,7 +56,6 @@ export function useAppController() {
   const [filterFavorite, setFilterFavorite] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [selectedMccbId, setSelectedMccbId] = useState(null);
-  const [selectedMccbCache, setSelectedMccbCache] = useState(null);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -141,29 +140,19 @@ export function useAppController() {
       return null;
     }
 
-    const found = mccbList.find((m) => m.id === selectedMccbId);
-    if (found) {
-      return found;
-    }
-
-    if (selectedMccbCache?.id === selectedMccbId) {
-      return selectedMccbCache;
-    }
-
-    return null;
-  }, [mccbList, selectedMccbId, selectedMccbCache]);
+    return mccbList.find((m) => m.id === selectedMccbId) ?? null;
+  }, [mccbList, selectedMccbId]);
 
   const handleSelect = useCallback(
     (id) => {
       const selected = mccbList.find((m) => m.id === id) ?? null;
-      setSelectedMccbCache(selected);
+      if (!selected) return;
       setSelectedMccbId(id);
     },
     [mccbList],
   );
 
   const handleCloseModal = useCallback(() => {
-    setSelectedMccbCache(null);
     setSelectedMccbId(null);
   }, []);
 

@@ -107,6 +107,7 @@ Environment=DISPLAY=:0
 Environment=GTK_IM_MODULE=fcitx
 Environment=QT_IM_MODULE=fcitx
 Environment=XMODIFIERS=@im=fcitx
+Environment=XCURSOR_SIZE=24
 Environment=APP_URL=http://127.0.0.1
 Environment=MAIN_GEOMETRY=1920x1080+0+0
 Environment=DASHBOARD_GEOMETRY=3840x2160+1920+0

@@ -342,38 +342,58 @@ export function useMccbData() {
   /** 停電・送電状態だけを更新する軽量操作 */
   const updateMccbPower = useCallback(
     (id, isPowerOff) => {
+      let previousMccb = null;
       setMccbList((prev) =>
-        prev.map((item) => (item.id === id ? { ...item, isPowerOff } : item)),
+        prev.map((item) => {
+          if (item.id !== id) return item;
+          previousMccb = item;
+          return { ...item, isPowerOff };
+        }),
       );
 
       runSyncTask(async () => {
-        const res = await fetch(`${API_URL}/${encodeURIComponent(id)}/power`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ isPowerOff }),
-        });
-
-        if (!res.ok) {
-          throw new Error(`停電・送電状態の更新に失敗しました (${res.status})`);
-        }
-
-        const result = await res.json();
-        if (result.mccb) {
-          setMccbList((prev) =>
-            prev.map((item) => (item.id === result.mccb.id ? result.mccb : item)),
-          );
-        }
-        if (Array.isArray(result.logs)) {
-          const nextLogs = Array.isArray(result.logs) ? result.logs : [];
-          startTransition(() => {
-            setLogs(nextLogs);
-            const nextPageInfo = createPageInfo(1, LOG_PAGE_SIZE, nextLogs.length);
-            setLogPageInfo(nextPageInfo);
-            setPagedLogs(getPageSlice(nextLogs, nextPageInfo));
+        try {
+          const res = await fetch(`${API_URL}/${encodeURIComponent(id)}/power`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ isPowerOff }),
           });
-        }
-        if (result.version) {
-          lastVersion.current = Number(result.version);
+
+          const result = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            const message =
+              result?.error || `停電・送電状態の更新に失敗しました (${res.status})`;
+            throw new Error(message);
+          }
+
+          if (result.mccb) {
+            setMccbList((prev) =>
+              prev.map((item) => (item.id === result.mccb.id ? result.mccb : item)),
+            );
+          }
+          if (Array.isArray(result.logs)) {
+            const nextLogs = Array.isArray(result.logs) ? result.logs : [];
+            startTransition(() => {
+              setLogs(nextLogs);
+              const nextPageInfo = createPageInfo(1, LOG_PAGE_SIZE, nextLogs.length);
+              setLogPageInfo(nextPageInfo);
+              setPagedLogs(getPageSlice(nextLogs, nextPageInfo));
+            });
+          }
+          if (result.version) {
+            lastVersion.current = Number(result.version);
+          }
+        } catch (error) {
+          if (previousMccb) {
+            setMccbList((prev) =>
+              prev.map((item) =>
+                item.id === id && item.isPowerOff === isPowerOff
+                  ? previousMccb
+                  : item,
+              ),
+            );
+          }
+          window.alert(error.message || "停電・送電状態の更新に失敗しました。");
         }
       });
     },

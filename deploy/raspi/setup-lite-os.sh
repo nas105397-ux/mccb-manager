@@ -5,6 +5,7 @@ TARGET_USER="${TARGET_USER:-$USER}"
 INSTALL_KIOSK="${INSTALL_KIOSK:-1}"
 INSTALL_JAPANESE_INPUT="${INSTALL_JAPANESE_INPUT:-0}"
 ENABLE_AUTOLOGIN="${ENABLE_AUTOLOGIN:-1}"
+SKIP_APT="${SKIP_APT:-0}"
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "Run with sudo: sudo TARGET_USER=pi bash deploy/raspi/setup-lite-os.sh" >&2
@@ -18,32 +19,75 @@ fi
 
 export DEBIAN_FRONTEND=noninteractive
 
-apt-get update
-apt-get install -y --no-install-recommends \
-  ca-certificates \
-  curl \
-  unzip \
-  nginx
-
-if [ "$INSTALL_KIOSK" = "1" ]; then
+if [ "$SKIP_APT" != "1" ]; then
+  apt-get update
   apt-get install -y --no-install-recommends \
-    xserver-xorg \
-    xinit \
-    openbox \
-    x11-xserver-utils \
-    dbus-x11 \
-    chromium
-fi
+    ca-certificates \
+    curl \
+    unzip \
+    nginx
 
-if [ "$INSTALL_JAPANESE_INPUT" = "1" ]; then
-  apt-get install -y --no-install-recommends \
-    fonts-noto-cjk \
-    fcitx5 \
-    fcitx5-mozc
+  if [ "$INSTALL_KIOSK" = "1" ]; then
+    apt-get install -y --no-install-recommends \
+      fontconfig \
+      fonts-noto-cjk \
+      fonts-noto-cjk-extra \
+      fonts-noto-color-emoji \
+      xserver-xorg \
+      xserver-xorg-legacy \
+      xinit \
+      openbox \
+      x11-xserver-utils \
+      dbus-x11 \
+      chromium
+  fi
+
+  if [ "$INSTALL_JAPANESE_INPUT" = "1" ]; then
+    apt-get install -y --no-install-recommends \
+      fontconfig \
+      fonts-noto-cjk \
+      fonts-noto-cjk-extra \
+      fcitx5 \
+      fcitx5-frontend-gtk3 \
+      fcitx5-mozc
+  fi
 fi
 
 if [ "$INSTALL_KIOSK" = "1" ]; then
   systemctl set-default multi-user.target
+  usermod -aG video,render,input,tty "$TARGET_USER" || true
+
+  mkdir -p /etc/X11
+  cat >/etc/X11/Xwrapper.config <<WRAPPER
+allowed_users=anybody
+needs_root_rights=yes
+WRAPPER
+
+  mkdir -p /etc/X11/xorg.conf.d
+  DRI_CARD=""
+  for status_file in /sys/class/drm/card*-*/status; do
+    if [ -e "$status_file" ] && grep -qx "connected" "$status_file"; then
+      card_name="$(basename "$(dirname "$status_file")" | sed -E 's/^(card[0-9]+)-.*/\1/')"
+      if [ -e "/dev/dri/$card_name" ]; then
+        DRI_CARD="/dev/dri/$card_name"
+        break
+      fi
+    fi
+  done
+  if [ -z "$DRI_CARD" ]; then
+    DRI_CARD="$(find /dev/dri -maxdepth 1 -name 'card*' 2>/dev/null | sort | tail -n 1 || true)"
+  fi
+  if [ -n "$DRI_CARD" ]; then
+    cat >/etc/X11/xorg.conf.d/99-mccb-kiosk.conf <<XORG
+Section "Device"
+    Identifier "MCCB KMS Device"
+    Driver "modesetting"
+    Option "kmsdev" "$DRI_CARD"
+EndSection
+XORG
+  else
+    rm -f /etc/X11/xorg.conf.d/99-mccb-kiosk.conf
+  fi
 
   cat >/etc/systemd/system/mccb-xsession.service <<SERVICE
 [Unit]
@@ -54,11 +98,16 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=$TARGET_USER
-PAMName=login
 Environment=DISPLAY=:0
 Environment=XAUTHORITY=/home/$TARGET_USER/.Xauthority
 WorkingDirectory=/home/$TARGET_USER
-ExecStart=/usr/bin/startx /usr/bin/openbox-session -- :0 -nocursor
+TTYPath=/dev/tty7
+TTYReset=yes
+TTYVHangup=yes
+StandardInput=tty
+StandardOutput=journal
+StandardError=journal
+ExecStart=/usr/bin/xinit /usr/bin/openbox-session -- /usr/lib/xorg/Xorg :0 vt7 -keeptty -nolisten tcp
 Restart=always
 RestartSec=5
 
@@ -68,6 +117,38 @@ SERVICE
 
   systemctl daemon-reload
   systemctl enable mccb-xsession.service
+  systemctl restart mccb-xsession.service || true
+fi
+
+if [ "$INSTALL_JAPANESE_INPUT" = "1" ]; then
+  USER_HOME="$(getent passwd "$TARGET_USER" | cut -d: -f6)"
+  mkdir -p "$USER_HOME/.config/fcitx5" "$USER_HOME/.config/environment.d"
+
+  cat >"$USER_HOME/.config/fcitx5/profile" <<'FCITX_PROFILE'
+[Groups/0]
+Name=Default
+Default Layout=jp
+DefaultIM=mozc
+
+[Groups/0/Items/0]
+Name=keyboard-jp
+Layout=
+
+[Groups/0/Items/1]
+Name=mozc
+Layout=
+
+[GroupOrder]
+0=Default
+FCITX_PROFILE
+
+  cat >"$USER_HOME/.config/environment.d/90-mccb-ime.conf" <<'IME_ENV'
+GTK_IM_MODULE=fcitx
+QT_IM_MODULE=fcitx
+XMODIFIERS=@im=fcitx
+IME_ENV
+
+  chown -R "$TARGET_USER:$TARGET_USER" "$USER_HOME/.config/fcitx5" "$USER_HOME/.config/environment.d"
 fi
 
 if [ "$ENABLE_AUTOLOGIN" = "1" ]; then
@@ -87,7 +168,7 @@ Raspberry Pi OS Lite base setup finished.
 Next:
   1. Install Node.js 24+.
   2. Deploy the app with deploy/raspi/deploy-over-ssh.ps1 -StartKiosk.
-  3. Reboot the Raspberry Pi.
+  3. Reboot the Raspberry Pi, or restart mccb-xsession.service and mccb-kiosk.service.
 
 Services:
   sudo systemctl status mccb-xsession.service
