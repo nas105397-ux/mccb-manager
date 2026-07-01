@@ -28,8 +28,22 @@ const ACTIVE = {
     "text-base font-black text-blue-800 mt-1 flex items-center gap-2 flex-wrap",
   workerSuffix: "text-xs font-normal text-gray-600",
   content: "text-xs text-gray-500 mt-1 font-medium",
+  addButton:
+    "bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer whitespace-nowrap",
   deleteButton:
     "bg-white hover:bg-red-50 text-red-600 border border-gray-200 hover:border-red-200 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all cursor-pointer whitespace-nowrap",
+  addPanel:
+    "mb-3 rounded-lg border border-emerald-200 bg-emerald-50/40 p-3 space-y-2",
+  addSearch:
+    "w-full rounded-lg border border-emerald-200 bg-white p-2 text-xs font-bold text-gray-700 focus:outline-none focus:ring-1 focus:ring-emerald-500",
+  addList:
+    "max-h-48 overflow-y-auto rounded-lg border border-emerald-100 bg-white p-2 space-y-1.5",
+  addItem:
+    "flex items-center gap-2 rounded border border-gray-100 bg-gray-50 p-2 text-xs font-bold text-gray-700 cursor-pointer hover:bg-white",
+  addSubmit:
+    "bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 px-3 py-1.5 rounded-lg text-xs font-black cursor-pointer whitespace-nowrap",
+  addCancel:
+    "bg-white hover:bg-gray-50 text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer whitespace-nowrap",
   foldRow:
     "flex items-center gap-2 text-xs font-bold text-gray-500 cursor-pointer hover:text-gray-700 w-fit select-none",
   foldHint: "text-[10px] font-normal text-gray-400 opacity-80",
@@ -165,10 +179,14 @@ export default function RequestListPanel({
   historyPageInfo = { page: 1, pageSize: 20, total: 0, totalPages: 1 },
   mccbList = [],
   onDeleteRequest,
+  onAddTargetsToRequest = () => {},
   onChangeHistoryPage = () => {},
 }) {
   const [activeView, setActiveView] = useState("active");
   const [printRequest, setPrintRequest] = useState(null);
+  const [addPanelRequestId, setAddPanelRequestId] = useState(null);
+  const [addSearchTerm, setAddSearchTerm] = useState("");
+  const [selectedAddIds, setSelectedAddIds] = useState([]);
   const { activeRequestViews, historyRequestViews, toggleExpand } =
     useRequestListController({
       requests,
@@ -190,6 +208,33 @@ export default function RequestListPanel({
       window.removeEventListener("afterprint", clearPrintRequest);
     };
   }, [printRequest]);
+
+  const openAddPanel = (requestId) => {
+    setAddPanelRequestId((currentId) => (currentId === requestId ? null : requestId));
+    setAddSearchTerm("");
+    setSelectedAddIds([]);
+  };
+
+  const toggleAddTarget = (mccbId) => {
+    setSelectedAddIds((prev) =>
+      prev.includes(mccbId)
+        ? prev.filter((id) => id !== mccbId)
+        : [...prev, mccbId],
+    );
+  };
+
+  const handleAddTargets = (requestId) => {
+    if (selectedAddIds.length === 0) {
+      alert("追加する設備を選択してください。");
+      return;
+    }
+
+    onAddTargetsToRequest(requestId, selectedAddIds);
+    setAddPanelRequestId(null);
+    setAddSearchTerm("");
+    setSelectedAddIds([]);
+    alert("選択した設備を依頼に追加しました。");
+  };
 
   return (
     <>
@@ -231,6 +276,17 @@ export default function RequestListPanel({
           <div className="space-y-4">
             {activeRequestViews.map((req) => {
               const isExpanded = req.isExpanded;
+              const isAddPanelOpen = addPanelRequestId === req.id;
+              const currentTargetIds = new Set(req.targetMccbIds || []);
+              const addQuery = addSearchTerm.trim().toLowerCase();
+              const addableMccbs = mccbList.filter((mccb) => {
+                if (currentTargetIds.has(mccb.id)) return false;
+                if (!addQuery) return true;
+                return (
+                  mccb.name?.toLowerCase().includes(addQuery) ||
+                  mccb.room?.toLowerCase().includes(addQuery)
+                );
+              });
 
               return (
                 <div key={req.id} className={ACTIVE.card}>
@@ -257,6 +313,13 @@ export default function RequestListPanel({
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
+                      onClick={() => openAddPanel(req.id)}
+                      className={ACTIVE.addButton}
+                    >
+                      停電設備を追加
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setPrintRequest(req)}
                       className="bg-blue-600 hover:bg-blue-700 text-white border border-blue-700 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer whitespace-nowrap"
                     >
@@ -270,6 +333,56 @@ export default function RequestListPanel({
                     </button>
                   </div>
                 </div>
+
+                {isAddPanelOpen && (
+                  <div className={ACTIVE.addPanel}>
+                    <input
+                      type="text"
+                      value={addSearchTerm}
+                      onChange={(event) => setAddSearchTerm(event.target.value)}
+                      placeholder="設備名・電気室で検索..."
+                      className={ACTIVE.addSearch}
+                    />
+
+                    <div className={ACTIVE.addList}>
+                      {addableMccbs.length === 0 ? (
+                        <div className="py-6 text-center text-xs font-bold text-gray-400">
+                          追加できる設備がありません。
+                        </div>
+                      ) : (
+                        addableMccbs.map((mccb) => (
+                          <label key={mccb.id} className={ACTIVE.addItem}>
+                            <input
+                              type="checkbox"
+                              checked={selectedAddIds.includes(mccb.id)}
+                              onChange={() => toggleAddTarget(mccb.id)}
+                              className="rounded text-emerald-600 focus:ring-emerald-500"
+                            />
+                            <span className={ACTIVE.roomTag}>{mccb.room}</span>
+                            <span className="truncate">{mccb.name}</span>
+                          </label>
+                        ))
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openAddPanel(req.id)}
+                        className={ACTIVE.addCancel}
+                      >
+                        キャンセル
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAddTargets(req.id)}
+                        className={ACTIVE.addSubmit}
+                      >
+                        選択設備を追加 ({selectedAddIds.length})
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {/* 紐付く設備リストトグルアコーディオン */}
                 <div className="space-y-2">

@@ -185,6 +185,7 @@ function AppContent() {
                 historyPageInfo={controller.historyPageInfo}
                 mccbList={controller.mccbList}
                 onDeleteRequest={controller.deleteRequest}
+                onAddTargetsToRequest={controller.addTargetsToRequest}
                 onChangeHistoryPage={controller.fetchRequestHistoryPage}
               />
             }

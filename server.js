@@ -434,6 +434,45 @@ function buildRequestAssignment(newRequest) {
   };
 }
 
+function buildRequestTargetAddition(targetRequest, targetMccbIds, dummyNames = {}) {
+  const existingTargetIds = new Set(targetRequest.targetMccbIds || []);
+  const additionalTargetIds = [...new Set(targetMccbIds)]
+    .filter((id) => id && !existingTargetIds.has(id));
+
+  if (additionalTargetIds.length === 0) {
+    return null;
+  }
+
+  const previewRequest = {
+    ...targetRequest,
+    targetMccbIds: additionalTargetIds,
+    dummyNames,
+  };
+  const { beforeMccbList, currentMccbList, finalRequest } =
+    buildRequestAssignment(previewRequest);
+
+  return {
+    beforeMccbList,
+    currentMccbList,
+    additionalTargetIds,
+    updatedRequest: {
+      ...targetRequest,
+      targetMccbIds: [
+        ...(targetRequest.targetMccbIds || []),
+        ...additionalTargetIds,
+      ],
+      reservedCards: {
+        ...(targetRequest.reservedCards || {}),
+        ...(finalRequest.reservedCards || {}),
+      },
+      dummyNames: {
+        ...(targetRequest.dummyNames || {}),
+        ...dummyNames,
+      },
+    },
+  };
+}
+
 function buildRequestPreviewItems(finalRequest, assignmentMccbList) {
   const mccbById = new Map(assignmentMccbList.map((mccb) => [mccb.id, mccb]));
   const dateCode = getDateCode();
@@ -1103,6 +1142,74 @@ app.post('/api/requests', (req, res) => {
   } catch (error) {
     console.error("停電作業依頼発行失敗:", error);
     res.status(500).json({ error: '停電作業依頼の発行に失敗しました' });
+  }
+});
+
+/** 発行済み停電作業依頼への対象設備追加 */
+app.patch('/api/requests/:id/targets', (req, res) => {
+  try {
+    const targetMccbIds = Array.isArray(req.body?.targetMccbIds)
+      ? req.body.targetMccbIds
+      : null;
+    const dummyNames =
+      req.body?.dummyNames && typeof req.body.dummyNames === 'object'
+        ? req.body.dummyNames
+        : {};
+
+    if (!targetMccbIds) {
+      return res.status(400).json({ error: '追加する設備データが不正です。' });
+    }
+
+    const currentRequests = store.readCollection('requests') || [];
+    const targetRequest = currentRequests.find(
+      (request) => request.id === req.params.id,
+    );
+
+    if (!targetRequest) {
+      return res.status(404).json({ error: '対象の依頼が見つかりません。' });
+    }
+
+    const addition = buildRequestTargetAddition(
+      targetRequest,
+      targetMccbIds,
+      dummyNames,
+    );
+
+    if (!addition) {
+      return res.status(400).json({ error: '追加可能な設備が選択されていません。' });
+    }
+
+    const logsBefore = store.readCollection('logs');
+    const logSettings = store.readCollection('logSettings');
+    const requests = currentRequests.map((request) =>
+      request.id === targetRequest.id ? addition.updatedRequest : request,
+    );
+    const logs = createUpdatedLogs(
+      LOG_TYPES.OPERATION,
+      `👷 ${targetRequest.workerName || "作業者"}氏の停電依頼に ${addition.additionalTargetIds.length} 件の設備を追加し\n子札を貸出予約しました。`,
+      logsBefore,
+      logSettings?.maxSize || DEFAULT_MAX_SIZE,
+    );
+    const changedMccbs = preservePowerStateForRequestChanges(
+      addition.beforeMccbList,
+      getChangedMccbs(addition.beforeMccbList, addition.currentMccbList),
+    );
+
+    store.writeMccbs(changedMccbs);
+    store.writeCollection('requests', requests);
+    store.writeCollection('logs', logs);
+
+    res.json({
+      status: 'success',
+      request: addition.updatedRequest,
+      requests,
+      logs,
+      changedMccbs,
+      version: store.getVersion(),
+    });
+  } catch (error) {
+    console.error("停電作業依頼への設備追加失敗:", error);
+    res.status(500).json({ error: '停電作業依頼への設備追加に失敗しました' });
   }
 });
 
