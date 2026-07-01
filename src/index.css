@@ -13,7 +13,7 @@
 
     --sans: "Noto Sans JP", "Noto Sans CJK JP", system-ui, "Segoe UI", Roboto, sans-serif;
     --heading: "Noto Sans JP", "Noto Sans CJK JP", system-ui, "Segoe UI", Roboto, sans-serif;
-    --mono: ui-monospace, Consolas, monospace;
+    --mono: "Noto Sans JP", "Noto Sans CJK JP", system-ui, "Segoe UI", Roboto, sans-serif;
 
     font: 18px/145% var(--sans);
     letter-spacing: 0.18px;
