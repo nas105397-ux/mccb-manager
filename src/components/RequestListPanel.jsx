@@ -25,9 +25,9 @@ const ACTIVE = {
     "flex flex-wrap justify-between items-start mb-3 border-b border-gray-200 pb-3 gap-2",
   timestamp: "text-xs text-gray-400 font-bold",
   heading:
-    "text-base font-black text-blue-800 mt-1 flex items-center gap-2 flex-wrap",
-  workerSuffix: "text-xs font-normal text-gray-600",
-  content: "text-xs text-gray-500 mt-1 font-medium",
+    "text-lg font-black text-blue-800 mt-1 flex items-center gap-2 flex-wrap text-left leading-snug",
+  workerSuffix: "text-xs font-bold text-gray-500",
+  content: "text-xs text-gray-500 mt-1 font-bold",
   addButton:
     "bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer whitespace-nowrap",
   deleteButton:
@@ -76,9 +76,9 @@ const HISTORY = {
   issueStamp: "bg-gray-100 px-1.5 py-0.5 rounded border",
   doneStamp:
     "text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-100",
-  heading: "text-sm font-black text-gray-700 mt-1.5",
-  workerSuffix: "text-xs font-normal text-gray-500",
-  content: "text-xs text-gray-400 mt-0.5 font-medium",
+  heading: "text-base font-black text-gray-700 mt-1.5 text-left leading-snug",
+  workerSuffix: "text-xs font-bold text-gray-500",
+  content: "text-xs text-gray-400 mt-0.5 font-bold",
   status:
     "bg-gray-50 border border-gray-200 text-gray-400 text-[10px] font-black tracking-wide px-2 py-1 rounded shadow-inner",
   foldRow:
@@ -297,17 +297,16 @@ export default function RequestListPanel({
                       {req.timestamp} 発行
                     </span>
                     <h3 className={ACTIVE.heading}>
-                      👷 {req.workerName}{" "}
-                      <span className={ACTIVE.workerSuffix}>氏からの依頼</span>
+                      📌 {req.workContent || "作業内容未入力"}
                       {req.isAllPowerOff && (
                         <span className={ACTIVE.completionStamp}>
                           🔴 停電完了
                         </span>
                       )}
                     </h3>
-                    {req.workContent && (
-                      <p className={ACTIVE.content}>内容: {req.workContent}</p>
-                    )}
+                    <p className={ACTIVE.content}>
+                      作業者: {req.workerName || "未入力"}
+                    </p>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
@@ -485,16 +484,11 @@ export default function RequestListPanel({
                         </span>
                       </div>
                       <h4 className={HISTORY.heading}>
-                        作業完了 👷 {req.workerName}{" "}
-                        <span className={HISTORY.workerSuffix}>
-                          氏の作業履歴
-                        </span>
+                        📌 {req.workContent || "作業内容未入力"}
                       </h4>
-                      {req.workContent && (
-                        <p className={HISTORY.content}>
-                          内容: {req.workContent}
-                        </p>
-                      )}
+                      <p className={HISTORY.content}>
+                        作業者: {req.workerName || "未入力"}
+                      </p>
                     </div>
                     <span className={HISTORY.status}>✓ 対応済</span>
                   </div>
