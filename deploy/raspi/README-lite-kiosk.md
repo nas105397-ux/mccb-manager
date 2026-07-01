@@ -232,25 +232,60 @@ sudo systemctl disable bluetooth
 
 ## 5. Lite に kiosk 用パッケージを入れる
 
-Raspberry Pi に SSH で入り、次を実行します。
+通常の Raspberry Pi OS Desktop を見本に、Lite へ足りない実行環境だけを入れます。
+ポイントは次の通りです。
+
+- アプリ常駐、zip 展開、nginx 公開に必要な基本パッケージ
+- Xorg、openbox、Chromium kiosk に必要な最小 GUI
+- 通常 OS Desktop と同じように日本語表示が崩れないフォント
+- NodeSource 追加に必要な `curl`、証明書、GPG 周辺
+
+Raspberry Pi に SSH で入り、まず共通パッケージを入れます。
 
 ```bash
 sudo apt update
 sudo apt install -y \
+  ca-certificates \
+  curl \
+  gnupg \
   unzip \
   nginx \
+  dbus-x11 \
   xserver-xorg \
   xinit \
   openbox \
-  chromium-browser \
   x11-xserver-utils \
-  unclutter
+  unclutter \
+  fonts-noto-cjk \
+  fonts-noto-color-emoji
 ```
 
-`chromium-browser` が見つからない OS イメージの場合は、次を試します。
+次に Chromium を入れます。Raspberry Pi OS のイメージやリポジトリ状態でパッケージ名が違う場合があるため、片方が失敗したらもう片方を試します。
 
 ```bash
-sudo apt install -y chromium
+sudo apt install -y chromium-browser || sudo apt install -y chromium
+```
+
+日本語入力が必要な場合だけ、通常 OS Desktop と同じ扱いで IME を追加します。
+
+```bash
+sudo apt install -y fcitx5 fcitx5-mozc
+```
+
+Bluetooth キーボードやマウスを使う場合だけ、Bluetooth 関連を追加します。
+
+```bash
+sudo apt install -y bluetooth bluez
+sudo systemctl enable --now bluetooth
+```
+
+インストール後、kiosk に必要なコマンドが見つかることを確認します。
+
+```bash
+command -v startx
+command -v openbox-session
+command -v xset
+command -v chromium-browser || command -v chromium
 ```
 
 ## 6. Node.js 24 以上を入れる
@@ -309,6 +344,10 @@ nano ~/.xinitrc
 内容:
 
 ```bash
+if command -v dbus-launch >/dev/null 2>&1 && [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
+  eval "$(dbus-launch --sh-syntax)"
+fi
+
 xset s off
 xset -dpms
 xset s noblank
@@ -428,6 +467,28 @@ pkill chromium
 ```bash
 sudo systemctl restart mccb-manager.service
 ```
+
+SSH デプロイ中に `Connection timed out` が出た場合:
+
+```powershell
+Test-NetConnection 192.168.40.111 -Port 22
+.\deploy\raspi\deploy-over-ssh.ps1 -Target pi@192.168.40.111 -StartKiosk
+```
+
+ZIP 転送後に失敗した場合でも、再実行して問題ありません。`data/` はデプロイ対象に含めないため、既存の運用 DB は保持されます。
+同じ IP を別機器や Wi-Fi と有線 LAN の両方に設定していないかも確認してください。
+
+kiosk が `ExecStartPre=/usr/bin/xset s off` で失敗する場合:
+
+```bash
+sed -i 's|^ExecStartPre=/usr/bin/xset|ExecStartPre=-/usr/bin/xset|' ~/.config/systemd/user/mccb-kiosk.service
+systemctl --user daemon-reload
+systemctl --user reset-failed mccb-kiosk.service
+systemctl --user restart mccb-kiosk.service
+```
+
+まだ Xorg が起動していない状態では kiosk は表示できません。
+Lite では tty1 の自動ログインから `.bash_profile` -> `startx` -> `.xinitrc` の順に起動しているか確認し、必要なら再起動します。
 
 ## 13. 注意点
 

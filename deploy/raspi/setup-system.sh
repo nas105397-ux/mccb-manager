@@ -114,9 +114,9 @@ Environment=DASHBOARD_SCALE=1.5
 Environment=ENABLE_GPU_TUNING=0
 Environment=CHROMIUM_FLAGS=--disable-gpu-vsync
 ExecStartPre=/bin/sleep 8
-ExecStartPre=/usr/bin/xset s off
-ExecStartPre=/usr/bin/xset -dpms
-ExecStartPre=/usr/bin/xset s noblank
+ExecStartPre=-/usr/bin/xset s off
+ExecStartPre=-/usr/bin/xset -dpms
+ExecStartPre=-/usr/bin/xset s noblank
 ExecStart=$APP_DIR/deploy/kiosk/start-kiosk.sh
 ExecStopPost=-/usr/bin/pkill -u %u -f /tmp/mccb-kiosk-
 KillMode=mixed
