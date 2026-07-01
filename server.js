@@ -659,10 +659,13 @@ app.post('/api/admin/mccb-import', (req, res) => {
     const mccbList = entries.map((mccb, index) =>
       normalizeMccbForCreate(mccb, index),
     );
-    const saved = store.saveAll({ ...current, mccbList });
+    const deviceGroups = Array.isArray(current.deviceGroups)
+      ? current.deviceGroups.map((group) => ({ ...group, mccbIds: [] }))
+      : [];
+    const saved = store.saveAll({ ...current, mccbList, deviceGroups });
     const logs = createUpdatedLogs(
       LOG_TYPES.MASTER_CREATE,
-      `CSVから ${mccbList.length} 件の設備データが一括上書きインポートされました。`,
+      `CSVから ${mccbList.length} 件の設備データが一括上書きインポートされ、設備グループの紐づけが初期化されました。`,
       store.readCollection('logs'),
       store.readCollection('logSettings')?.maxSize || DEFAULT_MAX_SIZE,
     );
@@ -671,6 +674,7 @@ app.post('/api/admin/mccb-import', (req, res) => {
     res.json({
       status: 'success',
       mccbList: saved.mccbList,
+      deviceGroups: saved.deviceGroups,
       logs,
       version: store.getVersion() || saved.version,
     });

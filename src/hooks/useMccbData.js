@@ -798,6 +798,9 @@ export function useMccbData() {
               if (Array.isArray(result.mccbList)) {
                 setMccbList(result.mccbList);
               }
+              if (Array.isArray(result.deviceGroups)) {
+                setDeviceGroups(result.deviceGroups);
+              }
               if (Array.isArray(result.logs)) {
                 applyLogs(result.logs);
               }

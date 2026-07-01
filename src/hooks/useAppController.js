@@ -74,6 +74,7 @@ export function useAppController() {
       const password = window.prompt("管理者パスワードを入力してください：");
       if (password === "admin") {
         setIsAdmin(true);
+        navigate("/admin");
         alert("🔓 管理者認証に成功しました。");
       } else if (password !== null) {
         alert("❌ パスワードが正しくありません。認証に失敗しました。");
@@ -82,7 +83,10 @@ export function useAppController() {
     }
 
     setIsAdmin(false);
-  }, [isAdmin]);
+    if (location.pathname === "/admin") {
+      navigate("/");
+    }
+  }, [isAdmin, location.pathname, navigate]);
 
   // --- 依頼で占有されている MCCB を事前計算（originalId と actualMccbId の両方を含める）
   const activeMccbIds = useMemo(() => {
@@ -175,17 +179,22 @@ export function useAppController() {
     [mccbList],
   );
 
-  const navItems = useMemo(
-    () => [
+  const navItems = useMemo(() => {
+    const items = [
       { path: "/", label: "🔖 札管理ダッシュボード" },
       { path: "/request", label: "🖨️ 停電作業 依頼発行・印刷" },
       {
         path: "/request-list",
         label: `📋 依頼一覧・進捗 (${requests.length})`,
       },
-    ],
-    [requests.length],
-  );
+    ];
+
+    if (isAdmin) {
+      items.push({ path: "/admin", label: "⚙️ 管理者画面" });
+    }
+
+    return items;
+  }, [isAdmin, requests.length]);
 
   const goTo = useCallback(
     (path) => {

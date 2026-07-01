@@ -18,6 +18,37 @@ function AppContent() {
   // 処理ロジックは useAppController に集約し、ここではUIレンダリングに専念する
   const controller = useAppController();
   const isFixedOperationScreen = controller.activeTab === "/" && !controller.isAdmin;
+  const adminPanel = (
+    <AdminPanel
+      onImportCSV={controller.importFromCSV}
+      onSaveEntry={controller.saveMccbEntry}
+      mccbList={controller.mccbList}
+      rooms={controller.rooms}
+      categories={controller.categories}
+      categoryColors={controller.categoryColors}
+      addRoom={controller.addRoom}
+      updateRoom={controller.updateRoom}
+      deleteRoom={controller.deleteRoom}
+      addCategory={controller.addCategory}
+      updateCategory={controller.updateCategory}
+      deleteCategory={controller.deleteCategory}
+      updateCategoryColor={controller.updateCategoryColor}
+      logs={controller.pagedLogs}
+      logPageInfo={controller.logPageInfo}
+      logSettings={controller.logSettings}
+      onChangeMaxLogSize={controller.changeMaxLogSize}
+      onClearAllLogs={controller.clearAllLogs}
+      onChangeLogPage={controller.fetchLogsPage}
+      deviceGroups={controller.deviceGroups}
+      addDeviceGroup={controller.addDeviceGroup}
+      updateDeviceGroup={controller.updateDeviceGroup}
+      deleteDeviceGroup={controller.deleteDeviceGroup}
+      historySettings={controller.historySettings}
+      onClearRequestHistory={controller.clearRequestHistory}
+      onChangeMaxHistorySize={controller.changeMaxHistorySize}
+      onCreateDatabaseBackup={controller.createDatabaseBackup}
+    />
+  );
 
   // 特殊画面（フル画面モニターモード）の早期リターン
   if (controller.activeTab === "/monitor") {
@@ -102,38 +133,6 @@ function AppContent() {
                   rooms={controller.rooms}
                 />
 
-                {controller.isAdmin && (
-                  <AdminPanel
-                    onImportCSV={controller.importFromCSV}
-                    onSaveEntry={controller.saveMccbEntry}
-                    mccbList={controller.mccbList}
-                    rooms={controller.rooms}
-                    categories={controller.categories}
-                    categoryColors={controller.categoryColors}
-                    addRoom={controller.addRoom}
-                    updateRoom={controller.updateRoom}
-                    deleteRoom={controller.deleteRoom}
-                    addCategory={controller.addCategory}
-                    updateCategory={controller.updateCategory}
-                    deleteCategory={controller.deleteCategory}
-                    updateCategoryColor={controller.updateCategoryColor}
-                    logs={controller.pagedLogs}
-                    logPageInfo={controller.logPageInfo}
-                    logSettings={controller.logSettings}
-                    onChangeMaxLogSize={controller.changeMaxLogSize}
-                    onClearAllLogs={controller.clearAllLogs}
-                    onChangeLogPage={controller.fetchLogsPage}
-                    deviceGroups={controller.deviceGroups}
-                    addDeviceGroup={controller.addDeviceGroup}
-                    updateDeviceGroup={controller.updateDeviceGroup}
-                    deleteDeviceGroup={controller.deleteDeviceGroup}
-                    historySettings={controller.historySettings}
-                    onClearRequestHistory={controller.clearRequestHistory}
-                    onChangeMaxHistorySize={controller.changeMaxHistorySize}
-                    onCreateDatabaseBackup={controller.createDatabaseBackup}
-                  />
-                )}
-
                 <div className={isFixedOperationScreen ? "flex-1 min-h-0" : "mt-4"}>
                   <VirtualizedMccbGrid
                     items={controller.filteredMccbList}
@@ -189,6 +188,10 @@ function AppContent() {
                 onChangeHistoryPage={controller.fetchRequestHistoryPage}
               />
             }
+          />
+          <Route
+            path="/admin"
+            element={controller.isAdmin ? adminPanel : <Navigate to="/" replace />}
           />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
