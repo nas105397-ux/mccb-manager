@@ -165,10 +165,13 @@ unzip -q -o "$REMOTE_ZIP" -d "$STAGE_DIR"
 cp -a "$STAGE_DIR"/. "$APP_DIR"/
 mkdir -p "$APP_DIR/data/backups"
 cd "$APP_DIR"
-APP_DIR="$APP_DIR" ENABLE_KIOSK=1 bash deploy/raspi/setup-system.sh
+APP_DIR="$APP_DIR" ENABLE_KIOSK="$START_KIOSK" bash deploy/raspi/setup-system.sh
 
 if [ "$START_KIOSK" = "1" ]; then
-  systemctl --user restart mccb-kiosk.service
+  if ! systemctl --user restart mccb-kiosk.service; then
+    echo "kiosk service could not be started now. This is expected on Raspberry Pi OS Lite before Xorg is running."
+    echo "Reboot the Raspberry Pi after Lite kiosk setup, or start Xorg and then run: systemctl --user restart mccb-kiosk.service"
+  fi
 fi
 
 echo
