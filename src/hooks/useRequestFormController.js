@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { REQUEST_PRINT_MODES } from '../shared/printSettings';
 
 const waitForNextPaint = () =>
   new Promise((resolve) => {
@@ -12,6 +13,7 @@ export function useRequestFormController({
   onAddRequest,
   getPrintPreviewStatus,
   onAfterPrint,
+  requestPrintMode = REQUEST_PRINT_MODES.STAR_RECEIPT,
 }) {
   const [workerName, setWorkerName]         = useState('');
   const [workContent, setWorkContent]       = useState('');
@@ -62,22 +64,24 @@ export function useRequestFormController({
     if (!workerName.trim()) { alert('作業者名を入力してください。'); return; }
     if (selectedMccbIds.length === 0) { alert('設備が選択されていません。'); return; }
 
-    const expectedPreviewKey = JSON.stringify({
-      targetMccbIds: selectedMccbIds,
-      dummyNames,
-    });
-    const previewStatus = getPrintPreviewStatus?.();
-    if (previewStatus?.isLoading || previewStatus?.previewKey !== expectedPreviewKey) {
-      alert('プレビュー作成中です。現在の停電対象設備一覧が表示されてから印刷してください。');
-      return;
-    }
-    if (previewStatus?.error) {
-      alert(previewStatus.error);
-      return;
-    }
-    if (!previewStatus?.isReady) {
-      alert('印刷できる停電対象設備のプレビューがありません。');
-      return;
+    if (requestPrintMode === REQUEST_PRINT_MODES.BROWSER) {
+      const expectedPreviewKey = JSON.stringify({
+        targetMccbIds: selectedMccbIds,
+        dummyNames,
+      });
+      const previewStatus = getPrintPreviewStatus?.();
+      if (previewStatus?.isLoading || previewStatus?.previewKey !== expectedPreviewKey) {
+        alert('プレビュー作成中です。現在の停電対象設備一覧が表示されてから印刷してください。');
+        return;
+      }
+      if (previewStatus?.error) {
+        alert(previewStatus.error);
+        return;
+      }
+      if (!previewStatus?.isReady) {
+        alert('印刷できる停電対象設備のプレビューがありません。');
+        return;
+      }
     }
 
     setIsIssuingRequest(true);
@@ -90,10 +94,14 @@ export function useRequestFormController({
         targetMccbIds: selectedMccbIds,
         dummyNames,
       });
-      alert('停電依頼を発行し、一覧へ登録しました。');
-      await waitForNextPaint();
-      window.print();
-      onAfterPrint?.();
+      if (requestPrintMode === REQUEST_PRINT_MODES.BROWSER) {
+        alert('停電依頼を発行し、一覧へ登録しました。');
+        await waitForNextPaint();
+        window.print();
+        onAfterPrint?.();
+      } else {
+        alert('停電依頼を発行し、一覧へ登録しました。');
+      }
     } finally {
       setIsIssuingRequest(false);
     }
@@ -106,6 +114,7 @@ export function useRequestFormController({
     onAddRequest,
     getPrintPreviewStatus,
     onAfterPrint,
+    requestPrintMode,
   ]);
 
   const filteredMccbList = useMemo(() => {

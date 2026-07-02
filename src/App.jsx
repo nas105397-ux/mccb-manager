@@ -47,6 +47,8 @@ function AppContent() {
       onClearRequestHistory={controller.clearRequestHistory}
       onChangeMaxHistorySize={controller.changeMaxHistorySize}
       onCreateDatabaseBackup={controller.createDatabaseBackup}
+      requestPrintMode={controller.requestPrintMode}
+      onChangeRequestPrintMode={controller.setRequestPrintMode}
     />
   );
 
@@ -173,6 +175,7 @@ function AppContent() {
                 onAddRequest={controller.addRequest}
                 requests={controller.requests}
                 deviceGroups={controller.deviceGroups}
+                requestPrintMode={controller.requestPrintMode}
               />
             }
           />
@@ -187,6 +190,7 @@ function AppContent() {
                 onDeleteRequest={controller.deleteRequest}
                 onAddTargetsToRequest={controller.addTargetsToRequest}
                 onChangeHistoryPage={controller.fetchRequestHistoryPage}
+                requestPrintMode={controller.requestPrintMode}
               />
             }
           />

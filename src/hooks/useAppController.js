@@ -6,6 +6,11 @@ import {
   createBorrowedCountMap,
   createRequestNameOverlayMap,
 } from "../shared/mccbViewUtils";
+import {
+  DEFAULT_REQUEST_PRINT_MODE,
+  REQUEST_PRINT_MODE_STORAGE_KEY,
+  normalizeRequestPrintMode,
+} from "../shared/printSettings";
 
 export function useAppController() {
   const {
@@ -57,6 +62,12 @@ export function useAppController() {
   const [filterFavorite, setFilterFavorite] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [selectedMccbId, setSelectedMccbId] = useState(null);
+  const [requestPrintMode, setRequestPrintModeState] = useState(() => {
+    if (typeof window === "undefined") return DEFAULT_REQUEST_PRINT_MODE;
+    return normalizeRequestPrintMode(
+      window.localStorage.getItem(REQUEST_PRINT_MODE_STORAGE_KEY),
+    );
+  });
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -69,6 +80,12 @@ export function useAppController() {
 
     return () => window.clearTimeout(timerId);
   }, [searchTerm]);
+
+  const setRequestPrintMode = useCallback((mode) => {
+    const normalizedMode = normalizeRequestPrintMode(mode);
+    setRequestPrintModeState(normalizedMode);
+    window.localStorage.setItem(REQUEST_PRINT_MODE_STORAGE_KEY, normalizedMode);
+  }, []);
 
   const handleToggleAdmin = useCallback(() => {
     if (!isAdmin) {
@@ -232,6 +249,8 @@ export function useAppController() {
     setFilterFavorite,
     isAdmin,
     setIsAdmin,
+    requestPrintMode,
+    setRequestPrintMode,
     activeTab,
     navItems,
     totalCount,
