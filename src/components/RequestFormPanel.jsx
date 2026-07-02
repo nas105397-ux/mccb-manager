@@ -3,6 +3,7 @@ import PrintPreviewForm from "./PrintPreviewForm";
 import { useRequestFormController } from "../hooks/useRequestFormController";
 import { usePrintPreviewController } from "../hooks/usePrintPreviewController";
 import { VariableSizeList as List } from "react-window";
+import { REQUEST_PRINT_MODES } from "../shared/printSettings";
 
 // ==========================================
 // 定数定義
@@ -115,6 +116,7 @@ export default function RequestFormPanel({
   mccbList,
   onAddRequest,
   deviceGroups = [],
+  requestPrintMode = REQUEST_PRINT_MODES.STAR_RECEIPT,
 }) {
   const [previewRefreshNonce, setPreviewRefreshNonce] = useState(0);
   const printPreviewStatusRef = useRef({
@@ -144,6 +146,7 @@ export default function RequestFormPanel({
     onAddRequest,
     getPrintPreviewStatus: () => printPreviewStatusRef.current,
     onAfterPrint: () => setPreviewRefreshNonce((prev) => prev + 1),
+    requestPrintMode,
   });
   const {
     now,
@@ -174,6 +177,10 @@ export default function RequestFormPanel({
     !isPreviewLoading &&
     !previewError &&
     selectedMccbsWithAssignedCards.length > 0;
+  const requiresBrowserPrintPreview = requestPrintMode === REQUEST_PRINT_MODES.BROWSER;
+  const issueButtonLabel = requiresBrowserPrintPreview
+    ? "🖨️ 停電依頼を発行して印刷"
+    : "✅ 停電依頼を発行";
 
   useEffect(() => {
     printPreviewStatusRef.current = {
@@ -350,10 +357,10 @@ export default function RequestFormPanel({
         <div className="pt-2">
           <button
             onClick={handlePrint}
-            disabled={isIssuingRequest || (selectedMccbIds.length > 0 && !isPrintPreviewReady)}
+            disabled={isIssuingRequest || (requiresBrowserPrintPreview && selectedMccbIds.length > 0 && !isPrintPreviewReady)}
             className="bg-blue-600 hover:bg-blue-700 text-white font-black px-6 py-2.5 rounded-lg text-sm cursor-pointer w-full"
           >
-            🖨️ 停電依頼を発行して印刷
+            {issueButtonLabel}
           </button>
         </div>
       </div>
