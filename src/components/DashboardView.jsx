@@ -186,7 +186,6 @@ export default function DashboardView({ onClose }) {
         }`}>
           <div className="flex justify-between items-center mb-3 shrink-0">
             <h2 className={`text-2xl font-black flex items-center gap-3 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
-              <span className="inline-flex h-3 w-3 rounded-full bg-red-500 opacity-75"></span>
               🔴 現在操作禁止（停電対応中）設備一覧
             </h2>
             <span className={`text-sm border px-4 py-0.5 rounded-full font-black tracking-wider ${
