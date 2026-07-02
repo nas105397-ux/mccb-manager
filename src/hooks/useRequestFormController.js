@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { PRINT_DRIVERS, getSavedPrintDriver, printRequestWithStar, savePrintDriver } from '../shared/starReceiptPrinter';
 
 const waitForNextPaint = () =>
   new Promise((resolve) => {
@@ -12,6 +13,7 @@ export function useRequestFormController({
   onAddRequest,
   getPrintPreviewStatus,
   onAfterPrint,
+  getPrintReceiptData,
 }) {
   const [workerName, setWorkerName]         = useState('');
   const [workContent, setWorkContent]       = useState('');
@@ -20,6 +22,7 @@ export function useRequestFormController({
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [dummyNames, setDummyNames]         = useState({});
   const [isIssuingRequest, setIsIssuingRequest] = useState(false);
+  const [printDriver, setPrintDriverState] = useState(getSavedPrintDriver);
 
   useEffect(() => {
     const timerId = window.setTimeout(() => {
@@ -57,6 +60,26 @@ export function useRequestFormController({
     });
   }, []);
 
+  const setPrintDriver = useCallback((driver) => {
+    setPrintDriverState(driver);
+    savePrintDriver(driver);
+  }, []);
+
+  const printBySelectedDriver = useCallback(async () => {
+    if (printDriver !== PRINT_DRIVERS.star) {
+      window.print();
+      return;
+    }
+
+    try {
+      await printRequestWithStar(getPrintReceiptData?.());
+    } catch (error) {
+      console.error('StarXpand印刷エラー:', error);
+      alert(`Starプリンター印刷に失敗しました。従来のブラウザー印刷に切り替えます。\n${error?.message || error}`);
+      window.print();
+    }
+  }, [printDriver, getPrintReceiptData]);
+
   const handlePrint = useCallback(async () => {
     if (isIssuingRequest) return;
     if (!workerName.trim()) { alert('作業者名を入力してください。'); return; }
@@ -92,7 +115,7 @@ export function useRequestFormController({
       });
       alert('停電依頼を発行し、一覧へ登録しました。');
       await waitForNextPaint();
-      window.print();
+      await printBySelectedDriver();
       onAfterPrint?.();
     } finally {
       setIsIssuingRequest(false);
@@ -106,6 +129,7 @@ export function useRequestFormController({
     onAddRequest,
     getPrintPreviewStatus,
     onAfterPrint,
+    printBySelectedDriver,
   ]);
 
   const filteredMccbList = useMemo(() => {
@@ -134,5 +158,7 @@ export function useRequestFormController({
     handleSelectGroup,
     handlePrint,
     isIssuingRequest,
+    printDriver,
+    setPrintDriver,
   };
 }

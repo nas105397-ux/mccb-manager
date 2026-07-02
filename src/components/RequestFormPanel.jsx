@@ -123,6 +123,11 @@ export default function RequestFormPanel({
     error: "",
     previewKey: "",
   });
+  const printPreviewDataRef = useRef({
+    now: new Date(),
+    dateCode: "",
+    selectedMccbsWithAssignedCards: [],
+  });
   const {
     workerName,
     setWorkerName,
@@ -139,11 +144,20 @@ export default function RequestFormPanel({
     handleSelectGroup,
     handlePrint,
     isIssuingRequest,
+    printDriver,
+    setPrintDriver,
   } = useRequestFormController({
     mccbList,
     onAddRequest,
     getPrintPreviewStatus: () => printPreviewStatusRef.current,
     onAfterPrint: () => setPreviewRefreshNonce((prev) => prev + 1),
+    getPrintReceiptData: () => ({
+      workerName,
+      workContent,
+      issueDate: printPreviewDataRef.current.now,
+      dateCode: printPreviewDataRef.current.dateCode,
+      targets: printPreviewDataRef.current.selectedMccbsWithAssignedCards,
+    }),
   });
   const {
     now,
@@ -168,6 +182,14 @@ export default function RequestFormPanel({
     });
     return indexById;
   }, [filteredMccbList]);
+
+  useEffect(() => {
+    printPreviewDataRef.current = {
+      now,
+      dateCode,
+      selectedMccbsWithAssignedCards,
+    };
+  }, [now, dateCode, selectedMccbsWithAssignedCards]);
 
   const isPrintPreviewReady =
     selectedMccbIds.length > 0 &&
@@ -254,6 +276,25 @@ export default function RequestFormPanel({
               className={INPUT_CLASS}
             />
           </div>
+        </div>
+
+
+        {/* 印刷方式選択：StarXpand導入後も従来方式へ戻せるように残す */}
+        <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3 space-y-2">
+          <label className="block text-xs text-amber-800 font-black">
+            🧾 印刷方式
+          </label>
+          <select
+            value={printDriver}
+            onChange={(e) => setPrintDriver(e.target.value)}
+            className="w-full rounded border border-amber-200 bg-white p-2 text-xs font-bold text-gray-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
+          >
+            <option value="star">Star mC-Print3（MCP31L / USB）</option>
+            <option value="browser">従来のブラウザー印刷</option>
+          </select>
+          <p className="text-[10px] leading-relaxed text-amber-700">
+            Star印刷に失敗した場合は、自動で従来のブラウザー印刷へ切り替えます。
+          </p>
         </div>
 
         {/* グループ選択ショートカットボタン */}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useRequestListController } from "../hooks/useRequestListController";
+import { PRINT_DRIVERS, getSavedPrintDriver, printRequestWithStar } from "../shared/starReceiptPrinter";
 
 const UI = {
   panel:
@@ -107,6 +108,21 @@ const getIssueDate = (req) => {
 const getDateCode = (date) =>
   `${date.getFullYear().toString().slice(-2)}${String(date.getMonth() + 1).padStart(2, "0")}${String(date.getDate()).padStart(2, "0")}`;
 
+const createPrintTargets = (request) =>
+  (request.targets || []).map((target) => {
+    const reserveInfo = target.reserveInfo;
+    const cardLabel = reserveInfo?.cardNo
+      ? target.isAllocatedFromDummy
+        ? `代替:${reserveInfo.displayName} No.${reserveInfo.cardNo}`
+        : `子札 No.${reserveInfo.cardNo}`
+      : "札の空きなし";
+
+    return {
+      name: target.name,
+      cardLabel,
+    };
+  });
+
 function PrintableRequestForm({ request }) {
   if (!request) return null;
 
@@ -212,6 +228,29 @@ export default function RequestListPanel({
       window.removeEventListener("afterprint", clearPrintRequest);
     };
   }, [printRequest]);
+
+
+  const handleReprintRequest = async (request) => {
+    if (getSavedPrintDriver() !== PRINT_DRIVERS.star) {
+      setPrintRequest(request);
+      return;
+    }
+
+    try {
+      const issueDate = getIssueDate(request);
+      await printRequestWithStar({
+        workerName: request.workerName,
+        workContent: request.workContent,
+        issueDate,
+        dateCode: getDateCode(issueDate),
+        targets: createPrintTargets(request),
+      });
+    } catch (error) {
+      console.error("StarXpand再印刷エラー:", error);
+      alert(`Starプリンター再印刷に失敗しました。従来のブラウザー印刷に切り替えます。\n${error?.message || error}`);
+      setPrintRequest(request);
+    }
+  };
 
   const openAddPanel = (requestId) => {
     setAddPanelRequestId((currentId) => (currentId === requestId ? null : requestId));
@@ -323,7 +362,7 @@ export default function RequestListPanel({
                     </button>
                     <button
                       type="button"
-                      onClick={() => setPrintRequest(req)}
+                      onClick={() => handleReprintRequest(req)}
                       className={`${ACTIVE.actionButtonBase} ${ACTIVE.printButton}`}
                     >
                       依頼表を再印刷
