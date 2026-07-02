@@ -1,25 +1,15 @@
-import { usePrintPreviewController } from "../hooks/usePrintPreviewController";
-
 // ==========================================
 // メインコンポーネント
 // ==========================================
 export default function PrintPreviewForm({
   workerName,
   workContent,
-  selectedMccbIds,
-  dummyNames = {},
+  now,
+  dateCode,
+  selectedMccbsWithAssignedCards,
+  isPreviewLoading,
+  previewError,
 }) {
-  const {
-    now,
-    dateCode,
-    selectedMccbsWithAssignedCards,
-    isPreviewLoading,
-    previewError,
-  } = usePrintPreviewController({
-    selectedMccbIds,
-    dummyNames,
-  });
-
   return (
     <div className="w-full lg:w-2/3 bg-white p-6 rounded-xl border border-gray-200 print:border-0 print:shadow-none print:p-0 print:w-[78mm] print:mx-auto">
       {/* レシート外枠：高コントラスト現場用デザイン */}

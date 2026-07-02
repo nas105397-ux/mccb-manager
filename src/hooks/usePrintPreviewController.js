@@ -5,6 +5,7 @@ const REQUEST_PREVIEW_URL = '/api/requests/preview';
 export function usePrintPreviewController({
   selectedMccbIds,
   dummyNames,
+  previewRefreshNonce = 0,
 }) {
   const { now, dateCode } = useMemo(() => {
     const currentDate = new Date();
@@ -20,6 +21,10 @@ export function usePrintPreviewController({
     [selectedMccbIds, dummyNames],
   );
   const previewKey = useMemo(
+    () => JSON.stringify({ previewRequest, previewRefreshNonce }),
+    [previewRequest, previewRefreshNonce],
+  );
+  const previewRequestKey = useMemo(
     () => JSON.stringify(previewRequest),
     [previewRequest],
   );
@@ -85,6 +90,7 @@ export function usePrintPreviewController({
   return {
     now,
     dateCode,
+    previewRequestKey,
     selectedMccbsWithAssignedCards,
     isPreviewLoading: hasSelection && !isCurrentPreview,
     previewError: hasSelection && isCurrentPreview ? previewState.error : '',

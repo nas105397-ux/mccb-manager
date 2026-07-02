@@ -1,12 +1,25 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-export function useRequestFormController({ mccbList, onAddRequest }) {
+const waitForNextPaint = () =>
+  new Promise((resolve) => {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(resolve);
+    });
+  });
+
+export function useRequestFormController({
+  mccbList,
+  onAddRequest,
+  getPrintPreviewStatus,
+  onAfterPrint,
+}) {
   const [workerName, setWorkerName]         = useState('');
   const [workContent, setWorkContent]       = useState('');
   const [selectedMccbIds, setSelectedMccbIds] = useState([]);
   const [searchQuery, setSearchQuery]       = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [dummyNames, setDummyNames]         = useState({});
+  const [isIssuingRequest, setIsIssuingRequest] = useState(false);
 
   useEffect(() => {
     const timerId = window.setTimeout(() => {
@@ -44,21 +57,56 @@ export function useRequestFormController({ mccbList, onAddRequest }) {
     });
   }, []);
 
-  const handlePrint = useCallback(() => {
+  const handlePrint = useCallback(async () => {
+    if (isIssuingRequest) return;
     if (!workerName.trim()) { alert('作業者名を入力してください。'); return; }
     if (selectedMccbIds.length === 0) { alert('設備が選択されていません。'); return; }
 
-    onAddRequest?.({
-      id: `REQ-${Date.now()}`,
-      timestamp: new Date().toLocaleString('ja-JP'),
-      workerName,
-      workContent,
+    const expectedPreviewKey = JSON.stringify({
       targetMccbIds: selectedMccbIds,
       dummyNames,
     });
-    alert('停電依頼を発行し、一覧へ登録しました。');
-    window.print();
-  }, [workerName, workContent, selectedMccbIds, dummyNames, onAddRequest]);
+    const previewStatus = getPrintPreviewStatus?.();
+    if (previewStatus?.isLoading || previewStatus?.previewKey !== expectedPreviewKey) {
+      alert('プレビュー作成中です。現在の停電対象設備一覧が表示されてから印刷してください。');
+      return;
+    }
+    if (previewStatus?.error) {
+      alert(previewStatus.error);
+      return;
+    }
+    if (!previewStatus?.isReady) {
+      alert('印刷できる停電対象設備のプレビューがありません。');
+      return;
+    }
+
+    setIsIssuingRequest(true);
+    try {
+      await onAddRequest?.({
+        id: `REQ-${Date.now()}`,
+        timestamp: new Date().toLocaleString('ja-JP'),
+        workerName,
+        workContent,
+        targetMccbIds: selectedMccbIds,
+        dummyNames,
+      });
+      alert('停電依頼を発行し、一覧へ登録しました。');
+      await waitForNextPaint();
+      window.print();
+      onAfterPrint?.();
+    } finally {
+      setIsIssuingRequest(false);
+    }
+  }, [
+    isIssuingRequest,
+    workerName,
+    workContent,
+    selectedMccbIds,
+    dummyNames,
+    onAddRequest,
+    getPrintPreviewStatus,
+    onAfterPrint,
+  ]);
 
   const filteredMccbList = useMemo(() => {
     const query = debouncedSearchQuery.toLowerCase().trim();
@@ -85,5 +133,6 @@ export function useRequestFormController({ mccbList, onAddRequest }) {
     handleDummyNameChange,
     handleSelectGroup,
     handlePrint,
+    isIssuingRequest,
   };
 }

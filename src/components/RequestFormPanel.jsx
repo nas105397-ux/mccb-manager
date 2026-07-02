@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import PrintPreviewForm from "./PrintPreviewForm";
 import { useRequestFormController } from "../hooks/useRequestFormController";
+import { usePrintPreviewController } from "../hooks/usePrintPreviewController";
 import { VariableSizeList as List } from "react-window";
 
 // ==========================================
@@ -115,6 +116,13 @@ export default function RequestFormPanel({
   onAddRequest,
   deviceGroups = [],
 }) {
+  const [previewRefreshNonce, setPreviewRefreshNonce] = useState(0);
+  const printPreviewStatusRef = useRef({
+    isReady: false,
+    isLoading: false,
+    error: "",
+    previewKey: "",
+  });
   const {
     workerName,
     setWorkerName,
@@ -130,7 +138,25 @@ export default function RequestFormPanel({
     handleDummyNameChange,
     handleSelectGroup,
     handlePrint,
-  } = useRequestFormController({ mccbList, onAddRequest });
+    isIssuingRequest,
+  } = useRequestFormController({
+    mccbList,
+    onAddRequest,
+    getPrintPreviewStatus: () => printPreviewStatusRef.current,
+    onAfterPrint: () => setPreviewRefreshNonce((prev) => prev + 1),
+  });
+  const {
+    now,
+    dateCode,
+    previewRequestKey,
+    selectedMccbsWithAssignedCards,
+    isPreviewLoading,
+    previewError,
+  } = usePrintPreviewController({
+    selectedMccbIds,
+    dummyNames,
+    previewRefreshNonce,
+  });
 
   const listRef = useRef(null);
   const previousSelectedSetRef = useRef(selectedMccbIdSet);
@@ -142,6 +168,21 @@ export default function RequestFormPanel({
     });
     return indexById;
   }, [filteredMccbList]);
+
+  const isPrintPreviewReady =
+    selectedMccbIds.length > 0 &&
+    !isPreviewLoading &&
+    !previewError &&
+    selectedMccbsWithAssignedCards.length > 0;
+
+  useEffect(() => {
+    printPreviewStatusRef.current = {
+      isReady: isPrintPreviewReady,
+      isLoading: isPreviewLoading,
+      error: previewError,
+      previewKey: previewRequestKey,
+    };
+  }, [isPrintPreviewReady, isPreviewLoading, previewError, previewRequestKey]);
 
   useEffect(() => {
     // 選択状態や絞り込みが変わったら、必要な位置から行高さを再計測する。
@@ -309,6 +350,7 @@ export default function RequestFormPanel({
         <div className="pt-2">
           <button
             onClick={handlePrint}
+            disabled={isIssuingRequest || (selectedMccbIds.length > 0 && !isPrintPreviewReady)}
             className="bg-blue-600 hover:bg-blue-700 text-white font-black px-6 py-2.5 rounded-lg text-sm cursor-pointer w-full"
           >
             🖨️ 停電依頼を発行して印刷
@@ -320,8 +362,11 @@ export default function RequestFormPanel({
       <PrintPreviewForm
         workerName={workerName}
         workContent={workContent}
-        selectedMccbIds={selectedMccbIds}
-        dummyNames={dummyNames}
+        now={now}
+        dateCode={dateCode}
+        selectedMccbsWithAssignedCards={selectedMccbsWithAssignedCards}
+        isPreviewLoading={isPreviewLoading}
+        previewError={previewError}
       />
     </div>
   );

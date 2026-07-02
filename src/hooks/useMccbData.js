@@ -138,6 +138,7 @@ export function useMccbData() {
         pauseTimer.current = Date.now() + 1000;
       }
     });
+    return syncQueue.current;
   }, []);
 
   // --- 定期自動同期ポーリング設定 (useEffect) ---
@@ -921,7 +922,7 @@ export function useMccbData() {
   // --- ⚡ 停電作業依頼発行（自動スライド札割り当てシミュレーション） ---
   const addRequest = useCallback(
     (newRequest) => {
-      runSyncTask(async () => {
+      return runSyncTask(async () => {
         const res = await fetch("/api/requests", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
