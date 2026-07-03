@@ -128,12 +128,20 @@ export const createRequestReceiptTemplate = async () => {
           .styleBold(true)
           .actionPrintText("作業責任者\n")
           .styleBold(false)
-          .actionPrintText("${worker_name}\n")
+          .add(
+            new StarXpandCommand.PrinterBuilder()
+              .styleMagnification(new StarXpandCommand.MagnificationParameter(1, 2))
+              .actionPrintText("${worker_name}\n"),
+          )
           .actionPrintText("\n")
           .styleBold(true)
           .actionPrintText("作業内容\n")
           .styleBold(false)
-          .actionPrintText("${work_content}\n")
+          .add(
+            new StarXpandCommand.PrinterBuilder()
+              .styleMagnification(new StarXpandCommand.MagnificationParameter(1, 2))
+              .actionPrintText("${work_content}\n"),
+          )
           .actionPrintRuledLine(new printer.RuledLineParameter(SEPARATOR_WIDTH_MM))
           .styleBold(true)
           .actionPrintText("停電対象設備 ${target_count} 面\n")
