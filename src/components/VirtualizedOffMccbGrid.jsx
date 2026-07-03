@@ -55,13 +55,26 @@ const OffMccbCard = memo(function OffMccbCard({
   isDarkMode,
   categoryColors,
 }) {
+  const isReturnedPowerOff = workers.length === 0;
+  const cardClass = isReturnedPowerOff
+    ? (isDarkMode ? 'bg-sky-950/40 border-sky-500' : 'bg-sky-50/70 border-sky-500')
+    : (isDarkMode ? 'bg-gray-800 border-red-600' : 'bg-red-50/40 border-red-500');
+  const titleBorderClass = isReturnedPowerOff
+    ? (isDarkMode ? 'border-sky-800' : 'border-sky-200')
+    : (isDarkMode ? 'border-gray-700' : 'border-red-200');
+  const sectionTextClass = isReturnedPowerOff
+    ? (isDarkMode ? 'text-sky-300' : 'text-sky-700')
+    : (isDarkMode ? 'text-gray-400' : 'text-gray-500');
+  const footerClass = isReturnedPowerOff
+    ? (isDarkMode ? 'border-sky-800/70 text-sky-300' : 'border-sky-200 text-sky-700')
+    : (isDarkMode ? 'border-gray-700/60 text-gray-500' : 'border-red-200 text-gray-400');
+  const statusBadgeClass = isReturnedPowerOff
+    ? (isDarkMode ? 'bg-sky-950 text-sky-300 border-sky-800' : 'bg-sky-100 text-sky-800 border-sky-300')
+    : (isDarkMode ? 'bg-red-950 text-red-500 border-red-900/40' : 'bg-red-100 text-red-700 border-red-200');
+
   return (
     <div
-      className={`border-2 rounded-xl p-5 flex flex-col justify-between min-h-[200px] h-full ${
-        isDarkMode
-          ? 'bg-gray-800 border-red-600'
-          : 'bg-red-50/40 border-red-500'
-      }`}
+      className={`border-2 rounded-xl p-5 flex flex-col justify-between min-h-[200px] h-full ${cardClass}`}
     >
       <div>
         <div className="flex justify-between items-start gap-2 mb-2">
@@ -82,23 +95,23 @@ const OffMccbCard = memo(function OffMccbCard({
             isAlternative
               ? (isDarkMode ? 'text-amber-400 font-extrabold' : 'text-orange-400 font-extrabold')
               : (isDarkMode ? 'text-white' : 'text-gray-900')
-          } ${isDarkMode ? 'border-gray-700' : 'border-red-200'}`}
+          } ${titleBorderClass}`}
         >
           {mccb.name}
         </h3>
 
         <div className="space-y-1.5">
-          <p className={`text-xs font-extrabold tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-            ▼ 子札保持者:
+          <p className={`text-xs font-extrabold tracking-wider ${sectionTextClass}`}>
+            {isReturnedPowerOff ? '▼ 子札状態:' : '▼ 子札保持者:'}
           </p>
           <div className="flex flex-wrap gap-2">
-            {workers.length === 0 ? (
+            {isReturnedPowerOff ? (
               <span
                 className={`text-xs font-black px-2.5 py-1 rounded border ${
-                  isDarkMode ? 'bg-amber-950/40 border-amber-900 text-amber-400' : 'bg-amber-50 border-amber-200 text-amber-700'
+                  isDarkMode ? 'bg-sky-950/70 border-sky-800 text-sky-300' : 'bg-sky-100 border-sky-300 text-sky-800'
                 }`}
               >
-                ⚠️ 札登録なし（直接操作ロック中）
+                ✅ 子札返却済み
               </span>
             ) : (
               workers.map((card) => (
@@ -111,16 +124,16 @@ const OffMccbCard = memo(function OffMccbCard({
 
       <div
         className={`mt-4 pt-2 border-t flex justify-between items-center text-[10px] font-mono ${
-          isDarkMode ? 'border-gray-700/60 text-gray-500' : 'border-red-200 text-gray-400'
+          footerClass
         }`}
       >
         <span>ID: {mccb.id}</span>
         <span
           className={`px-1.5 py-0.5 rounded font-black border ${
-            isDarkMode ? 'bg-red-950 text-red-500 border-red-900/40' : 'bg-red-100 text-red-700 border-red-200'
+            statusBadgeClass
           }`}
         >
-          操作禁止
+          {isReturnedPowerOff ? '札返却済み' : '操作禁止'}
         </span>
       </div>
     </div>

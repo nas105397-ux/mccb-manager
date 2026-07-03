@@ -10,12 +10,12 @@ Environment=GTK_IM_MODULE=fcitx
 Environment=QT_IM_MODULE=fcitx
 Environment=XMODIFIERS=@im=fcitx
 Environment=XCURSOR_SIZE=24
-Environment=APP_URL=http://127.0.0.1
+Environment=APP_URL=https://192.168.40.111
 Environment=MAIN_GEOMETRY=1920x1080+0+0
 Environment=DASHBOARD_GEOMETRY=3840x2160+1920+0
 Environment=DASHBOARD_SCALE=1.5
 Environment=ENABLE_GPU_TUNING=0
-Environment=CHROMIUM_FLAGS=--disable-gpu-vsync
+Environment="CHROMIUM_FLAGS=--disable-gpu-vsync --ignore-certificate-errors --unsafely-treat-insecure-origin-as-secure=https://192.168.40.111"
 ExecStartPre=/bin/sleep 8
 ExecStartPre=-/usr/bin/xset s off
 ExecStartPre=-/usr/bin/xset -dpms

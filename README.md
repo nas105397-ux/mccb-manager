@@ -296,7 +296,40 @@ HTTPS は Raspberry Pi 上の nginx で終端します。初回セットアッ�
 
 PCやタブレットからスター精密プリンターを接続する場合は、上記の `.crt` をその端末の信頼済み証明書として登録してから `https://<Raspberry PiのIP>/#/` を開きます。証明書が信頼されていない状態では、Chrome/EdgeでWebUSBが使えないことがあります。
 
+Pi本体のChromium/kioskからUSB接続のスター精密プリンターを使う場合は、WebUSB用の設定を入れます。
+
+```bash
+cd /home/pi/mccb-manager
+sudo bash deploy/raspi/install-star-webusb-driver.sh
+sudo reboot
+```
+
+この設定は、スター精密プリンターのUSB権限を許可し、Linuxの `usblp` がプリンターを先に掴まないようにします。
+接続時に `Open failed.` が出る場合は、Pi上でこの設定を再実行してからUSBケーブルを抜き差し、または再起動します。
+
+```bash
+cd /home/pi/mccb-manager
+sudo bash deploy/raspi/install-star-webusb-driver.sh
+sudo reboot
+```
+
+再実行時のログで `Detected Star USB devices:` にプリンターが出て、`usblp is not loaded.` と表示されれば、WebUSB側で開ける状態に近づきます。
+デプロイ後は `mccb-star-webusb.service` が登録され、再起動時にもこのWebUSB設定が自動で適用されます。
+
+```bash
+systemctl status mccb-star-webusb.service
+```
+
 Pi本体のkiosk画面を使う場合は、再起動後にChromiumが自動で全画面表示されればOKです。
+プリンター接続情報はkiosk用Chromiumプロファイルに保存され、再起動後も残ります。
+標準のkiosk URLは `https://192.168.40.111/#/` です。
+IP変更後や証明書警告が消えない場合は、証明書を再生成してからkioskを再起動します。
+
+```bash
+cd /home/pi/mccb-manager
+MCCB_REGENERATE_CERT=1 MCCB_SERVER_HOST=192.168.40.111 bash deploy/raspi/setup-system.sh
+systemctl --user restart mccb-kiosk.service
+```
 
 サービス確認:
 

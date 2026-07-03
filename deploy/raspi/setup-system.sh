@@ -4,6 +4,7 @@ set -euo pipefail
 APP_DIR="${APP_DIR:-$HOME/mccb-manager}"
 NODE_MAJOR_MIN="${NODE_MAJOR_MIN:-24}"
 ENABLE_KIOSK="${ENABLE_KIOSK:-1}"
+MCCB_SERVER_HOST="${MCCB_SERVER_HOST:-192.168.40.111}"
 
 if [ ! -d "$APP_DIR" ]; then
   echo "APP_DIR does not exist: $APP_DIR" >&2
@@ -75,7 +76,27 @@ sudo systemctl enable mccb-manager.service
 sudo systemctl restart mccb-manager.service
 
 if command -v nginx >/dev/null 2>&1; then
-  if [ ! -f /etc/ssl/certs/mccb-manager-selfsigned.crt ] || [ ! -f /etc/ssl/private/mccb-manager-selfsigned.key ]; then
+  CERT_PATH="/etc/ssl/certs/mccb-manager-selfsigned.crt"
+  KEY_PATH="/etc/ssl/private/mccb-manager-selfsigned.key"
+  TRUSTED_CERT_PATH="/usr/local/share/ca-certificates/mccb-manager-selfsigned.crt"
+
+  if [ "${MCCB_REGENERATE_CERT:-0}" = "1" ]; then
+    echo "MCCB_REGENERATE_CERT=1: removing existing HTTPS certificate."
+    sudo rm -f "$CERT_PATH" "$KEY_PATH"
+  fi
+
+  if sudo test -f "$CERT_PATH"; then
+    echo "HTTPS certificate file exists: $CERT_PATH"
+  else
+    echo "HTTPS certificate file is missing: $CERT_PATH"
+  fi
+  if sudo test -f "$KEY_PATH"; then
+    echo "HTTPS private key file exists: $KEY_PATH"
+  else
+    echo "HTTPS private key file is missing: $KEY_PATH"
+  fi
+
+  if ! sudo test -f "$CERT_PATH" || ! sudo test -f "$KEY_PATH"; then
     if ! command -v openssl >/dev/null 2>&1; then
       echo "openssl is required to create the HTTPS certificate. Install openssl and rerun setup." >&2
       exit 1
@@ -97,23 +118,40 @@ CN = $LOCAL_HOSTNAME
 
 [v3_req]
 subjectAltName = @alt_names
+basicConstraints = critical,CA:TRUE
+keyUsage = critical, digitalSignature, keyEncipherment, keyCertSign
+extendedKeyUsage = serverAuth
 
 [alt_names]
 DNS.1 = $LOCAL_HOSTNAME
 DNS.2 = ${LOCAL_HOSTNAME}.local
 DNS.3 = localhost
 IP.1 = 127.0.0.1
+IP.2 = $MCCB_SERVER_HOST
 SSL_CONFIG
-    if [ -n "$LOCAL_IP" ]; then
-      echo "IP.2 = $LOCAL_IP" >> "$OPENSSL_CONFIG"
+    if [ -n "$LOCAL_IP" ] && [ "$LOCAL_IP" != "$MCCB_SERVER_HOST" ]; then
+      echo "IP.3 = $LOCAL_IP" >> "$OPENSSL_CONFIG"
     fi
 
     sudo openssl req -x509 -nodes -days 825 -newkey rsa:2048 \
-      -keyout /etc/ssl/private/mccb-manager-selfsigned.key \
-      -out /etc/ssl/certs/mccb-manager-selfsigned.crt \
+      -keyout "$KEY_PATH" \
+      -out "$CERT_PATH" \
       -config "$OPENSSL_CONFIG"
     rm -f "$OPENSSL_CONFIG"
-    sudo chmod 600 /etc/ssl/private/mccb-manager-selfsigned.key
+    sudo chmod 600 "$KEY_PATH"
+    echo "Created HTTPS certificate:"
+  else
+    echo "Using existing HTTPS certificate:"
+  fi
+  openssl x509 -in "$CERT_PATH" -noout -fingerprint -sha256 -dates || true
+
+  if command -v update-ca-certificates >/dev/null 2>&1; then
+    if [ ! -f "$TRUSTED_CERT_PATH" ] || ! sudo cmp -s "$CERT_PATH" "$TRUSTED_CERT_PATH"; then
+      sudo cp "$CERT_PATH" "$TRUSTED_CERT_PATH"
+      sudo update-ca-certificates
+    else
+      echo "Local trusted certificate is already up to date."
+    fi
   fi
 
   sudo cp deploy/nginx/mccb-manager.conf /etc/nginx/sites-available/mccb-manager
@@ -130,6 +168,26 @@ else
 fi
 
 chmod +x deploy/kiosk/start-kiosk.sh
+chmod +x deploy/raspi/install-star-webusb-driver.sh
+
+sudo tee /etc/systemd/system/mccb-star-webusb.service >/dev/null <<SERVICE
+[Unit]
+Description=MCCB Manager Star WebUSB device setup
+After=systemd-udevd.service local-fs.target
+Before=mccb-manager.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash $APP_DIR/deploy/raspi/install-star-webusb-driver.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+SERVICE
+
+sudo systemctl daemon-reload
+sudo systemctl enable mccb-star-webusb.service
+sudo systemctl restart mccb-star-webusb.service || true
 
 if [ "$ENABLE_KIOSK" = "1" ]; then
   if command -v chromium-browser >/dev/null 2>&1 || command -v chromium >/dev/null 2>&1; then
@@ -149,12 +207,12 @@ Environment=GTK_IM_MODULE=fcitx
 Environment=QT_IM_MODULE=fcitx
 Environment=XMODIFIERS=@im=fcitx
 Environment=XCURSOR_SIZE=24
-Environment=APP_URL=http://127.0.0.1
+Environment=APP_URL=https://$MCCB_SERVER_HOST
 Environment=MAIN_GEOMETRY=1920x1080+0+0
 Environment=DASHBOARD_GEOMETRY=3840x2160+1920+0
 Environment=DASHBOARD_SCALE=1.5
 Environment=ENABLE_GPU_TUNING=0
-Environment=CHROMIUM_FLAGS=--disable-gpu-vsync
+Environment="CHROMIUM_FLAGS=--disable-gpu-vsync --ignore-certificate-errors --unsafely-treat-insecure-origin-as-secure=https://$MCCB_SERVER_HOST"
 ExecStartPre=/bin/sleep 8
 ExecStartPre=-/usr/bin/xset s off
 ExecStartPre=-/usr/bin/xset -dpms
@@ -184,9 +242,9 @@ cat <<MSG
 Setup completed.
 
 App:
-  https://<raspberry-pi-ip>/#/
+  https://$MCCB_SERVER_HOST/#/
   http://<raspberry-pi-ip>:5000/#/
-  https://<raspberry-pi-ip>/#/monitor
+  https://$MCCB_SERVER_HOST/#/monitor
   http://<raspberry-pi-ip>:5000/#/monitor
 
 HTTPS certificate:

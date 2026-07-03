@@ -225,8 +225,8 @@ fi
 echo
 echo "Deployment finished."
 echo "Application URL:"
-hostname -I | awk '{print "  http://"$1"/#/"}'
-hostname -I | awk '{print "  http://"$1"/#/monitor"}'
+hostname -I | awk '{print "  https://"$1"/#/"}'
+hostname -I | awk '{print "  https://"$1"/#/monitor"}'
 echo
 echo "Service status:"
 for i in $(seq 1 12); do
@@ -236,6 +236,7 @@ for i in $(seq 1 12); do
   sleep 1
 done
 systemctl status mccb-manager.service --no-pager -n 8 || true
+systemctl status mccb-star-webusb.service --no-pager -n 8 || true
 if command -v nginx >/dev/null 2>&1; then
   systemctl status nginx --no-pager -n 5 || true
 fi
