@@ -31,6 +31,7 @@ export function useAdminPanelController({
   );
   const [starPrinterConnectionStatus, setStarPrinterConnectionStatus] = useState('');
   const [isConnectingStarPrinter, setIsConnectingStarPrinter] = useState(false);
+  const [isTestingStarPrinter, setIsTestingStarPrinter] = useState(false);
   const csvInputRef = useRef(null);
 
   const currentGroup = useMemo(() => {
@@ -164,6 +165,27 @@ export function useAdminPanelController({
     setStarPrinterConnectionStatus('保存済みのプリンター接続情報を削除しました。');
   };
 
+  const handlePrintStarPrinterTestPage = async () => {
+    if (isTestingStarPrinter) return;
+    if (!starPrinterConnection) {
+      setStarPrinterConnectionStatus('先にプリンター接続を完了してください。');
+      return;
+    }
+
+    setIsTestingStarPrinter(true);
+    setStarPrinterConnectionStatus('テスト印刷を送信しています。');
+    try {
+      const { printStarPrinterTestPage } = await import('../shared/starReceiptPrinter');
+      await printStarPrinterTestPage();
+      setStarPrinterConnectionStatus('テスト印刷を送信しました。');
+    } catch (error) {
+      console.error(error);
+      setStarPrinterConnectionStatus(`テスト印刷に失敗しました: ${error?.message || error}`);
+    } finally {
+      setIsTestingStarPrinter(false);
+    }
+  };
+
   return {
     room,
     setRoom,
@@ -183,6 +205,7 @@ export function useAdminPanelController({
     starPrinterConnection,
     starPrinterConnectionStatus,
     isConnectingStarPrinter,
+    isTestingStarPrinter,
     csvInputRef,
     handleSubmit,
     handleExportCSV,
@@ -196,5 +219,6 @@ export function useAdminPanelController({
     handleToggleDeviceInGroup,
     handleConnectStarPrinter,
     handleClearStarPrinterConnection,
+    handlePrintStarPrinterTestPage,
   };
 }

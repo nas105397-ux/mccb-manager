@@ -233,7 +233,7 @@ export default function RequestListPanel({
     setStarPrintRequestId(request.id);
     try {
       const { printRequestReceipt } = await import("../shared/starReceiptPrinter");
-      await printRequestReceipt(request);
+      await printRequestReceipt(request, mccbList);
       alert("スター精密プリンターへ依頼表を送信しました。");
     } catch (error) {
       console.error(error);

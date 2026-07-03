@@ -86,7 +86,7 @@ export function useRequestFormController({
 
     setIsIssuingRequest(true);
     try {
-      await onAddRequest?.({
+      const createdRequest = await onAddRequest?.({
         id: `REQ-${Date.now()}`,
         timestamp: new Date().toLocaleString('ja-JP'),
         workerName,
@@ -99,9 +99,26 @@ export function useRequestFormController({
         await waitForNextPaint();
         window.print();
         onAfterPrint?.();
+      } else if (requestPrintMode === REQUEST_PRINT_MODES.STAR_RECEIPT) {
+        if (!createdRequest) {
+          alert('停電依頼を発行しましたが、印刷用データを取得できませんでした。依頼一覧から再印刷してください。');
+          return;
+        }
+
+        try {
+          const { printRequestReceipt } = await import('../shared/starReceiptPrinter');
+          await printRequestReceipt(createdRequest, mccbList);
+          alert('停電依頼を発行し、スター精密プリンターへ依頼表を送信しました。');
+        } catch (error) {
+          console.error(error);
+          alert(`停電依頼は登録しましたが、レシート印刷に失敗しました。\n依頼一覧から再印刷できます。\n${error?.message || error}`);
+        }
       } else {
         alert('停電依頼を発行し、一覧へ登録しました。');
       }
+    } catch (error) {
+      console.error(error);
+      alert(error?.message || '停電依頼の発行に失敗しました。');
     } finally {
       setIsIssuingRequest(false);
     }
@@ -115,6 +132,7 @@ export function useRequestFormController({
     getPrintPreviewStatus,
     onAfterPrint,
     requestPrintMode,
+    mccbList,
   ]);
 
   const filteredMccbList = useMemo(() => {

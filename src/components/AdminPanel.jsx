@@ -136,6 +136,7 @@ export default function AdminPanel({
     starPrinterConnection,
     starPrinterConnectionStatus,
     isConnectingStarPrinter,
+    isTestingStarPrinter,
     csvInputRef,
     handleSubmit,
     handleExportCSV,
@@ -149,6 +150,7 @@ export default function AdminPanel({
     handleToggleDeviceInGroup,
     handleConnectStarPrinter,
     handleClearStarPrinterConnection,
+    handlePrintStarPrinterTestPage,
   } = useAdminPanelController({
     onSaveEntry,
     mccbList,
@@ -618,10 +620,20 @@ export default function AdminPanel({
                 <button
                   type="button"
                   onClick={handleClearStarPrinterConnection}
-                  disabled={!starPrinterConnection || isConnectingStarPrinter}
+                  disabled={!starPrinterConnection || isConnectingStarPrinter || isTestingStarPrinter}
                   className={`${UI_STYLES.btnClearAction} disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   接続情報クリア
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePrintStarPrinterTestPage}
+                  disabled={!starPrinterConnection || isConnectingStarPrinter || isTestingStarPrinter}
+                  className={`${UI_STYLES.btnCsvAction} disabled:opacity-60 disabled:cursor-wait`}
+                >
+                  {isTestingStarPrinter
+                    ? "🖨️ テスト印刷中..."
+                    : "🖨️ テスト印刷"}
                 </button>
               </div>
               {starPrinterConnectionStatus && (

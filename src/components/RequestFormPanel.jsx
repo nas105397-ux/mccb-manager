@@ -178,9 +178,15 @@ export default function RequestFormPanel({
     !previewError &&
     selectedMccbsWithAssignedCards.length > 0;
   const requiresBrowserPrintPreview = requestPrintMode === REQUEST_PRINT_MODES.BROWSER;
-  const issueButtonLabel = requiresBrowserPrintPreview
-    ? "🖨️ 停電依頼を発行して印刷"
-    : "✅ 停電依頼を発行";
+  const issueButtonLabel = isIssuingRequest
+    ? requestPrintMode === REQUEST_PRINT_MODES.STAR_RECEIPT
+      ? "🖨️ 印刷中..."
+      : "処理中..."
+    : requestPrintMode === REQUEST_PRINT_MODES.STAR_RECEIPT
+      ? "🖨️ 停電依頼を発行してレシート印刷"
+      : requiresBrowserPrintPreview
+        ? "🖨️ 停電依頼を発行して印刷"
+        : "✅ 停電依頼を発行";
 
   useEffect(() => {
     printPreviewStatusRef.current = {
@@ -358,7 +364,7 @@ export default function RequestFormPanel({
           <button
             onClick={handlePrint}
             disabled={isIssuingRequest || (requiresBrowserPrintPreview && selectedMccbIds.length > 0 && !isPrintPreviewReady)}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-black px-6 py-2.5 rounded-lg text-sm cursor-pointer w-full"
+            className="bg-blue-600 hover:bg-blue-700 text-white font-black px-6 py-2.5 rounded-lg text-sm cursor-pointer w-full disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {issueButtonLabel}
           </button>

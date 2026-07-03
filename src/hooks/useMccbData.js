@@ -921,8 +921,9 @@ export function useMccbData() {
 
   // --- ⚡ 停電作業依頼発行（自動スライド札割り当てシミュレーション） ---
   const addRequest = useCallback(
-    (newRequest) => {
-      return runSyncTask(async () => {
+    async (newRequest) => {
+      let createdRequest = null;
+      await runSyncTask(async () => {
         const res = await fetch("/api/requests", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -934,6 +935,7 @@ export function useMccbData() {
         }
 
         const result = await res.json();
+        createdRequest = result.request || null;
         if (Array.isArray(result.changedMccbs)) {
           setMccbList((prev) => {
             const changedById = new Map(
@@ -959,6 +961,12 @@ export function useMccbData() {
           lastVersion.current = Number(result.version);
         }
       });
+
+      if (!createdRequest) {
+        throw new Error("停電作業依頼の発行結果を取得できませんでした。");
+      }
+
+      return createdRequest;
     },
     [runSyncTask],
   );
