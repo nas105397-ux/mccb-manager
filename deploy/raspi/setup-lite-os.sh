@@ -24,6 +24,7 @@ if [ "$SKIP_APT" != "1" ]; then
   apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
+    openssl \
     unzip \
     nginx
 

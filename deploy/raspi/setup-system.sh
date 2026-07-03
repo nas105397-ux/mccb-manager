@@ -75,6 +75,47 @@ sudo systemctl enable mccb-manager.service
 sudo systemctl restart mccb-manager.service
 
 if command -v nginx >/dev/null 2>&1; then
+  if [ ! -f /etc/ssl/certs/mccb-manager-selfsigned.crt ] || [ ! -f /etc/ssl/private/mccb-manager-selfsigned.key ]; then
+    if ! command -v openssl >/dev/null 2>&1; then
+      echo "openssl is required to create the HTTPS certificate. Install openssl and rerun setup." >&2
+      exit 1
+    fi
+
+    LOCAL_IP="$(hostname -I | awk '{print $1}')"
+    LOCAL_HOSTNAME="$(hostname)"
+    OPENSSL_CONFIG="$(mktemp)"
+    cat > "$OPENSSL_CONFIG" <<SSL_CONFIG
+[req]
+default_bits = 2048
+prompt = no
+default_md = sha256
+x509_extensions = v3_req
+distinguished_name = dn
+
+[dn]
+CN = $LOCAL_HOSTNAME
+
+[v3_req]
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = $LOCAL_HOSTNAME
+DNS.2 = ${LOCAL_HOSTNAME}.local
+DNS.3 = localhost
+IP.1 = 127.0.0.1
+SSL_CONFIG
+    if [ -n "$LOCAL_IP" ]; then
+      echo "IP.2 = $LOCAL_IP" >> "$OPENSSL_CONFIG"
+    fi
+
+    sudo openssl req -x509 -nodes -days 825 -newkey rsa:2048 \
+      -keyout /etc/ssl/private/mccb-manager-selfsigned.key \
+      -out /etc/ssl/certs/mccb-manager-selfsigned.crt \
+      -config "$OPENSSL_CONFIG"
+    rm -f "$OPENSSL_CONFIG"
+    sudo chmod 600 /etc/ssl/private/mccb-manager-selfsigned.key
+  fi
+
   sudo cp deploy/nginx/mccb-manager.conf /etc/nginx/sites-available/mccb-manager
   if [ ! -e /etc/nginx/sites-enabled/mccb-manager ]; then
     sudo ln -s /etc/nginx/sites-available/mccb-manager /etc/nginx/sites-enabled/mccb-manager
@@ -85,7 +126,7 @@ if command -v nginx >/dev/null 2>&1; then
   sudo nginx -t
   sudo systemctl reload nginx
 else
-  echo "nginx is not installed. Skipping port 80 reverse proxy; use http://<raspberry-pi-ip>:5000/#/."
+  echo "nginx is not installed. Skipping HTTPS reverse proxy; use http://<raspberry-pi-ip>:5000/#/."
 fi
 
 chmod +x deploy/kiosk/start-kiosk.sh
@@ -143,8 +184,12 @@ cat <<MSG
 Setup completed.
 
 App:
-  http://<raspberry-pi-ip>/#/
+  https://<raspberry-pi-ip>/#/
   http://<raspberry-pi-ip>:5000/#/
-  http://<raspberry-pi-ip>/#/monitor
+  https://<raspberry-pi-ip>/#/monitor
   http://<raspberry-pi-ip>:5000/#/monitor
+
+HTTPS certificate:
+  /etc/ssl/certs/mccb-manager-selfsigned.crt
+  Install this certificate as trusted on client devices before using Star WebUSB over LAN.
 MSG

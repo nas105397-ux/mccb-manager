@@ -1,4 +1,6 @@
 export const REQUEST_PRINT_MODE_STORAGE_KEY = "mccb-manager.requestPrintMode";
+export const STAR_PRINTER_CONNECTION_STORAGE_KEY =
+  "mccb-manager.starPrinterConnection";
 
 export const REQUEST_PRINT_MODES = {
   STAR_RECEIPT: "starReceipt",

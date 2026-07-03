@@ -8,14 +8,17 @@ Raspberry Piで常時表示し、PCやタブレットからも同じ画面を開
 Raspberry Piで動かしている場合:
 
 ```text
-http://<Raspberry PiのIP>/#/
+https://<Raspberry PiのIP>/#/
 ```
 
 例:
 
 ```text
-http://192.168.40.111/#/
+https://192.168.40.111/#/
 ```
+
+スター精密プリンターをWebUSBで接続する端末では、`localhost` または HTTPS で開く必要があります。
+Raspberry Pi の LAN URL で開く場合は、HTTPS 証明書を端末に信頼登録してください。
 
 主な画面:
 
@@ -281,8 +284,17 @@ sudo reboot
 ブラウザで開きます。
 
 ```text
-http://<Raspberry PiのIP>/#/
+https://<Raspberry PiのIP>/#/
 ```
+
+HTTPS は Raspberry Pi 上の nginx で終端します。初回セットアップ時に自己署名証明書が作成されます。
+
+```text
+/etc/ssl/certs/mccb-manager-selfsigned.crt
+/etc/ssl/private/mccb-manager-selfsigned.key
+```
+
+PCやタブレットからスター精密プリンターを接続する場合は、上記の `.crt` をその端末の信頼済み証明書として登録してから `https://<Raspberry PiのIP>/#/` を開きます。証明書が信頼されていない状態では、Chrome/EdgeでWebUSBが使えないことがあります。
 
 Pi本体のkiosk画面を使う場合は、再起動後にChromiumが自動で全画面表示されればOKです。
 

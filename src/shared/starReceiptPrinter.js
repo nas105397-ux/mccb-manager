@@ -5,6 +5,7 @@ import {
   StarPrinterFactory,
   StarXpandCommand,
 } from "star-io10-web";
+import { loadStarPrinterConnection } from "./starPrinterConnection";
 
 const RECEIPT_WIDTH_MM = 72.0;
 const SEPARATOR_WIDTH_MM = 72.0;
@@ -116,8 +117,12 @@ export const createRequestReceiptTemplate = async () => {
 };
 
 export const printRequestReceipt = async (request) => {
+  const storedConnection = loadStarPrinterConnection();
   const connectionSettings = new StarConnectionSettings();
   connectionSettings.interfaceType = InterfaceType.Usb;
+  if (storedConnection?.identifier) {
+    connectionSettings.identifier = storedConnection.identifier;
+  }
 
   const printerFactory = new StarPrinterFactory();
   const printer = printerFactory.createStarPrinter(connectionSettings);

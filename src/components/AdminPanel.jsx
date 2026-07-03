@@ -133,6 +133,9 @@ export default function AdminPanel({
     selectedGroupId,
     setSelectedGroupId,
     currentGroup,
+    starPrinterConnection,
+    starPrinterConnectionStatus,
+    isConnectingStarPrinter,
     csvInputRef,
     handleSubmit,
     handleExportCSV,
@@ -144,6 +147,8 @@ export default function AdminPanel({
     handleCreateGroup,
     handleDeleteGroup,
     handleToggleDeviceInGroup,
+    handleConnectStarPrinter,
+    handleClearStarPrinterConnection,
   } = useAdminPanelController({
     onSaveEntry,
     mccbList,
@@ -565,6 +570,69 @@ export default function AdminPanel({
             <p className="mt-3 text-[11px] font-bold text-gray-400">
               この設定は使用中のブラウザに保存されます。端末ごとに印刷方式を切り替えできます。
             </p>
+          </div>
+
+          <div className="rounded-xl border border-gray-200 p-4 bg-white">
+            <h3 className={UI_STYLES.labelSubsection}>
+              スター精密プリンター接続
+            </h3>
+            <div className="mt-3 space-y-3 text-xs font-bold">
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-gray-600">
+                {starPrinterConnection ? (
+                  <div className="space-y-1">
+                    <div>
+                      接続先:{" "}
+                      <span className="text-gray-900">
+                        {starPrinterConnection.model || "モデル未取得"}
+                      </span>
+                    </div>
+                    <div className="break-all text-[11px] text-gray-500">
+                      identifier: {starPrinterConnection.identifier}
+                    </div>
+                    {starPrinterConnection.connectedAt && (
+                      <div className="text-[11px] text-gray-400">
+                        保存日時:{" "}
+                        {new Date(starPrinterConnection.connectedAt).toLocaleString(
+                          "ja-JP",
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-gray-400">
+                    保存済みのプリンター接続情報はありません。
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleConnectStarPrinter}
+                  disabled={isConnectingStarPrinter}
+                  className={`${UI_STYLES.btnCsvAction} disabled:opacity-60 disabled:cursor-wait`}
+                >
+                  {isConnectingStarPrinter
+                    ? "🔌 接続中..."
+                    : "🔌 プリンター接続"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClearStarPrinterConnection}
+                  disabled={!starPrinterConnection || isConnectingStarPrinter}
+                  className={`${UI_STYLES.btnClearAction} disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  接続情報クリア
+                </button>
+              </div>
+              {starPrinterConnectionStatus && (
+                <p className="text-[11px] text-gray-500">
+                  {starPrinterConnectionStatus}
+                </p>
+              )}
+              <p className="text-[11px] font-bold text-gray-400">
+                WebUSB対応ブラウザでUSBプリンターを選択すると、この端末に接続情報を保存します。
+              </p>
+            </div>
           </div>
 
           <div className="rounded-xl border border-gray-200 p-4 bg-white">

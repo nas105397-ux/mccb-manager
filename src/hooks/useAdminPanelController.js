@@ -1,4 +1,9 @@
 import { useMemo, useRef, useState } from 'react';
+import {
+  clearStarPrinterConnection,
+  discoverStarPrinterConnection,
+  loadStarPrinterConnection,
+} from '../shared/starPrinterConnection';
 
 export function useAdminPanelController({
   onSaveEntry,
@@ -21,6 +26,11 @@ export function useAdminPanelController({
   const [newCategoryInput, setNewCategoryInput] = useState('');
   const [newGroupName, setNewGroupName] = useState('');
   const [selectedGroupId, setSelectedGroupId] = useState(null);
+  const [starPrinterConnection, setStarPrinterConnection] = useState(() =>
+    loadStarPrinterConnection(),
+  );
+  const [starPrinterConnectionStatus, setStarPrinterConnectionStatus] = useState('');
+  const [isConnectingStarPrinter, setIsConnectingStarPrinter] = useState(false);
   const csvInputRef = useRef(null);
 
   const currentGroup = useMemo(() => {
@@ -131,6 +141,29 @@ export function useAdminPanelController({
     updateDeviceGroup(currentGroup.id, { ...currentGroup, mccbIds: updatedIds });
   };
 
+  const handleConnectStarPrinter = async () => {
+    if (isConnectingStarPrinter) return;
+
+    setIsConnectingStarPrinter(true);
+    setStarPrinterConnectionStatus('プリンターを検索しています。ブラウザのUSB接続許可で対象プリンターを選択してください。');
+    try {
+      const connection = await discoverStarPrinterConnection();
+      setStarPrinterConnection(connection);
+      setStarPrinterConnectionStatus('プリンター接続情報を保存しました。');
+    } catch (error) {
+      console.error(error);
+      setStarPrinterConnectionStatus(`接続に失敗しました: ${error?.message || error}`);
+    } finally {
+      setIsConnectingStarPrinter(false);
+    }
+  };
+
+  const handleClearStarPrinterConnection = () => {
+    clearStarPrinterConnection();
+    setStarPrinterConnection(null);
+    setStarPrinterConnectionStatus('保存済みのプリンター接続情報を削除しました。');
+  };
+
   return {
     room,
     setRoom,
@@ -147,6 +180,9 @@ export function useAdminPanelController({
     selectedGroupId,
     setSelectedGroupId,
     currentGroup,
+    starPrinterConnection,
+    starPrinterConnectionStatus,
+    isConnectingStarPrinter,
     csvInputRef,
     handleSubmit,
     handleExportCSV,
@@ -158,5 +194,7 @@ export function useAdminPanelController({
     handleCreateGroup,
     handleDeleteGroup,
     handleToggleDeviceInGroup,
+    handleConnectStarPrinter,
+    handleClearStarPrinterConnection,
   };
 }
