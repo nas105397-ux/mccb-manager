@@ -58,16 +58,16 @@ const OffMccbCard = memo(function OffMccbCard({
   const isReturnedPowerOff = workers.length === 0;
   const cardClass = isReturnedPowerOff
     ? (isDarkMode ? 'bg-sky-950/40 border-sky-500' : 'bg-sky-50/70 border-sky-500')
-    : (isDarkMode ? 'bg-gray-800 border-red-600' : 'bg-red-50/40 border-red-500');
+    : (isDarkMode ? 'bg-red-950/40 border-red-500' : 'bg-red-50/70 border-red-500');
   const titleBorderClass = isReturnedPowerOff
     ? (isDarkMode ? 'border-sky-800' : 'border-sky-200')
-    : (isDarkMode ? 'border-gray-700' : 'border-red-200');
+    : (isDarkMode ? 'border-red-800' : 'border-red-200');
   const sectionTextClass = isReturnedPowerOff
     ? (isDarkMode ? 'text-sky-300' : 'text-sky-700')
-    : (isDarkMode ? 'text-gray-400' : 'text-gray-500');
+    : (isDarkMode ? 'text-red-300' : 'text-red-700');
   const footerClass = isReturnedPowerOff
     ? (isDarkMode ? 'border-sky-800/70 text-sky-300' : 'border-sky-200 text-sky-700')
-    : (isDarkMode ? 'border-gray-700/60 text-gray-500' : 'border-red-200 text-gray-400');
+    : (isDarkMode ? 'border-red-800/70 text-red-300' : 'border-red-200 text-red-700');
   const statusBadgeClass = isReturnedPowerOff
     ? (isDarkMode ? 'bg-sky-950 text-sky-300 border-sky-800' : 'bg-sky-100 text-sky-800 border-sky-300')
     : (isDarkMode ? 'bg-red-950 text-red-500 border-red-900/40' : 'bg-red-100 text-red-700 border-red-200');
@@ -111,7 +111,7 @@ const OffMccbCard = memo(function OffMccbCard({
                   isDarkMode ? 'bg-sky-950/70 border-sky-800 text-sky-300' : 'bg-sky-100 border-sky-300 text-sky-800'
                 }`}
               >
-                ✅ 子札返却済み
+                ✅ 送電可能
               </span>
             ) : (
               workers.map((card) => (
@@ -133,7 +133,7 @@ const OffMccbCard = memo(function OffMccbCard({
             statusBadgeClass
           }`}
         >
-          {isReturnedPowerOff ? '札返却済み' : '操作禁止'}
+          {isReturnedPowerOff ? '送電可能' : '操作禁止'}
         </span>
       </div>
     </div>
