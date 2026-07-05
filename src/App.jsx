@@ -154,6 +154,7 @@ function AppContent() {
                       controller.borrowedCountMap[controller.currentMccb.id] ??
                       0
                     }
+                    requests={controller.requests}
                     onClose={controller.handleCloseModal}
                     onUpdate={controller.updateMccb}
                     onUpdatePower={controller.updateMccbPower}
