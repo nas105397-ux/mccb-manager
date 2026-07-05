@@ -124,6 +124,15 @@ export const createRequestReceiptTemplate = async () => {
           .actionPrintText("${issue_time}\n", new printer.TextParameter().setWidth(24))
           .actionPrintText("依頼No ", new printer.TextParameter().setWidth(8))
           .actionPrintText("${request_no}\n", new printer.TextParameter().setWidth(24))
+          .actionPrintBarcode(
+            new printer.BarcodeParameter(
+              "${request_no}",
+              printer.BarcodeSymbology.Code128,
+            )
+            .setBarDots(2)
+            .setHeight(10)
+            .setPrintHRI(true),
+          )
           .actionPrintRuledLine(new printer.RuledLineParameter(SEPARATOR_WIDTH_MM))
           .styleBold(true)
           .actionPrintText("作業責任者\n")
