@@ -102,7 +102,7 @@ export default function ControlModal({ mccb, requests = [], onClose, onUpdate, o
           {/* 🔖 SECTION 3: 子札マスタの個別管理エリア */}
           <div className="space-y-3">
             <h3 className="font-black text-gray-800 flex items-center gap-1.5 border-b pb-1">
-              🔖 現場用マスター子札 貸出個別管理 <span className="text-xs font-normal text-gray-400">(全5枚)</span>
+              🔖 子札 貸出個別管理 <span className="text-xs font-normal text-gray-400">(全5枚)</span>
             </h3>
             
             <div className="grid grid-cols-1 gap-2">
@@ -218,7 +218,7 @@ function CardRow({ card, temporaryReturnInfo, onBorrow, onBorrowTemporaryReturn,
           </span>
         ) : temporaryReturnInfo ? (
           <span className="font-black text-sky-800">
-            ↩️ 依頼札を一時返却中: <span className="text-sm text-sky-900 bg-sky-100 border border-sky-200 px-2 py-0.5 rounded font-black">{temporaryReturnInfo.workerName}</span>
+            ↩️ 一時返却中: <span className="text-sm text-sky-900 bg-sky-100 border border-sky-200 px-2 py-0.5 rounded font-black">{temporaryReturnInfo.workerName}</span>
             <span className="block text-[10px] text-sky-700 font-bold mt-0.5">{temporaryReturnInfo.workContent}</span>
           </span>
         ) : (
