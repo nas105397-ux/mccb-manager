@@ -154,9 +154,11 @@ function AppContent() {
                       controller.borrowedCountMap[controller.currentMccb.id] ??
                       0
                     }
+                    requests={controller.requests}
                     onClose={controller.handleCloseModal}
                     onUpdate={controller.updateMccb}
                     onUpdatePower={controller.updateMccbPower}
+                    onUpdateRequestTargetCard={controller.updateRequestTargetCard}
                     onDelete={controller.deleteMccb}
                     isAdmin={controller.isAdmin}
                     rooms={controller.rooms}
@@ -189,6 +191,7 @@ function AppContent() {
                 mccbList={controller.mccbList}
                 onDeleteRequest={controller.deleteRequest}
                 onAddTargetsToRequest={controller.addTargetsToRequest}
+                onUpdateRequestTargetCard={controller.updateRequestTargetCard}
                 onChangeHistoryPage={controller.fetchRequestHistoryPage}
                 requestPrintMode={controller.requestPrintMode}
               />
