@@ -59,6 +59,10 @@ const ACTIVE = {
   targetName: "text-gray-800 truncate",
   reserveBadge:
     "bg-amber-100 text-amber-800 border border-amber-200 text-[10px] px-1.5 py-0.5 rounded font-black shadow-sm ml-1",
+  returnedBadge:
+    "bg-sky-100 text-sky-800 border border-sky-200 text-[10px] px-1.5 py-0.5 rounded font-black shadow-sm ml-1",
+  cardActionButton:
+    "rounded border border-gray-200 bg-white px-2 py-1 text-[10px] font-black text-gray-600 shadow-sm hover:bg-gray-50 cursor-pointer whitespace-nowrap",
   noReserveBadge:
     "bg-gray-100 text-gray-400 border border-gray-200 text-[10px] px-1.5 py-0.5 rounded font-bold ml-1",
   doneStatus:
@@ -185,6 +189,7 @@ export default function RequestListPanel({
   mccbList = [],
   onDeleteRequest,
   onAddTargetsToRequest = () => {},
+  onUpdateRequestTargetCard = () => {},
   onChangeHistoryPage = () => {},
   requestPrintMode = REQUEST_PRINT_MODES.STAR_RECEIPT,
 }) {
@@ -268,6 +273,12 @@ export default function RequestListPanel({
     setAddSearchTerm("");
     setSelectedAddIds([]);
     alert("選択した設備を依頼に追加しました。");
+  };
+
+  const handleRequestTargetCardAction = (requestId, target, action) => {
+    const label = action === "return" ? "一時返却" : "再貸出";
+    onUpdateRequestTargetCard(requestId, target.id, action);
+    alert(`${target.name} の子札を${label}しました。`);
   };
 
   return (
@@ -456,8 +467,14 @@ export default function RequestListPanel({
                               </span>
 
                               {reserveInfo?.cardNo ? (
-                                <span className={ACTIVE.reserveBadge}>
-                                  🔖 確保札: {reserveInfo.displayName} No.
+                                <span
+                                  className={
+                                    target.isCardBorrowed
+                                      ? ACTIVE.reserveBadge
+                                      : ACTIVE.returnedBadge
+                                  }
+                                >
+                                  {target.isCardBorrowed ? "🔖 貸出中" : "↩️ 一時返却中"}: {reserveInfo.displayName} No.
                                   {reserveInfo.cardNo}
                                 </span>
                               ) : (
@@ -467,15 +484,32 @@ export default function RequestListPanel({
                               )}
                             </div>
 
-                            {target.isPowerOff ? (
-                              <span className={ACTIVE.doneStatus}>
-                                🔴 停電対応 完了
-                              </span>
-                            ) : (
-                              <span className={ACTIVE.pendingStatus}>
-                                🟢 送電中 (未対応)
-                              </span>
-                            )}
+                            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                              {reserveInfo?.cardNo && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleRequestTargetCardAction(
+                                      req.id,
+                                      target,
+                                      target.isCardBorrowed ? "return" : "borrow",
+                                    )
+                                  }
+                                  className={ACTIVE.cardActionButton}
+                                >
+                                  {target.isCardBorrowed ? "一時返却" : "再貸出"}
+                                </button>
+                              )}
+                              {target.isPowerOff ? (
+                                <span className={ACTIVE.doneStatus}>
+                                  🔴 停電対応 完了
+                                </span>
+                              ) : (
+                                <span className={ACTIVE.pendingStatus}>
+                                  🟢 送電中 (未対応)
+                                </span>
+                              )}
+                            </div>
                           </div>
                         );
                       })}

@@ -1213,6 +1213,97 @@ app.patch('/api/requests/:id/targets', (req, res) => {
   }
 });
 
+/** 発行中依頼の対象設備ごとの子札を一時返却・再貸出 */
+app.patch('/api/requests/:id/targets/:targetId/card', (req, res) => {
+  try {
+    const action = req.body?.action;
+    if (!["return", "borrow"].includes(action)) {
+      return res.status(400).json({ error: '子札操作が不正です。' });
+    }
+
+    const currentRequests = store.readCollection('requests') || [];
+    const targetRequest = currentRequests.find((request) => request.id === req.params.id);
+    if (!targetRequest) {
+      return res.status(404).json({ error: '対象の依頼が見つかりません。' });
+    }
+
+    const reserveInfo = targetRequest.reservedCards?.[req.params.targetId];
+    if (!reserveInfo?.actualMccbId || !reserveInfo?.cardNo) {
+      return res.status(400).json({ error: '操作できる確保札がありません。' });
+    }
+
+    const beforeMccbList = store.readMccbsByIds([reserveInfo.actualMccbId]);
+    let currentMccbList = cloneMccbListForMutation(beforeMccbList);
+    let operated = false;
+    let blockedByOtherWorker = false;
+
+    currentMccbList = currentMccbList.map((mccb) => {
+      if (mccb.id !== reserveInfo.actualMccbId || !Array.isArray(mccb.childCards)) {
+        return mccb;
+      }
+
+      const cardIdx = mccb.childCards.findIndex((card) => card.id === reserveInfo.cardNo);
+      if (cardIdx === -1) return mccb;
+
+      const card = mccb.childCards[cardIdx];
+      const updatedCards = [...mccb.childCards];
+      if (action === "return") {
+        if (!card.isBorrowed) return mccb;
+        if (card.workerName && card.workerName !== targetRequest.workerName) {
+          blockedByOtherWorker = true;
+          return mccb;
+        }
+        updatedCards[cardIdx] = { ...card, isBorrowed: false, workerName: "" };
+      } else {
+        if (card.isBorrowed) {
+          if (card.workerName !== targetRequest.workerName) blockedByOtherWorker = true;
+          return mccb;
+        }
+        updatedCards[cardIdx] = {
+          ...card,
+          isBorrowed: true,
+          workerName: targetRequest.workerName || "",
+        };
+      }
+      operated = true;
+      return { ...mccb, childCards: updatedCards };
+    });
+
+    if (blockedByOtherWorker) {
+      return res.status(409).json({ error: '別作業者が使用中の子札は操作できません。' });
+    }
+
+    const logsBefore = store.readCollection('logs');
+    const logSettings = store.readCollection('logSettings');
+    const changedMccbs = preservePowerStateForRequestChanges(
+      beforeMccbList,
+      getChangedMccbs(beforeMccbList, currentMccbList),
+    );
+    const logs = operated
+      ? createUpdatedLogs(
+          LOG_TYPES.CARD_LOAN,
+          `👷 ${targetRequest.workerName || "作業者"}氏の停電依頼で ${reserveInfo.displayName} No.${reserveInfo.cardNo} を${action === "return" ? "一時返却" : "再貸出"}しました。`,
+          logsBefore,
+          logSettings?.maxSize || DEFAULT_MAX_SIZE,
+        )
+      : logsBefore;
+
+    store.writeMccbs(changedMccbs);
+    if (operated) store.writeCollection('logs', logs);
+
+    res.json({
+      status: 'success',
+      requests: currentRequests,
+      logs,
+      changedMccbs,
+      version: store.getVersion(),
+    });
+  } catch (error) {
+    console.error("停電作業依頼の子札操作失敗:", error);
+    res.status(500).json({ error: '停電作業依頼の子札操作に失敗しました' });
+  }
+});
+
 /** 停電作業依頼の完了・解約と子札返却 */
 app.delete('/api/requests/:id', (req, res) => {
   try {

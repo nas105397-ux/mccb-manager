@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useControlModalController } from '../hooks/useControlModalController';
 
 // ==========================================
 // 1. メインコンポーネント (ControlModal)
 // ==========================================
-export default function ControlModal({ mccb, onClose, onUpdate, onUpdatePower, onDelete, isAdmin, rooms, categories }) {
+export default function ControlModal({ mccb, requests = [], onClose, onUpdate, onUpdatePower, onDelete, isAdmin, rooms, categories }) {
   const {
     isPowerOff,
     room,
@@ -19,6 +19,24 @@ export default function ControlModal({ mccb, onClose, onUpdate, onUpdatePower, o
     handleBorrowCard,
     handleSaveMaster,
   } = useControlModalController({ mccb, onUpdate, onUpdatePower });
+
+  const temporarilyReturnedCardMap = useMemo(() => {
+    const cardMap = new Map();
+    requests.forEach((request) => {
+      Object.entries(request.reservedCards || {}).forEach(([targetId, reserveInfo]) => {
+        if (reserveInfo?.actualMccbId !== mccb.id || !reserveInfo?.cardNo) return;
+        const card = mccb.childCards.find((childCard) => childCard.id === reserveInfo.cardNo);
+        if (!card || card.isBorrowed) return;
+        cardMap.set(reserveInfo.cardNo, {
+          requestId: request.id,
+          workerName: request.workerName || "未入力",
+          workContent: request.workContent || "作業内容未入力",
+          targetId,
+        });
+      });
+    });
+    return cardMap;
+  }, [mccb.childCards, mccb.id, requests]);
 
   // --- 画面レンダリング ---
   return (
@@ -90,8 +108,9 @@ export default function ControlModal({ mccb, onClose, onUpdate, onUpdatePower, o
             <div className="grid grid-cols-1 gap-2">
               {mccb.childCards.map((card) => (
                 <CardRow 
-                  key={`${card.id}-${card.isBorrowed ? 'borrowed' : 'free'}`}
-                  card={card} 
+                  key={`${card.id}-${card.isBorrowed ? 'borrowed' : 'free'}-${temporarilyReturnedCardMap.has(card.id) ? 'temp-returned' : 'normal'}`}
+                  card={card}
+                  temporaryReturnInfo={temporarilyReturnedCardMap.get(card.id)}
                   onBorrow={(name) => handleBorrowCard(card.id, name)} 
                   onReturn={() => handleReturnCard(card.id)} 
                 />
@@ -164,22 +183,35 @@ export default function ControlModal({ mccb, onClose, onUpdate, onUpdatePower, o
 // ==========================================
 // 3. サブコンポーネント (CardRow)
 // ==========================================
-function CardRow({ card, onBorrow, onReturn }) {
+function CardRow({ card, temporaryReturnInfo, onBorrow, onReturn }) {
   const [inputName, setInputName] = useState('');
 
   return (
     <div className={`p-3 rounded-xl border flex flex-wrap items-center justify-between gap-2 text-xs ${
-      card.isBorrowed ? 'bg-amber-50/40 border-amber-200' : 'bg-gray-50/50 border-gray-200'
+      card.isBorrowed
+        ? 'bg-amber-50/40 border-amber-200'
+        : temporaryReturnInfo
+          ? 'bg-sky-50/70 border-sky-200'
+          : 'bg-gray-50/50 border-gray-200'
     }`}>
       <div className="flex items-center gap-2">
         <span className={`font-mono px-1.5 py-0.5 rounded text-[10px] font-black ${
-          card.isBorrowed ? 'bg-amber-600 text-white' : 'bg-gray-200 text-gray-500'
+          card.isBorrowed
+            ? 'bg-amber-600 text-white'
+            : temporaryReturnInfo
+              ? 'bg-sky-600 text-white'
+              : 'bg-gray-200 text-gray-500'
         }`}>
           No.{card.id}
         </span>
         {card.isBorrowed ? (
           <span className="font-black text-gray-800">
             👷 使用者: <span className="text-sm text-blue-800 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded font-black">{card.workerName}</span>
+          </span>
+        ) : temporaryReturnInfo ? (
+          <span className="font-black text-sky-800">
+            ↩️ 依頼札を一時返却中: <span className="text-sm text-sky-900 bg-sky-100 border border-sky-200 px-2 py-0.5 rounded font-black">{temporaryReturnInfo.workerName}</span>
+            <span className="block text-[10px] text-sky-700 font-bold mt-0.5">{temporaryReturnInfo.workContent}</span>
           </span>
         ) : (
           <span className="text-gray-400 font-medium">保管中（フリー空き札）</span>
