@@ -36,6 +36,10 @@ export function useRequestListController({ requests = [], requestHistory = [], m
           mccbDisplayName = `${actualMccb.name} (${targetMccb.name})`;
         }
 
+        const reservedCard = reserveInfo?.cardNo
+          ? actualMccb?.childCards?.find((card) => card.id === reserveInfo.cardNo)
+          : null;
+
         return {
           id: targetId,
           room: targetMccb.room,
@@ -43,6 +47,8 @@ export function useRequestListController({ requests = [], requestHistory = [], m
           isPowerOff: targetMccb.isPowerOff,
           reserveInfo,
           isAllocatedFromDummy,
+          isCardBorrowed: !!reservedCard?.isBorrowed,
+          cardWorkerName: reservedCard?.workerName || "",
         };
       })
       .filter(Boolean);
