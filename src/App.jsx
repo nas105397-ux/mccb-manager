@@ -158,6 +158,7 @@ function AppContent() {
                     onClose={controller.handleCloseModal}
                     onUpdate={controller.updateMccb}
                     onUpdatePower={controller.updateMccbPower}
+                    onUpdateRequestTargetCard={controller.updateRequestTargetCard}
                     onDelete={controller.deleteMccb}
                     isAdmin={controller.isAdmin}
                     rooms={controller.rooms}

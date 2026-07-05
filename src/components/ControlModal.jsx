@@ -4,7 +4,7 @@ import { useControlModalController } from '../hooks/useControlModalController';
 // ==========================================
 // 1. メインコンポーネント (ControlModal)
 // ==========================================
-export default function ControlModal({ mccb, requests = [], onClose, onUpdate, onUpdatePower, onDelete, isAdmin, rooms, categories }) {
+export default function ControlModal({ mccb, requests = [], onClose, onUpdate, onUpdatePower, onUpdateRequestTargetCard = () => {}, onDelete, isAdmin, rooms, categories }) {
   const {
     isPowerOff,
     room,
@@ -111,7 +111,15 @@ export default function ControlModal({ mccb, requests = [], onClose, onUpdate, o
                   key={`${card.id}-${card.isBorrowed ? 'borrowed' : 'free'}-${temporarilyReturnedCardMap.has(card.id) ? 'temp-returned' : 'normal'}`}
                   card={card}
                   temporaryReturnInfo={temporarilyReturnedCardMap.get(card.id)}
-                  onBorrow={(name) => handleBorrowCard(card.id, name)} 
+                  onBorrow={(name) => handleBorrowCard(card.id, name)}
+                  onBorrowTemporaryReturn={(temporaryReturnInfo) => {
+                    onUpdateRequestTargetCard(
+                      temporaryReturnInfo.requestId,
+                      temporaryReturnInfo.targetId,
+                      "borrow",
+                    );
+                    alert(`${temporaryReturnInfo.workerName}氏へ子札 No.${card.id} を再貸出しました。`);
+                  }}
                   onReturn={() => handleReturnCard(card.id)} 
                 />
               ))}
@@ -183,7 +191,7 @@ export default function ControlModal({ mccb, requests = [], onClose, onUpdate, o
 // ==========================================
 // 3. サブコンポーネント (CardRow)
 // ==========================================
-function CardRow({ card, temporaryReturnInfo, onBorrow, onReturn }) {
+function CardRow({ card, temporaryReturnInfo, onBorrow, onBorrowTemporaryReturn, onReturn }) {
   const [inputName, setInputName] = useState('');
 
   return (
@@ -211,6 +219,7 @@ function CardRow({ card, temporaryReturnInfo, onBorrow, onReturn }) {
         ) : temporaryReturnInfo ? (
           <span className="font-black text-sky-800">
             ↩️ 一時返却中: <span className="text-sm text-sky-900 bg-sky-100 border border-sky-200 px-2 py-0.5 rounded font-black">{temporaryReturnInfo.workerName}</span>
+            <span className="block text-[10px] text-sky-700 font-bold mt-0.5">{temporaryReturnInfo.workContent}</span>
           </span>
         ) : (
           <span className="text-gray-400 font-medium">保管中（フリー空き札）</span>
@@ -224,6 +233,13 @@ function CardRow({ card, temporaryReturnInfo, onBorrow, onReturn }) {
             className="bg-white hover:bg-gray-100 text-gray-700 font-bold px-3 py-1 rounded border border-gray-300 cursor-pointer"
           >
             ↩️ 札を返却（フリーに戻す）
+          </button>
+        ) : temporaryReturnInfo ? (
+          <button
+            onClick={() => onBorrowTemporaryReturn(temporaryReturnInfo)}
+            className="bg-sky-600 hover:bg-sky-700 text-white font-black px-3 py-1.5 rounded cursor-pointer shadow-sm"
+          >
+            🔖 再貸出
           </button>
         ) : (
           <div className="flex items-center gap-1">
