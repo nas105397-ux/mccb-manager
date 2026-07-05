@@ -62,7 +62,7 @@ const ACTIVE = {
   returnedBadge:
     "bg-sky-100 text-sky-800 border border-sky-200 text-[10px] px-1.5 py-0.5 rounded font-black shadow-sm ml-1",
   cardActionButton:
-    "rounded border border-gray-200 bg-white px-2 py-1 text-[10px] font-black text-gray-600 shadow-sm hover:bg-gray-50 cursor-pointer whitespace-nowrap",
+    "rounded border border-gray-200 bg-white px-2 py-1 font-black text-gray-600 shadow-sm hover:bg-gray-50 cursor-pointer whitespace-nowrap",
   noReserveBadge:
     "bg-gray-100 text-gray-400 border border-gray-200 text-[10px] px-1.5 py-0.5 rounded font-bold ml-1",
   doneStatus:

@@ -219,7 +219,7 @@ function CardRow({ card, temporaryReturnInfo, onBorrow, onBorrowTemporaryReturn,
         ) : temporaryReturnInfo ? (
           <span className="font-black text-sky-800">
             ↩️ 一時返却中: <span className="text-sm text-sky-900 bg-sky-100 border border-sky-200 px-2 py-0.5 rounded font-black">{temporaryReturnInfo.workerName}</span>
-            <span className="block text-[10px] text-sky-700 font-bold mt-0.5">{temporaryReturnInfo.workContent}</span>
+            <span className="block text-[10px] text-sky-700 font-bold mt-0.5">作業名: {temporaryReturnInfo.workContent}</span>
           </span>
         ) : (
           <span className="text-gray-400 font-medium">保管中（フリー空き札）</span>
