@@ -1019,55 +1019,6 @@ export function useMccbData() {
     [runSyncTask],
   );
 
-
-  const updateRequestTargetCard = useCallback(
-    (requestId, targetId, action) => {
-      runSyncTask(async () => {
-        const res = await fetch(
-          `/api/requests/${encodeURIComponent(requestId)}/targets/${encodeURIComponent(targetId)}/card`,
-          {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action }),
-          },
-        );
-
-        const result = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          throw new Error(
-            result?.error || `停電作業依頼の子札操作に失敗しました (${res.status})`,
-          );
-        }
-
-        if (Array.isArray(result.changedMccbs)) {
-          setMccbList((prev) => {
-            const changedById = new Map(
-              result.changedMccbs.map((mccb) => [mccb.id, mccb]),
-            );
-            return prev.map((mccb) => {
-              const changedMccb = changedById.get(mccb.id);
-              return changedMccb ? mergeChildCardChanges(mccb, changedMccb) : mccb;
-            });
-          });
-        }
-        if (Array.isArray(result.requests)) {
-          setRequests(result.requests);
-        }
-        if (Array.isArray(result.logs)) {
-          const nextLogs = Array.isArray(result.logs) ? result.logs : [];
-          setLogs(nextLogs);
-          const nextPageInfo = createPageInfo(1, LOG_PAGE_SIZE, nextLogs.length);
-          setLogPageInfo(nextPageInfo);
-          setPagedLogs(getPageSlice(nextLogs, nextPageInfo));
-        }
-        if (result.version) {
-          lastVersion.current = Number(result.version);
-        }
-      });
-    },
-    [runSyncTask],
-  );
-
   /** 停電作業依頼の解約・完了処理（使用札の解放） */
   const deleteRequest = useCallback(
     (id) => {
@@ -1162,7 +1113,6 @@ export function useMccbData() {
     fetchRequestHistoryPage,
     addRequest,
     addTargetsToRequest,
-    updateRequestTargetCard,
     deleteRequest,
     clearRequestHistory,
     changeMaxHistorySize,

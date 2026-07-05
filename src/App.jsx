@@ -189,7 +189,6 @@ function AppContent() {
                 mccbList={controller.mccbList}
                 onDeleteRequest={controller.deleteRequest}
                 onAddTargetsToRequest={controller.addTargetsToRequest}
-                onUpdateRequestTargetCard={controller.updateRequestTargetCard}
                 onChangeHistoryPage={controller.fetchRequestHistoryPage}
                 requestPrintMode={controller.requestPrintMode}
               />
