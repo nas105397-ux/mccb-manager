@@ -79,7 +79,7 @@ export const createRequestReceiptFieldData = (request, mccbList = []) => {
   const targets = buildRequestReceiptTargets(request, mccbList);
   return JSON.stringify({
     title: "操作禁止（停電）依頼表",
-    note: "作業終了後、管理室へ返却",
+    note: "作業終了後、電気室へ返却",
     issue_date: formatDate(issueDate),
     issue_time: formatDateTime(request, issueDate),
     request_no: request.id || `REQ-${issueDate.getTime()}`,
@@ -124,33 +124,37 @@ export const createRequestReceiptTemplate = async () => {
           .actionPrintText("${issue_time}\n", new printer.TextParameter().setWidth(24))
           .actionPrintText("依頼No ", new printer.TextParameter().setWidth(8))
           .actionPrintText("${request_no}\n", new printer.TextParameter().setWidth(24))
+          .styleAlignment(printer.Alignment.Center)
           .actionPrintBarcode(
             new printer.BarcodeParameter(
               "${request_no}",
               printer.BarcodeSymbology.Code128,
             )
-            .setBarDots(2)
-            .setHeight(10)
-            .setPrintHRI(true),
+            .setPrintHri(true),
           )
+          .styleAlignment(printer.Alignment.Left)
           .actionPrintRuledLine(new printer.RuledLineParameter(SEPARATOR_WIDTH_MM))
           .styleBold(true)
           .actionPrintText("作業責任者\n")
           .styleBold(false)
+          .styleAlignment(printer.Alignment.Center)
           .add(
             new StarXpandCommand.PrinterBuilder()
               .styleMagnification(new StarXpandCommand.MagnificationParameter(1, 2))
               .actionPrintText("${worker_name}\n"),
           )
+          .styleAlignment(printer.Alignment.Left)
           .actionPrintText("\n")
           .styleBold(true)
           .actionPrintText("作業内容\n")
           .styleBold(false)
+          .styleAlignment(printer.Alignment.Center)
           .add(
             new StarXpandCommand.PrinterBuilder()
               .styleMagnification(new StarXpandCommand.MagnificationParameter(1, 2))
               .actionPrintText("${work_content}\n"),
           )
+          .styleAlignment(printer.Alignment.Left)
           .actionPrintRuledLine(new printer.RuledLineParameter(SEPARATOR_WIDTH_MM))
           .styleBold(true)
           .actionPrintText("停電対象設備 ${target_count} 面\n")

@@ -54,11 +54,11 @@ function CurrentTimeClock({ isDarkMode }) {
   }, []);
 
   return (
-    <div className={`border px-6 py-2 rounded-xl text-right shrink-0 ${
+    <div className={`border px-6 py-2 rounded-xl text-right shrink-0 w-[220px] h-[76px] box-border flex flex-col justify-center ${
       isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
     }`}>
       <span className="text-xs text-gray-500 font-bold block tracking-wider">CURRENT TIME</span>
-      <span className={`font-mono text-3xl font-black tracking-wider ${
+      <span className={`font-mono text-3xl font-black tracking-wider tabular-nums ${
         isDarkMode ? 'text-teal-400' : 'text-blue-600'
       }`}>
         {timeStr}

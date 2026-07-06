@@ -24,9 +24,14 @@ const ACTIVE = {
   card: "border border-gray-200 rounded-lg p-4 bg-gray-50 hover:shadow-sm transition-all",
   header:
     "flex flex-wrap justify-between items-start mb-3 border-b border-gray-200 pb-3 gap-2",
-  timestamp: "text-xs text-gray-400 font-bold",
+  summary: "min-w-0 flex-1",
+  metaRow: "flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-bold",
+  timestamp: "text-gray-400",
+  requestNo: "text-blue-700 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded",
+  workerMeta: "text-gray-500",
   heading:
-    "text-lg font-black text-blue-800 mt-1 flex items-center gap-2 flex-wrap text-left leading-snug",
+    "text-lg font-black text-blue-800 mt-1 flex items-start gap-2 text-left leading-snug min-w-0",
+  headingText: "min-w-0 break-words",
   workerSuffix: "text-xs font-bold text-gray-500",
   content: "text-xs text-gray-500 mt-1 font-bold",
   actionButtonBase:
@@ -70,7 +75,7 @@ const ACTIVE = {
   pendingStatus:
     "bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-black border border-green-200 shadow-sm animate-pulse shrink-0",
   completionStamp:
-    "bg-red-600 text-white text-[10px] px-2 py-0.5 rounded-full font-black tracking-wider shadow-sm shrink-0 animate-pulse",
+    "bg-red-600 text-white px-2 py-0.5 text-[11px] rounded-full font-black tracking-wider shadow-sm shrink-0 animate-pulse",
 };
 
 const HISTORY = {
@@ -80,9 +85,13 @@ const HISTORY = {
   card: "border border-gray-200 rounded-lg p-3.5 bg-white shadow-sm hover:border-gray-300 transition-colors",
   header:
     "flex flex-wrap justify-between items-start border-b border-gray-100 pb-2 mb-2 gap-2",
+  summary: "min-w-0 flex-1",
   stampRow:
     "flex flex-wrap items-center gap-x-2 text-[10px] text-gray-400 font-bold",
   issueStamp: "bg-gray-100 px-1.5 py-0.5 rounded border",
+  requestNoStamp:
+    "text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100",
+  workerStamp: "text-gray-500",
   doneStamp:
     "text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-100",
   heading: "text-base font-black text-gray-700 mt-1.5 text-left leading-snug",
@@ -337,21 +346,29 @@ export default function RequestListPanel({
                 <div key={req.id} className={ACTIVE.card}>
                 {/* 依頼の基本情報ヘッダー */}
                 <div className={ACTIVE.header}>
-                  <div>
-                    <span className={ACTIVE.timestamp}>
-                      {req.timestamp} 発行
-                    </span>
+                  <div className={ACTIVE.summary}>
+                    <div className={ACTIVE.metaRow}>
+                      <span className={ACTIVE.timestamp}>
+                        {req.timestamp} 発行
+                      </span>
+                      <span className={ACTIVE.requestNo}>
+                        依頼番号: {req.id}
+                      </span>
+                      <span className={ACTIVE.workerMeta}>
+                        作業者: {req.workerName || "未入力"}
+                      </span>
+                    </div>
                     <h3 className={ACTIVE.heading}>
-                      📌 {req.workContent || "作業内容未入力"}
+                      <span aria-hidden="true">📌</span>
+                      <span className={ACTIVE.headingText}>
+                        {req.workContent || "作業内容未入力"}
+                      </span>
                       {req.isAllPowerOff && (
                         <span className={ACTIVE.completionStamp}>
                           🔴 停電完了
                         </span>
                       )}
                     </h3>
-                    <p className={ACTIVE.content}>
-                      作業者: {req.workerName || "未入力"}
-                    </p>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
@@ -547,10 +564,16 @@ export default function RequestListPanel({
                 <div key={req.id} className={HISTORY.card}>
                   {/* 過去ログヘッダースタンプ */}
                   <div className={HISTORY.header}>
-                    <div>
+                    <div className={HISTORY.summary}>
                       <div className={HISTORY.stampRow}>
                         <span className={HISTORY.issueStamp}>
                           🛫 発行: {req.timestamp}
+                        </span>
+                        <span className={HISTORY.requestNoStamp}>
+                          依頼番号: {req.id}
+                        </span>
+                        <span className={HISTORY.workerStamp}>
+                          作業者: {req.workerName || "未入力"}
                         </span>
                         <span className={HISTORY.doneStamp}>
                           🛬 完了: {req.completedTimestamp}
@@ -559,9 +582,6 @@ export default function RequestListPanel({
                       <h4 className={HISTORY.heading}>
                         📌 {req.workContent || "作業内容未入力"}
                       </h4>
-                      <p className={HISTORY.content}>
-                        作業者: {req.workerName || "未入力"}
-                      </p>
                     </div>
                     <span className={HISTORY.status}>✓ 対応済</span>
                   </div>

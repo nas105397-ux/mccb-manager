@@ -200,7 +200,7 @@ export function useAppController() {
 
   const navItems = useMemo(() => {
     const items = [
-      { path: "/", label: "🔖 札管理ダッシュボード" },
+      { path: "/", label: "🔖 禁止札操作画面" },
       { path: "/request", label: "🖨️ 停電作業 依頼発行・印刷" },
       {
         path: "/request-list",
