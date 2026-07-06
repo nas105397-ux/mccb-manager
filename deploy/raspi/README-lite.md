@@ -1,6 +1,6 @@
 # Raspberry Pi OS Lite kiosk setup
 
-Raspberry Pi OS LiteでMCCB Managerを動かすための手順です。
+MCCB Manager は Raspberry Pi OS Lite 64-bit 固定で運用します。Raspberry Pi OS with Desktop（通常OS）は使用しません。
 
 Liteではデスクトップ環境を入れず、最小のX + Openbox + Chromiumだけでkiosk表示します。Piをサーバー専用にして別端末から見る場合は、kiosk関連は不要です。
 
@@ -10,6 +10,7 @@ Liteではデスクトップ環境を入れず、最小のX + Openbox + Chromium
 Raspberry Pi OS Lite 64-bit
 Node.js 24+
 nginx
+openssl
 unzip or python3
 MCCB Manager systemd service
 
@@ -60,7 +61,7 @@ kiosk表示あり:
 
 ```bash
 sudo apt update
-sudo apt install -y --no-install-recommends ca-certificates curl unzip nginx xserver-xorg xserver-xorg-legacy xinit openbox x11-xserver-utils dbus-x11 chromium fontconfig fonts-noto-cjk fonts-noto-cjk-extra fonts-noto-color-emoji
+sudo apt install -y --no-install-recommends ca-certificates curl openssl unzip nginx xserver-xorg xserver-xorg-legacy xinit openbox x11-xserver-utils dbus-x11 chromium fontconfig fonts-noto-cjk fonts-noto-cjk-extra fonts-noto-color-emoji
 ```
 
 日本語入力も使う場合:
@@ -73,7 +74,7 @@ Pi本体に画面を出さず、別PCやタブレットから見るだけの場�
 
 ```bash
 sudo apt update
-sudo apt install -y --no-install-recommends ca-certificates curl unzip nginx
+sudo apt install -y --no-install-recommends ca-certificates curl openssl unzip nginx
 ```
 
 `unzip` を入れない場合でも、`python3` があればデプロイZIPは展開できます。
@@ -148,7 +149,7 @@ sudo reboot
 
 ```text
 mccb-manager.service  アプリサーバー
-nginx                 80番公開
+nginx                 443番HTTPS公開 + 80番リダイレクト
 mccb-xsession.service 最小X/Openbox
 mccb-kiosk.service    Chromium kiosk
 ```
@@ -296,8 +297,8 @@ pkill chromium
 nginxあり:
 
 ```text
-http://<Raspberry Pi IP>/#/
-http://<Raspberry Pi IP>/#/monitor
+https://<Raspberry Pi IP>/#/
+https://<Raspberry Pi IP>/#/monitor
 ```
 
 nginxなし:
@@ -310,5 +311,6 @@ http://<Raspberry Pi IP>:5000/#/monitor
 ## 注意
 
 - `data/` は運用DBです。再デプロイ時に上書きしないでください。
+- Raspberry Pi OS with Desktop（通常OS）は対象外です。誤って通常OSで実行した場合、セットアップスクリプトは停止します。
 - LiteではDesktop版の設定画面がありません。画面回転、解像度、ネットワーク固定IPなどはCLIで設定します。
 - Pi本体表示が不要なら、kioskを入れずサーバー専用にした方が最も軽くなります。
