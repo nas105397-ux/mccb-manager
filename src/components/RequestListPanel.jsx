@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRequestListController } from "../hooks/useRequestListController";
+import { useRequestListPrintController } from "../hooks/useRequestListPrintController";
 import { REQUEST_PRINT_MODES } from "../shared/printSettings";
+import PrintableRequestForm from "./PrintableRequestForm";
 
 const UI = {
   panel:
@@ -110,87 +112,6 @@ const HISTORY = {
     "bg-white text-gray-400 border border-gray-200 text-[9px] px-1 rounded font-normal",
 };
 
-const getIssueDate = (req) => {
-  const timestampValue = Number(String(req.id || "").replace("REQ-", ""));
-  if (Number.isFinite(timestampValue) && timestampValue > 0) {
-    return new Date(timestampValue);
-  }
-  return new Date();
-};
-
-const getDateCode = (date) =>
-  `${date.getFullYear().toString().slice(-2)}${String(date.getMonth() + 1).padStart(2, "0")}${String(date.getDate()).padStart(2, "0")}`;
-
-function PrintableRequestForm({ request }) {
-  if (!request) return null;
-
-  const issueDate = getIssueDate(request);
-  const dateCode = getDateCode(issueDate);
-
-  return (
-    <div className="hidden print:block print:w-[78mm] print:mx-auto text-black bg-white font-mono text-xs">
-      <div className="border-0 p-1 space-y-4">
-        <div className="text-center border-b-2 border-black pb-2 mb-2">
-          <h1 className="text-base font-black tracking-tighter">
-            操作禁止（停電）依頼表
-          </h1>
-          <p className="text-[9px] text-black mt-0.5">
-            ※作業終了後、管理室へ返却
-          </p>
-          <div className="flex justify-between text-[10px] mt-2 border-t border-dashed border-gray-400 pt-1">
-            <span>
-              日付: {issueDate.getFullYear()}/{issueDate.getMonth() + 1}/
-              {issueDate.getDate()}
-            </span>
-            <span>No: REQ-{dateCode}</span>
-          </div>
-        </div>
-
-        <div className="space-y-1 p-2 rounded border border-black">
-          <p className="text-[10px] font-bold text-gray-500">【作業責任者】</p>
-          <p className="text-sm font-black pl-1">
-            {request.workerName || "（未入力）"}
-          </p>
-          <p className="text-[10px] font-bold text-gray-500 mt-1">
-            【作業内容】
-          </p>
-          <p className="text-xs pl-1 leading-tight whitespace-pre-wrap">
-            {request.workContent || "（未入力）"}
-          </p>
-        </div>
-
-        <div className="border-t border-black pt-2">
-          <p className="text-[10px] font-black mb-1">▼ 停電対象設備一覧</p>
-          <div className="space-y-1 border-b border-black pb-2">
-            {request.targets.map((target, index) => {
-              const reserveInfo = target.reserveInfo;
-              const cardLabel = reserveInfo?.cardNo
-                ? target.isAllocatedFromDummy
-                  ? `代替:${reserveInfo.displayName} No.${reserveInfo.cardNo}`
-                  : `子札 No.${reserveInfo.cardNo}`
-                : "札の空きなし";
-
-              return (
-                <div
-                  key={`${target.id}-${index}`}
-                  className="flex justify-between items-start text-[11px] py-0.5 border-b border-dashed border-gray-200 last:border-0"
-                >
-                  <span className="font-bold truncate max-w-[200px]">
-                    {index + 1}. {target.name}
-                  </span>
-                  <span className="font-black shrink-0 text-right px-1 rounded">
-                    {cardLabel}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function RequestListPanel({
   requests = [],
   requestHistory = [],
@@ -203,12 +124,9 @@ export default function RequestListPanel({
   requestPrintMode = REQUEST_PRINT_MODES.STAR_RECEIPT,
 }) {
   const [activeView, setActiveView] = useState("active");
-  const [printRequest, setPrintRequest] = useState(null);
-  const [starPrintRequestId, setStarPrintRequestId] = useState(null);
   const [addPanelRequestId, setAddPanelRequestId] = useState(null);
   const [addSearchTerm, setAddSearchTerm] = useState("");
   const [selectedAddIds, setSelectedAddIds] = useState([]);
-  const isPrintDisabledBySetting = requestPrintMode === REQUEST_PRINT_MODES.NONE;
   const { activeRequestViews, historyRequestViews, toggleExpand } =
     useRequestListController({
       requests,
@@ -216,46 +134,12 @@ export default function RequestListPanel({
       mccbList,
     });
 
-  useEffect(() => {
-    if (!printRequest) return undefined;
-
-    const clearPrintRequest = () => setPrintRequest(null);
-    window.addEventListener("afterprint", clearPrintRequest);
-    const timerId = window.setTimeout(() => {
-      window.print();
-    }, 50);
-
-    return () => {
-      window.clearTimeout(timerId);
-      window.removeEventListener("afterprint", clearPrintRequest);
-    };
-  }, [printRequest]);
-
-  const handlePrintRequest = async (request) => {
-    if (requestPrintMode === REQUEST_PRINT_MODES.NONE) {
-      alert("管理者設定で依頼表の印刷は無効になっています。");
-      return;
-    }
-
-    if (requestPrintMode === REQUEST_PRINT_MODES.BROWSER) {
-      setPrintRequest(request);
-      return;
-    }
-
-    if (starPrintRequestId) return;
-
-    setStarPrintRequestId(request.id);
-    try {
-      const { printRequestReceipt } = await import("../shared/starReceiptPrinter");
-      await printRequestReceipt(request, mccbList);
-      alert("スター精密プリンターへ依頼表を送信しました。");
-    } catch (error) {
-      console.error(error);
-      alert(`レシート印刷に失敗しました。プリンター接続とブラウザのWebUSB許可を確認してください。\n${error?.message || error}`);
-    } finally {
-      setStarPrintRequestId(null);
-    }
-  };
+  const {
+    printRequest,
+    starPrintRequestId,
+    isPrintDisabledBySetting,
+    handlePrintRequest,
+  } = useRequestListPrintController({ requestPrintMode, mccbList });
 
   const openAddPanel = (requestId) => {
     setAddPanelRequestId((currentId) => (currentId === requestId ? null : requestId));
