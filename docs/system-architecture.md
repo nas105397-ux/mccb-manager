@@ -158,6 +158,46 @@ sequenceDiagram
   UI-->>User: 依頼一覧更新・印刷へ
 ```
 
+## 将来システム構成案: メインサーバー経由で OA LAN へ展開
+
+会社 OA LAN から事務所パソコンで操作する将来構成では、現場用 LAN と OA LAN をメインサーバーで分離・中継します。現場では HUB 配下の各電気室に Raspberry Pi を配置し、OA LAN 側では会社ネットワーク上の事務所 PC からメインサーバーへ HTTPS 接続して利用します。
+
+```mermaid
+flowchart LR
+  subgraph Field[現場用 LAN]
+    Hub[現場 HUB]
+    PiA[電気室 A\nRaspberry Pi]
+    PiB[電気室 B\nRaspberry Pi]
+    PiC[電気室 C\nRaspberry Pi]
+  end
+
+  subgraph Main[メインサーバー]
+    ReverseProxy[リバースプロキシ / HTTPS 終端]
+    Auth[認証・アクセス制御]
+    Aggregation[データ集約または各 Pi への中継]
+  end
+
+  subgraph OA[会社 OA LAN]
+    Office[事務所 PC]
+    AdminPc[管理者 PC]
+  end
+
+  Hub --> PiA
+  Hub --> PiB
+  Hub --> PiC
+  Hub <-->|現場側 NIC| Main
+  Main <-->|OA 側 NIC| OA
+  Office -->|HTTPS| ReverseProxy
+  AdminPc -->|HTTPS| ReverseProxy
+  ReverseProxy --> Auth
+  Auth --> Aggregation
+  Aggregation -->|必要に応じて中継| PiA
+  Aggregation -->|必要に応じて中継| PiB
+  Aggregation -->|必要に応じて中継| PiC
+```
+
+この構成では、OA LAN と現場用 LAN を同一セグメントにせず、メインサーバーを境界にして通信経路、認証、証明書、ログ、バックアップ方針を管理します。各電気室の Raspberry Pi を独立稼働させる方式にするか、メインサーバーにデータを集約する方式にするかは、停止時の現場継続運用とデータ一元管理のどちらを優先するかで決定します。
+
 ## デプロイ・運用上のポイント
 
 - 本番運用では Raspberry Pi 上で Node.js/Express を起動し、Nginx から静的ファイルと API を提供します。
