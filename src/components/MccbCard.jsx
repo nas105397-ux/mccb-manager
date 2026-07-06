@@ -92,7 +92,7 @@ function MccbCard({
         {isPowerOff ? (
           <>
             <span className={`${isReturnedPowerOff ? "text-sky-700" : "text-red-600"} flex items-center gap-1 shrink-0`}>
-              {isReturnedPowerOff ? "✅ 札返却済み" : "🔴 操作禁止"}
+              {isReturnedPowerOff ? "✅ 送電可能" : "🔴 操作禁止"}
             </span>
             <span className={`${isReturnedPowerOff ? "text-sky-800 bg-sky-100 border-sky-300" : "text-amber-700 bg-amber-50 border-amber-200"} px-2 py-0.5 rounded border font-mono`}>
               子札: {borrowedCount} 枚
