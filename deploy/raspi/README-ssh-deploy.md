@@ -1,19 +1,21 @@
 # Raspberry Pi オフライン SSH デプロイ
 
-この手順は、Raspberry Pi をインターネットへ接続しない運用を前提にしています。
+この手順は、Raspberry Pi OS Lite 64-bit 固定で、Raspberry Pi をインターネットへ接続しない運用を前提にしています。Raspberry Pi OS with Desktop（通常OS）は使用しません。
 
 PC 側でアプリをビルドし、`dist/`、サーバーファイル、`src/shared/`、`deploy/`、`node_modules` をまとめて SSH で Raspberry Pi へ転送します。Raspberry Pi 側のセットアップでは `apt`、NodeSource、`npm install` は実行しません。
 
-## Raspberry Pi イメージの事前準備
+Lite OS の初期セットアップは `deploy/raspi/README-lite.md` を参照してください。
 
-Raspberry Pi をオフライン運用にする前に、イメージへ以下を入れておいてください。
+## Raspberry Pi OS Lite イメージの事前準備
+
+Raspberry Pi OS Lite 64-bit をオフライン運用にする前に、イメージへ以下を入れておいてください。
 
 - Node.js 24 以上
 - `unzip` または `python3`（配布ZIPの展開に使用）
 - `systemd`
-- `systemd --user`（kiosk表示を使う場合）
-- 80 番ポートで公開する場合は `nginx`
-- kiosk 表示を使う場合は `chromium` または `chromium-browser` と `xset`
+- `systemd --user`（Lite kiosk表示を使う場合）
+- HTTPS（443 番）/ HTTP リダイレクト（80 番）で公開する場合は `nginx` と `openssl`
+- Lite kiosk 表示を使う場合は `xserver-xorg`、`xinit`、`openbox`、`chromium` または `chromium-browser`、`xset`
 - kiosk 表示で日本語を表示する場合は `fontconfig`、`fonts-noto-cjk`、`fonts-noto-cjk-extra`、`fonts-noto-color-emoji`
 
 `nginx` が無くてもアプリは動作します。その場合は 5000 番ポートでアクセスします。
@@ -22,10 +24,10 @@ Raspberry Pi をオフライン運用にする前に、イメージへ以下を�
 
 ```bash
 sudo apt update
-sudo apt install -y --no-install-recommends unzip nginx
+sudo apt install -y --no-install-recommends unzip nginx openssl
 ```
 
-kiosk表示も使う場合:
+Lite kiosk表示も使う場合:
 
 ```bash
 sudo apt install -y --no-install-recommends xserver-xorg xserver-xorg-legacy xinit openbox x11-xserver-utils dbus-x11 chromium fontconfig fonts-noto-cjk fonts-noto-cjk-extra fonts-noto-color-emoji
@@ -79,8 +81,9 @@ SSH ポートが 22 以外の場合:
 4. Raspberry Pi の `/tmp/mccb-manager-deploy.zip` へ転送します。
 5. 既定では Raspberry Pi の `$HOME/mccb-manager` へ展開します。
 6. `mccb-manager.service` を systemd のシステムサービスとして登録します。
-7. `nginx` が入っている場合だけ、80 番ポート公開の設定を行います。
-8. Chromium と `xset` が入っている場合だけ、kiosk サービスを登録します。
+7. Raspberry Pi OS with Desktop（通常OS）が検出された場合は停止します。Lite 64-bit を使用してください。
+8. `nginx` が入っている場合だけ、自己署名証明書を作成し、443 番 HTTPS 公開と 80 番からのリダイレクトを設定します。
+9. Chromium と `xset` が入っている場合だけ、Lite kiosk サービスを登録します。
 
 PC 側の `data/` ディレクトリはアップロードしません。Raspberry Pi 側にある `data/mccb_data.sqlite` と `data/backups/` は保持されます。
 
@@ -103,8 +106,8 @@ README.md
 `nginx` がある場合:
 
 ```text
-http://<Raspberry Pi IP>/#/
-http://<Raspberry Pi IP>/#/monitor
+https://<Raspberry Pi IP>/#/
+https://<Raspberry Pi IP>/#/monitor
 ```
 
 `nginx` が無い場合:
