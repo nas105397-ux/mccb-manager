@@ -182,14 +182,17 @@ cleanup_stage_dir() {
 trap cleanup_stage_dir EXIT
 
 case "$APP_DIR" in
-  "~")
+  '~')
     APP_DIR="$HOME"
     ;;
-  "~/"*)
-    APP_DIR="$HOME/${APP_DIR#~/}"
+  '~/'*)
+    APP_DIR="$HOME/${APP_DIR#\~/}"
     ;;
-  '$HOME'*)
-    APP_DIR="$HOME/${APP_DIR#'$HOME'/}"
+  \$HOME)
+    APP_DIR="$HOME"
+    ;;
+  \$HOME/*)
+    APP_DIR="$HOME/${APP_DIR#\$HOME/}"
     ;;
 esac
 
@@ -225,8 +228,13 @@ fi
 echo
 echo "Deployment finished."
 echo "Application URL:"
-hostname -I | awk '{print "  https://"$1"/#/"}'
-hostname -I | awk '{print "  https://"$1"/#/monitor"}'
+if command -v nginx >/dev/null 2>&1; then
+  hostname -I | awk '{print "  https://"$1"/#/"}'
+  hostname -I | awk '{print "  https://"$1"/#/monitor"}'
+else
+  hostname -I | awk '{print "  http://"$1":5000/#/"}'
+  hostname -I | awk '{print "  http://"$1":5000/#/monitor"}'
+fi
 echo
 echo "Service status:"
 for i in $(seq 1 12); do
