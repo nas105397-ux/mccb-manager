@@ -49,6 +49,7 @@ const buildRequestTargetView = (targetId, req, mccbMap) => {
 
 export function useRequestListController({
   requests = [],
+  draftRequests = [],
   requestHistory = [],
   mccbList = [],
 }) {
@@ -95,8 +96,17 @@ export function useRequestListController({
     }));
   }, [requestHistory, expandedRequests, buildTargets]);
 
+  const draftRequestViews = useMemo(() => {
+    return draftRequests.map((req) => ({
+      ...req,
+      targets: buildTargets(req),
+      isExpanded: !!expandedRequests[req.id],
+    }));
+  }, [draftRequests, expandedRequests, buildTargets]);
+
   return {
     activeRequestViews,
+    draftRequestViews,
     historyRequestViews,
     toggleExpand,
   };

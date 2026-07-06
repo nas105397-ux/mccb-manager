@@ -66,6 +66,7 @@ const parseServerData = (data) => {
     logs: Array.isArray(source.logs) ? source.logs : [],
     logSettings: source.logSettings || { maxSize: DEFAULT_MAX_SIZE },
     requests: source.requests || [],
+    draftRequests: source.draftRequests || [],
     deviceGroups: source.deviceGroups || [],
     requestHistory: source.requestHistory || [],
     historySettings: source.historySettings || { maxSize: DEFAULT_MAX_SIZE },
@@ -90,6 +91,7 @@ export function useMccbData() {
   );
   const [logSettings, setLogSettings] = useState({ maxSize: DEFAULT_MAX_SIZE });
   const [requests, setRequests] = useState([]);
+  const [draftRequests, setDraftRequests] = useState([]);
   const [deviceGroups, setDeviceGroups] = useState([]);
   const [requestHistory, setRequestHistory] = useState([]);
   const [pagedRequestHistory, setPagedRequestHistory] = useState([]);
@@ -194,6 +196,7 @@ export function useMccbData() {
       }
       setLogSettings(parsed.logSettings);
       setRequests(parsed.requests);
+      setDraftRequests(parsed.draftRequests);
       setDeviceGroups(parsed.deviceGroups);
       if (!data.core) {
         setRequestHistory(parsed.requestHistory);
@@ -955,6 +958,104 @@ export function useMccbData() {
     [applyChangedMccbs, applyLogs, applyVersion, runSyncTask],
   );
 
+  const addDraftRequest = useCallback(
+    async (newRequest) => {
+      let createdDraft = null;
+      await runSyncTask(async () => {
+        const res = await fetch("/api/draft-requests", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ request: newRequest }),
+        });
+
+        const result = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(
+            result?.error || `停電作業依頼の仮発行に失敗しました (${res.status})`,
+          );
+        }
+
+        createdDraft = result.draftRequest || null;
+        if (Array.isArray(result.draftRequests)) {
+          setDraftRequests(result.draftRequests);
+        }
+        if (Array.isArray(result.logs)) applyLogs(result.logs);
+        applyVersion(result.version);
+      });
+
+      if (!createdDraft) {
+        throw new Error("停電作業依頼の仮発行結果を取得できませんでした。");
+      }
+
+      return createdDraft;
+    },
+    [applyLogs, applyVersion, runSyncTask],
+  );
+
+  const issueDraftRequest = useCallback(
+    async (draftRequestId) => {
+      let createdRequest = null;
+      await runSyncTask(async () => {
+        const res = await fetch(
+          `/api/draft-requests/${encodeURIComponent(draftRequestId)}/issue`,
+          { method: "POST" },
+        );
+
+        const result = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(
+            result?.error || `仮発行依頼の本発行に失敗しました (${res.status})`,
+          );
+        }
+
+        createdRequest = result.request || null;
+        applyChangedMccbs(result.changedMccbs);
+        if (Array.isArray(result.requests)) {
+          setRequests(result.requests);
+        }
+        if (Array.isArray(result.draftRequests)) {
+          setDraftRequests(result.draftRequests);
+        }
+        if (Array.isArray(result.logs)) applyLogs(result.logs);
+        applyVersion(result.version);
+      });
+
+      if (!createdRequest) {
+        throw new Error("仮発行依頼の本発行結果を取得できませんでした。");
+      }
+
+      return createdRequest;
+    },
+    [applyChangedMccbs, applyLogs, applyVersion, runSyncTask],
+  );
+
+  const deleteDraftRequest = useCallback(
+    (draftRequestId) => {
+      setDraftRequests((prev) => prev.filter((req) => req.id !== draftRequestId));
+
+      runSyncTask(async () => {
+        const res = await fetch(
+          `/api/draft-requests/${encodeURIComponent(draftRequestId)}`,
+          { method: "DELETE" },
+        );
+
+        const result = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(
+            result?.error || `仮発行依頼の削除に失敗しました (${res.status})`,
+          );
+        }
+
+        if (Array.isArray(result.draftRequests)) {
+          setDraftRequests(result.draftRequests);
+        }
+        if (Array.isArray(result.logs)) applyLogs(result.logs);
+        applyVersion(result.version);
+      });
+    },
+    [applyLogs, applyVersion, runSyncTask],
+  );
+
   const addTargetsToRequest = useCallback(
     (requestId, targetMccbIds, dummyNames = {}) => {
       runSyncTask(async () => {
@@ -1064,6 +1165,7 @@ export function useMccbData() {
     logPageInfo,
     logSettings,
     requests,
+    draftRequests,
     requestHistory,
     pagedRequestHistory,
     historyPageInfo,
@@ -1090,6 +1192,9 @@ export function useMccbData() {
     fetchLogsPage,
     fetchRequestHistoryPage,
     addRequest,
+    addDraftRequest,
+    issueDraftRequest,
+    deleteDraftRequest,
     addTargetsToRequest,
     updateRequestTargetCard,
     deleteRequest,

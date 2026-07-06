@@ -8,6 +8,7 @@ const COLLECTION_KEYS = [
   'logs',
   'logSettings',
   'requests',
+  'draftRequests',
   'deviceGroups',
   'requestHistory',
   'historySettings',
@@ -19,6 +20,7 @@ const CORE_COLLECTION_KEYS = [
   'categoryColors',
   'logSettings',
   'requests',
+  'draftRequests',
   'deviceGroups',
   'historySettings',
 ];
@@ -53,6 +55,7 @@ const normalizeData = (data, defaults) => {
     logs: source.logs || defaults.logs,
     logSettings: source.logSettings || defaults.logSettings,
     requests: source.requests || defaults.requests,
+    draftRequests: source.draftRequests || defaults.draftRequests,
     deviceGroups: source.deviceGroups || defaults.deviceGroups,
     requestHistory: source.requestHistory || defaults.requestHistory,
     historySettings: source.historySettings || defaults.historySettings,

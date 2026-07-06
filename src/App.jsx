@@ -175,6 +175,7 @@ function AppContent() {
               <RequestFormPanel
                 mccbList={controller.mccbList}
                 onAddRequest={controller.addRequest}
+                onAddDraftRequest={controller.addDraftRequest}
                 requests={controller.requests}
                 deviceGroups={controller.deviceGroups}
                 requestPrintMode={controller.requestPrintMode}
@@ -186,10 +187,13 @@ function AppContent() {
             element={
               <RequestListPanel
                 requests={controller.requests}
+                draftRequests={controller.draftRequests}
                 requestHistory={controller.pagedRequestHistory}
                 historyPageInfo={controller.historyPageInfo}
                 mccbList={controller.mccbList}
                 onDeleteRequest={controller.deleteRequest}
+                onIssueDraftRequest={controller.issueDraftRequest}
+                onDeleteDraftRequest={controller.deleteDraftRequest}
                 onAddTargetsToRequest={controller.addTargetsToRequest}
                 onUpdateRequestTargetCard={controller.updateRequestTargetCard}
                 onChangeHistoryPage={controller.fetchRequestHistoryPage}

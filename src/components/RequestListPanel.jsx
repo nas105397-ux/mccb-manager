@@ -114,10 +114,13 @@ const HISTORY = {
 
 export default function RequestListPanel({
   requests = [],
+  draftRequests = [],
   requestHistory = [],
   historyPageInfo = { page: 1, pageSize: 20, total: 0, totalPages: 1 },
   mccbList = [],
   onDeleteRequest,
+  onIssueDraftRequest = () => {},
+  onDeleteDraftRequest = () => {},
   onAddTargetsToRequest = () => {},
   onUpdateRequestTargetCard = () => {},
   onChangeHistoryPage = () => {},
@@ -127,9 +130,10 @@ export default function RequestListPanel({
   const [addPanelRequestId, setAddPanelRequestId] = useState(null);
   const [addSearchTerm, setAddSearchTerm] = useState("");
   const [selectedAddIds, setSelectedAddIds] = useState([]);
-  const { activeRequestViews, historyRequestViews, toggleExpand } =
+  const { activeRequestViews, draftRequestViews, historyRequestViews, toggleExpand } =
     useRequestListController({
       requests,
+      draftRequests,
       requestHistory,
       mccbList,
     });
@@ -174,6 +178,16 @@ export default function RequestListPanel({
     alert(`${target.name} の子札を${label}しました。`);
   };
 
+  const handleIssueDraft = async (draftId) => {
+    try {
+      await onIssueDraftRequest(draftId);
+      alert("仮発行依頼を発行しました。");
+    } catch (error) {
+      console.error(error);
+      alert(error?.message || "仮発行依頼の発行に失敗しました。");
+    }
+  };
+
   return (
     <>
     <div className={`${UI.panel} print:hidden`}>
@@ -188,6 +202,17 @@ export default function RequestListPanel({
           }`}
         >
           進行中 {activeRequestViews.length} 件
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeView === "draft"}
+          onClick={() => setActiveView("draft")}
+          className={`${UI.tabButton} ${
+            activeView === "draft" ? UI.tabActive : UI.tabIdle
+          }`}
+        >
+          仮発行 {draftRequestViews.length} 件
         </button>
         <button
           type="button"
@@ -417,6 +442,99 @@ export default function RequestListPanel({
                     </div>
                   )}
                 </div>
+                </div>
+              );
+            })}
+          </div>
+        ))}
+
+      {activeView === "draft" &&
+        (draftRequestViews.length === 0 ? (
+          <div className={UI.empty}>
+            現在、仮発行されている停電依頼はありません。
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {draftRequestViews.map((req) => {
+              const isExpanded = req.isExpanded;
+
+              return (
+                <div key={req.id} className={ACTIVE.card}>
+                  <div className={ACTIVE.header}>
+                    <div className={ACTIVE.summary}>
+                      <div className={ACTIVE.metaRow}>
+                        <span className={ACTIVE.timestamp}>
+                          {req.timestamp} 仮発行
+                        </span>
+                        <span className={ACTIVE.requestNo}>
+                          仮発行番号: {req.id}
+                        </span>
+                        <span className={ACTIVE.workerMeta}>
+                          作業者: {req.workerName || "未入力"}
+                        </span>
+                      </div>
+                      <h3 className={ACTIVE.heading}>
+                        <span aria-hidden="true">📌</span>
+                        <span className={ACTIVE.headingText}>
+                          {req.workContent || "作業内容未入力"}
+                        </span>
+                      </h3>
+                      <p className={ACTIVE.content}>
+                        子札は未割当です。発行時点の空き札で計算します。
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleIssueDraft(req.id)}
+                        className={`${ACTIVE.actionButtonBase} ${ACTIVE.printButton}`}
+                      >
+                        発行
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDeleteDraftRequest(req.id)}
+                        className={`${ACTIVE.actionButtonBase} ${ACTIVE.deleteButton}`}
+                      >
+                        削除
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div
+                      onClick={() => toggleExpand(req.id)}
+                      className={ACTIVE.foldRow}
+                      title={isExpanded ? "クリックで非表示" : "クリックで表示"}
+                    >
+                      <span>
+                        {isExpanded ? "▼" : "▶"} 停電予定設備一覧 (
+                        {req.targets.length}面)
+                      </span>
+                      <span className={ACTIVE.foldHint}>
+                        {isExpanded
+                          ? "[ クリックで折りたたむ ]"
+                          : "[ クリックで展開する ]"}
+                      </span>
+                    </div>
+
+                    {isExpanded && (
+                      <div className={ACTIVE.targetGrid}>
+                        {req.targets.map((target) => (
+                          <div key={target.id} className={ACTIVE.targetCard}>
+                            <div className="flex items-center gap-2 truncate">
+                              <span className={ACTIVE.roomTag}>{target.room}</span>
+                              <span className={ACTIVE.targetName}>{target.name}</span>
+                              <span className={ACTIVE.noReserveBadge}>
+                                子札未割当
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })}

@@ -34,6 +34,7 @@ const createRequestPayload = ({
 export function useRequestFormController({
   mccbList,
   onAddRequest,
+  onAddDraftRequest,
   getPrintPreviewStatus,
   onAfterPrint,
   requestPrintMode = REQUEST_PRINT_MODES.STAR_RECEIPT,
@@ -46,6 +47,7 @@ export function useRequestFormController({
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [dummyNames, setDummyNames] = useState({});
   const [isIssuingRequest, setIsIssuingRequest] = useState(false);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
 
   // 検索入力のたびに大量の設備一覧を再フィルタしないよう、短時間だけ遅延させる。
   useEffect(() => {
@@ -189,6 +191,44 @@ export function useRequestFormController({
     workerName,
   ]);
 
+  const handleSaveDraft = useCallback(async () => {
+    if (isSavingDraft || isIssuingRequest) return;
+    if (!workerName.trim()) {
+      alert('作業者名を入力してください。');
+      return;
+    }
+    if (selectedMccbIds.length === 0) {
+      alert('設備が選択されていません。');
+      return;
+    }
+
+    setIsSavingDraft(true);
+    try {
+      await onAddDraftRequest?.(
+        createRequestPayload({
+          workerName,
+          workContent,
+          selectedMccbIds,
+          dummyNames,
+        }),
+      );
+      alert('停電依頼を仮発行し、仮発行一覧へ登録しました。');
+    } catch (error) {
+      console.error(error);
+      alert(error?.message || '停電依頼の仮発行に失敗しました。');
+    } finally {
+      setIsSavingDraft(false);
+    }
+  }, [
+    dummyNames,
+    isIssuingRequest,
+    isSavingDraft,
+    onAddDraftRequest,
+    selectedMccbIds,
+    workContent,
+    workerName,
+  ]);
+
   const filteredMccbList = useMemo(() => {
     const query = debouncedSearchQuery.toLowerCase().trim();
     if (!query) return mccbList;
@@ -210,6 +250,8 @@ export function useRequestFormController({
     handleDummyNameChange,
     handleSelectGroup,
     handlePrint,
+    handleSaveDraft,
     isIssuingRequest,
+    isSavingDraft,
   };
 }

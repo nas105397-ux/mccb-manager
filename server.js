@@ -102,6 +102,7 @@ const DEFAULT_DATA = {
   logs: [{ id: "INIT", timestamp: getTimestamp(), type: LOG_TYPES.SYSTEM, message: "システムログ機能が初期化されました。" }],
   logSettings: { maxSize: DEFAULT_MAX_SIZE },
   requests: [],
+  draftRequests: [],
   deviceGroups: [],
   requestHistory: [],
   historySettings: { maxSize: DEFAULT_MAX_SIZE }
@@ -139,6 +140,14 @@ function createUpdatedLogs(type, message, currentLogs, maxSize) {
     message,
   };
   return [newLog, ...normalizeLogs(currentLogs)].slice(0, maxSize);
+}
+
+function createIssueRequestFromDraft(draftRequest) {
+  return {
+    ...draftRequest,
+    id: `REQ-${Date.now()}`,
+    timestamp: getTimestamp(),
+  };
 }
 
 function createPage(items, page = 1, pageSize = 50) {
@@ -844,6 +853,131 @@ app.post('/api/requests', (req, res) => {
   } catch (error) {
     console.error("停電作業依頼発行失敗:", error);
     res.status(500).json({ error: '停電作業依頼の発行に失敗しました' });
+  }
+});
+
+/** 停電作業依頼の仮発行（子札は確保しない） */
+app.post('/api/draft-requests', (req, res) => {
+  try {
+    const draftRequest = req.body?.request;
+    if (!draftRequest || !Array.isArray(draftRequest.targetMccbIds)) {
+      return res.status(400).json({ error: '仮発行依頼データが不正です。' });
+    }
+
+    const currentDrafts = store.readCollection('draftRequests') || [];
+    const logsBefore = store.readCollection('logs');
+    const logSettings = store.readCollection('logSettings');
+    const finalDraft = {
+      ...draftRequest,
+      id: `DRAFT-${Date.now()}`,
+      timestamp: getTimestamp(),
+      reservedCards: undefined,
+    };
+    const draftRequests = [finalDraft, ...currentDrafts];
+    const logs = createUpdatedLogs(
+      LOG_TYPES.OPERATION,
+      `👷 ${finalDraft.workerName || "作業者"}氏の停電依頼を仮発行しました。`,
+      logsBefore,
+      logSettings?.maxSize || DEFAULT_MAX_SIZE,
+    );
+
+    store.writeCollections({ draftRequests, logs });
+
+    res.json({
+      status: 'success',
+      draftRequest: finalDraft,
+      draftRequests,
+      logs,
+      version: store.getVersion(),
+    });
+  } catch (error) {
+    console.error("停電作業依頼仮発行失敗:", error);
+    res.status(500).json({ error: '停電作業依頼の仮発行に失敗しました' });
+  }
+});
+
+/** 仮発行依頼を本発行し、現在の空き子札で割当する */
+app.post('/api/draft-requests/:id/issue', (req, res) => {
+  try {
+    const currentDrafts = store.readCollection('draftRequests') || [];
+    const draftToIssue = currentDrafts.find((request) => request.id === req.params.id);
+
+    if (!draftToIssue) {
+      return res.status(404).json({ error: '対象の仮発行依頼が見つかりません。' });
+    }
+
+    const newRequest = createIssueRequestFromDraft(draftToIssue);
+    const logsBefore = store.readCollection('logs');
+    const logSettings = store.readCollection('logSettings');
+    const {
+      currentRequests,
+      beforeMccbList,
+      currentMccbList,
+      finalRequest,
+    } = requestAssignmentService.buildRequestAssignment(newRequest);
+
+    const requests = [finalRequest, ...currentRequests];
+    const draftRequests = currentDrafts.filter((request) => request.id !== req.params.id);
+    const logs = createUpdatedLogs(
+      LOG_TYPES.OPERATION,
+      `👷 ${newRequest.workerName || "作業者"}氏の仮発行依頼を本発行し\n子札を貸出予約しました。`,
+      logsBefore,
+      logSettings?.maxSize || DEFAULT_MAX_SIZE,
+    );
+    const changedMccbs = preservePowerStateForRequestChanges(
+      beforeMccbList,
+      getChangedMccbs(beforeMccbList, currentMccbList),
+    );
+
+    store.writeMccbs(changedMccbs);
+    store.writeCollections({ requests, draftRequests, logs });
+
+    res.json({
+      status: 'success',
+      request: finalRequest,
+      requests,
+      draftRequests,
+      logs,
+      changedMccbs,
+      version: store.getVersion(),
+    });
+  } catch (error) {
+    console.error("仮発行依頼の本発行失敗:", error);
+    res.status(500).json({ error: '仮発行依頼の本発行に失敗しました' });
+  }
+});
+
+/** 仮発行依頼の削除 */
+app.delete('/api/draft-requests/:id', (req, res) => {
+  try {
+    const currentDrafts = store.readCollection('draftRequests') || [];
+    const draftToDelete = currentDrafts.find((request) => request.id === req.params.id);
+
+    if (!draftToDelete) {
+      return res.status(404).json({ error: '対象の仮発行依頼が見つかりません。' });
+    }
+
+    const logsBefore = store.readCollection('logs');
+    const logSettings = store.readCollection('logSettings');
+    const draftRequests = currentDrafts.filter((request) => request.id !== req.params.id);
+    const logs = createUpdatedLogs(
+      LOG_TYPES.OPERATION,
+      `👷 ${draftToDelete.workerName || "作業者"}氏の仮発行依頼を削除しました。`,
+      logsBefore,
+      logSettings?.maxSize || DEFAULT_MAX_SIZE,
+    );
+
+    store.writeCollections({ draftRequests, logs });
+
+    res.json({
+      status: 'success',
+      draftRequests,
+      logs,
+      version: store.getVersion(),
+    });
+  } catch (error) {
+    console.error("仮発行依頼削除失敗:", error);
+    res.status(500).json({ error: '仮発行依頼の削除に失敗しました' });
   }
 });
 
