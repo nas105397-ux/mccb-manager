@@ -17,6 +17,14 @@ if ! id "$TARGET_USER" >/dev/null 2>&1; then
   exit 1
 fi
 
+if [ "${ALLOW_DESKTOP_OS:-0}" != "1" ] && \
+  command -v dpkg-query >/dev/null 2>&1 && \
+  dpkg-query -W -f='${Status}' raspberrypi-ui-mods 2>/dev/null | grep -q "install ok installed"; then
+  echo "Raspberry Pi OS with Desktop is not supported. Use Raspberry Pi OS Lite 64-bit for this deployment." >&2
+  echo "If this is an intentionally minimized Lite image with raspberrypi-ui-mods installed, rerun with ALLOW_DESKTOP_OS=1." >&2
+  exit 1
+fi
+
 export DEBIAN_FRONTEND=noninteractive
 
 if [ "$SKIP_APT" != "1" ]; then
