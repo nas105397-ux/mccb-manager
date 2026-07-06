@@ -1,12 +1,35 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { REQUEST_PRINT_MODES } from '../shared/printSettings';
 
+const SEARCH_DEBOUNCE_MS = 200;
+
 const waitForNextPaint = () =>
   new Promise((resolve) => {
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(resolve);
     });
   });
+
+const createPreviewKey = (targetMccbIds, dummyNames) =>
+  JSON.stringify({ targetMccbIds, dummyNames });
+
+const matchesMccbSearch = (mccb, query) =>
+  mccb.name?.toLowerCase().includes(query) ||
+  mccb.room?.toLowerCase().includes(query);
+
+const createRequestPayload = ({
+  workerName,
+  workContent,
+  selectedMccbIds,
+  dummyNames,
+}) => ({
+  id: `REQ-${Date.now()}`,
+  timestamp: new Date().toLocaleString('ja-JP'),
+  workerName,
+  workContent,
+  targetMccbIds: selectedMccbIds,
+  dummyNames,
+});
 
 export function useRequestFormController({
   mccbList,
@@ -15,18 +38,20 @@ export function useRequestFormController({
   onAfterPrint,
   requestPrintMode = REQUEST_PRINT_MODES.STAR_RECEIPT,
 }) {
-  const [workerName, setWorkerName]         = useState('');
-  const [workContent, setWorkContent]       = useState('');
+  // 入力フォーム状態
+  const [workerName, setWorkerName] = useState('');
+  const [workContent, setWorkContent] = useState('');
   const [selectedMccbIds, setSelectedMccbIds] = useState([]);
-  const [searchQuery, setSearchQuery]       = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
-  const [dummyNames, setDummyNames]         = useState({});
+  const [dummyNames, setDummyNames] = useState({});
   const [isIssuingRequest, setIsIssuingRequest] = useState(false);
 
+  // 検索入力のたびに大量の設備一覧を再フィルタしないよう、短時間だけ遅延させる。
   useEffect(() => {
     const timerId = window.setTimeout(() => {
       setDebouncedSearchQuery(searchQuery);
-    }, 200);
+    }, SEARCH_DEBOUNCE_MS);
 
     return () => window.clearTimeout(timerId);
   }, [searchQuery]);
@@ -38,7 +63,7 @@ export function useRequestFormController({
 
   const handleToggleMccb = useCallback((id) => {
     setSelectedMccbIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
     );
   }, []);
 
@@ -59,60 +84,89 @@ export function useRequestFormController({
     });
   }, []);
 
+  const assertBrowserPrintPreviewReady = useCallback(() => {
+    const expectedPreviewKey = createPreviewKey(selectedMccbIds, dummyNames);
+    const previewStatus = getPrintPreviewStatus?.();
+
+    if (
+      previewStatus?.isLoading ||
+      previewStatus?.previewKey !== expectedPreviewKey
+    ) {
+      return 'プレビュー作成中です。現在の停電対象設備一覧が表示されてから印刷してください。';
+    }
+    if (previewStatus?.error) return previewStatus.error;
+    if (!previewStatus?.isReady) {
+      return '印刷できる停電対象設備のプレビューがありません。';
+    }
+    return '';
+  }, [dummyNames, getPrintPreviewStatus, selectedMccbIds]);
+
+  const printByBrowser = useCallback(async () => {
+    alert('停電依頼を発行し、一覧へ登録しました。');
+    await waitForNextPaint();
+    window.print();
+    onAfterPrint?.();
+  }, [onAfterPrint]);
+
+  const printByStarReceipt = useCallback(
+    async (createdRequest) => {
+      if (!createdRequest) {
+        alert(
+          '停電依頼を発行しましたが、印刷用データを取得できませんでした。依頼一覧から再印刷してください。',
+        );
+        return;
+      }
+
+      try {
+        const { printRequestReceipt } = await import(
+          '../shared/starReceiptPrinter'
+        );
+        await printRequestReceipt(createdRequest, mccbList);
+        alert('停電依頼を発行し、スター精密プリンターへ依頼表を送信しました。');
+      } catch (error) {
+        console.error(error);
+        alert(
+          `停電依頼は登録しましたが、レシート印刷に失敗しました。\n依頼一覧から再印刷できます。\n${error?.message || error}`,
+        );
+      }
+    },
+    [mccbList],
+  );
+
   const handlePrint = useCallback(async () => {
     if (isIssuingRequest) return;
-    if (!workerName.trim()) { alert('作業者名を入力してください。'); return; }
-    if (selectedMccbIds.length === 0) { alert('設備が選択されていません。'); return; }
+    if (!workerName.trim()) {
+      alert('作業者名を入力してください。');
+      return;
+    }
+    if (selectedMccbIds.length === 0) {
+      alert('設備が選択されていません。');
+      return;
+    }
 
     if (requestPrintMode === REQUEST_PRINT_MODES.BROWSER) {
-      const expectedPreviewKey = JSON.stringify({
-        targetMccbIds: selectedMccbIds,
-        dummyNames,
-      });
-      const previewStatus = getPrintPreviewStatus?.();
-      if (previewStatus?.isLoading || previewStatus?.previewKey !== expectedPreviewKey) {
-        alert('プレビュー作成中です。現在の停電対象設備一覧が表示されてから印刷してください。');
-        return;
-      }
-      if (previewStatus?.error) {
-        alert(previewStatus.error);
-        return;
-      }
-      if (!previewStatus?.isReady) {
-        alert('印刷できる停電対象設備のプレビューがありません。');
+      const previewError = assertBrowserPrintPreviewReady();
+      if (previewError) {
+        alert(previewError);
         return;
       }
     }
 
     setIsIssuingRequest(true);
     try {
-      const createdRequest = await onAddRequest?.({
-        id: `REQ-${Date.now()}`,
-        timestamp: new Date().toLocaleString('ja-JP'),
-        workerName,
-        workContent,
-        targetMccbIds: selectedMccbIds,
-        dummyNames,
-      });
-      if (requestPrintMode === REQUEST_PRINT_MODES.BROWSER) {
-        alert('停電依頼を発行し、一覧へ登録しました。');
-        await waitForNextPaint();
-        window.print();
-        onAfterPrint?.();
-      } else if (requestPrintMode === REQUEST_PRINT_MODES.STAR_RECEIPT) {
-        if (!createdRequest) {
-          alert('停電依頼を発行しましたが、印刷用データを取得できませんでした。依頼一覧から再印刷してください。');
-          return;
-        }
+      const createdRequest = await onAddRequest?.(
+        createRequestPayload({
+          workerName,
+          workContent,
+          selectedMccbIds,
+          dummyNames,
+        }),
+      );
 
-        try {
-          const { printRequestReceipt } = await import('../shared/starReceiptPrinter');
-          await printRequestReceipt(createdRequest, mccbList);
-          alert('停電依頼を発行し、スター精密プリンターへ依頼表を送信しました。');
-        } catch (error) {
-          console.error(error);
-          alert(`停電依頼は登録しましたが、レシート印刷に失敗しました。\n依頼一覧から再印刷できます。\n${error?.message || error}`);
-        }
+      if (requestPrintMode === REQUEST_PRINT_MODES.BROWSER) {
+        await printByBrowser();
+      } else if (requestPrintMode === REQUEST_PRINT_MODES.STAR_RECEIPT) {
+        await printByStarReceipt(createdRequest);
       } else {
         alert('停電依頼を発行し、一覧へ登録しました。');
       }
@@ -123,26 +177,22 @@ export function useRequestFormController({
       setIsIssuingRequest(false);
     }
   }, [
-    isIssuingRequest,
-    workerName,
-    workContent,
-    selectedMccbIds,
+    assertBrowserPrintPreviewReady,
     dummyNames,
+    isIssuingRequest,
     onAddRequest,
-    getPrintPreviewStatus,
-    onAfterPrint,
+    printByBrowser,
+    printByStarReceipt,
     requestPrintMode,
-    mccbList,
+    selectedMccbIds,
+    workContent,
+    workerName,
   ]);
 
   const filteredMccbList = useMemo(() => {
     const query = debouncedSearchQuery.toLowerCase().trim();
     if (!query) return mccbList;
-    return mccbList.filter(
-      (mccb) =>
-        mccb.name?.toLowerCase().includes(query) ||
-        mccb.room?.toLowerCase().includes(query)
-    );
+    return mccbList.filter((mccb) => matchesMccbSearch(mccb, query));
   }, [mccbList, debouncedSearchQuery]);
 
   return {
