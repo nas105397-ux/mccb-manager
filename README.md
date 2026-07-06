@@ -1,6 +1,11 @@
 # MCCB Manager 取扱説明書・導入手順
 
 操作禁止札、停電依頼、子札貸出を管理するWebアプリです。
+関連ドキュメント:
+
+- [システム構成図](docs/system-architecture.md)
+- [ハードウェア構成図](docs/hardware-architecture.md)
+
 Raspberry Piで常時表示し、PCやタブレットからも同じ画面を開いて使えます。
 
 ## 1. 画面の開き方
