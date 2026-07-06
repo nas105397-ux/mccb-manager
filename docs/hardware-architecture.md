@@ -98,83 +98,97 @@ flowchart LR
 - Express は Raspberry Pi 内部の `127.0.0.1:5000` で動作します。
 - SQLite DB とバックアップは Raspberry Pi のローカルストレージに保存されます。
 
-## 将来構成案: 現場用 LAN と会社 OA LAN の接続
+## 将来構成案: OA LAN 接続 + メイン Raspberry Pi 中継
 
-今後、会社 OA LAN からも事務所パソコンで MCCB Manager を操作できるようにする場合は、現場用 LAN と OA LAN をメインサーバーで中継し、各電気室の Raspberry Pi を現場用 LAN 側の HUB に接続する構成を想定します。
+今後、会社 OA LAN から事務所 PC で操作する構成では、メインの Raspberry Pi を「メインサーバー・DB・kiosk・LAN 間中継点」として配置します。接続の流れは `事務所 PC → OA LAN → メイン Raspberry Pi → 現場 HUB → 他電気室 Raspberry Pi` を想定します。
 
 ```mermaid
 flowchart LR
+  OfficePc[事務所 PC\nブラウザ操作]
+
+  subgraph OaLan[会社 OA LAN]
+    OaNetwork[会社ネットワーク\nOA LAN HUB / スイッチ]
+  end
+
+  subgraph MainPiZone[メイン電気室 / 中央設置]
+    MainPi[メイン Raspberry Pi\nメインサーバー / DB / kiosk]
+    MainDb[(SQLite DB\nメインデータ)]
+    MainDisplay[メイン kiosk ディスプレイ]
+    MainPrinter[USB プリンター\n必要時]
+  end
+
   subgraph FieldLan[現場用 LAN]
-    FieldHub[現場用 HUB / スイッチ]
+    FieldHub[現場 HUB / スイッチ]
 
-    subgraph Room1[第1電気室]
-      Pi1[Raspberry Pi\nMCCB Manager 端末]
-      Display1[表示ディスプレイ]
-      Printer1[USB プリンター\n必要時]
+    subgraph RoomA[他電気室 A]
+      PiA[Raspberry Pi\n表示 / 操作端末]
+      DisplayA[表示ディスプレイ]
     end
 
-    subgraph Room2[第2電気室]
-      Pi2[Raspberry Pi\nMCCB Manager 端末]
-      Display2[表示ディスプレイ]
-      Printer2[USB プリンター\n必要時]
+    subgraph RoomB[他電気室 B]
+      PiB[Raspberry Pi\n表示 / 操作端末]
+      DisplayB[表示ディスプレイ]
     end
 
-    subgraph RoomN[各電気室]
-      PiN[Raspberry Pi\nMCCB Manager 端末]
+    subgraph RoomN[他電気室 N]
+      PiN[Raspberry Pi\n表示 / 操作端末]
       DisplayN[表示ディスプレイ]
     end
   end
 
-  subgraph GatewayZone[LAN 間接続点]
-    MainServer[メインサーバー\n現場用 LAN と OA LAN を中継]
-    Security[FW / ルーティング / 認証\n許可した通信のみ通過]
-  end
-
-  subgraph OaLan[会社 OA LAN]
-    OaSwitch[会社ネットワーク\nHUB / スイッチ]
-    OfficePc1[事務所 PC\nブラウザ操作]
-    OfficePc2[管理者 PC\nブラウザ操作]
-  end
-
-  FieldHub <-->|現場用 LAN| MainServer
-  MainServer --> Security
-  Security <-->|会社 OA LAN| OaSwitch
-
-  FieldHub --> Pi1
-  FieldHub --> Pi2
+  OfficePc -->|HTTPS 操作| OaNetwork
+  OaNetwork -->|OA LAN| MainPi
+  MainPi --> MainDb
+  MainPi -->|HDMI| MainDisplay
+  MainPi -.->|USB| MainPrinter
+  MainPi -->|現場用 LAN| FieldHub
+  FieldHub --> PiA
+  FieldHub --> PiB
   FieldHub --> PiN
-  Pi1 --> Display1
-  Pi2 --> Display2
+  PiA --> DisplayA
+  PiB --> DisplayB
   PiN --> DisplayN
-  Pi1 -.-> Printer1
-  Pi2 -.-> Printer2
+  PiA -->|HTTPS / kiosk 表示| MainPi
+  PiB -->|HTTPS / kiosk 表示| MainPi
+  PiN -->|HTTPS / kiosk 表示| MainPi
+```
 
-  OaSwitch --> OfficePc1
-  OaSwitch --> OfficePc2
-  OfficePc1 -->|HTTPS で操作| MainServer
-  OfficePc2 -->|HTTPS で管理| MainServer
+### 将来構成の接続順
+
+```text
+事務所 PC
+  ↓
+会社 OA LAN
+  ↓
+メイン Raspberry Pi（メインサーバー・DB・kiosk）
+  ↓
+現場 HUB
+  ↓
+他電気室 Raspberry Pi
 ```
 
 ### 将来構成の考え方
 
-- 現場側は、各電気室に Raspberry Pi を配置し、現場用 HUB / スイッチで現場用 LAN に収容します。
-- OA LAN 側は、会社ネットワークに接続された事務所 PC からブラウザで操作します。
-- 現場用 LAN と OA LAN は直接混在させず、メインサーバーを境界として接続します。
-- メインサーバーでは、ルーティング、ファイアウォール、HTTPS 終端、認証、ログ取得などを集約する想定です。
-- OA LAN から現場側へ許可する通信は、MCCB Manager の Web 操作用 HTTPS など必要最小限にします。
-- 各 Raspberry Pi を独立運用する場合は、メインサーバーから各 Pi へリバースプロキシする方式、またはメインサーバーへデータを集約する方式を選定します。
+- メイン Raspberry Pi は、OA LAN 側からの入口、アプリ本体、SQLite DB、kiosk 表示を兼ねます。
+- 事務所 PC は会社 OA LAN に接続し、ブラウザでメイン Raspberry Pi の MCCB Manager に HTTPS 接続して操作します。
+- 現場側は、メイン Raspberry Pi から現場 HUB に接続し、HUB 配下に他電気室の Raspberry Pi を収容します。
+- 他電気室 Raspberry Pi は、メイン Raspberry Pi の画面を kiosk 表示する端末として使う想定です。
+- DB をメイン Raspberry Pi に集約することで、事務所 PC と各電気室端末が同じデータを参照できます。
+- OA LAN と現場用 LAN を接続するため、メイン Raspberry Pi では通信制御、HTTPS、認証、ログ管理を特に重視します。
 
 ### 将来構成で検討が必要な項目
 
 | 項目 | 検討内容 |
 | --- | --- |
-| IP アドレス設計 | 現場用 LAN と OA LAN のセグメント、固定 IP、名前解決方法 |
-| 通信制御 | OA LAN から現場用 LAN へ許可する宛先、ポート、プロトコル |
+| メイン Raspberry Pi の配置 | OA LAN と現場 HUB の両方へ接続できる場所、電源、UPS、保守性 |
+| ネットワーク分離 | OA LAN 側と現場用 LAN 側を同一セグメントにするか、別セグメントにしてルーティングするか |
+| IP アドレス設計 | OA LAN 側 IP、現場用 LAN 側 IP、他電気室 Raspberry Pi の固定 IP |
+| 通信制御 | 事務所 PC からメイン Raspberry Pi への HTTPS、他電気室 Pi からメイン Raspberry Pi への HTTPS |
 | 認証 | 事務所 PC からの操作権限、管理者権限、パスワード運用 |
-| HTTPS 証明書 | OA LAN 端末で警告なく使える証明書配布または社内 CA 利用 |
-| データ集約 | 各電気室 Pi の DB を独立管理するか、メインサーバーに集約するか |
-| 障害時運用 | メインサーバー停止時に現場側 Pi 単体で操作継続できるか |
-| 印刷 | 依頼表を事務所 PC 側で印刷するか、各電気室の USB プリンターで印刷するか |
+| HTTPS 証明書 | OA LAN 端末と他電気室 Pi で警告なく使える証明書配布または社内 CA 利用 |
+| DB / バックアップ | メイン Raspberry Pi の SQLite DB バックアップ、microSD 障害対策、復旧手順 |
+| 障害時運用 | メイン Raspberry Pi 停止時に全端末が操作不可になるため、予備機または復旧手順を用意 |
+| 印刷 | メイン Raspberry Pi 接続プリンターで印刷するか、事務所 PC 側で印刷するか |
 
 ## WebUSB 印刷時の注意
 

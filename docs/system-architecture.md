@@ -158,45 +158,45 @@ sequenceDiagram
   UI-->>User: 依頼一覧更新・印刷へ
 ```
 
-## 将来システム構成案: メインサーバー経由で OA LAN へ展開
+## 将来システム構成案: メイン Raspberry Pi で OA LAN と現場 HUB を接続
 
-会社 OA LAN から事務所パソコンで操作する将来構成では、現場用 LAN と OA LAN をメインサーバーで分離・中継します。現場では HUB 配下の各電気室に Raspberry Pi を配置し、OA LAN 側では会社ネットワーク上の事務所 PC からメインサーバーへ HTTPS 接続して利用します。
+会社 OA LAN から事務所 PC で操作する将来構成では、メイン Raspberry Pi がアプリサーバー、SQLite DB、kiosk、OA LAN と現場用 LAN の接続点を兼ねます。接続順は `事務所 PC → OA LAN → メイン Raspberry Pi → 現場 HUB → 他電気室 Raspberry Pi` です。
 
 ```mermaid
 flowchart LR
-  subgraph Field[現場用 LAN]
-    Hub[現場 HUB]
-    PiA[電気室 A\nRaspberry Pi]
-    PiB[電気室 B\nRaspberry Pi]
-    PiC[電気室 C\nRaspberry Pi]
+  Office[事務所 PC]
+  OALAN[会社 OA LAN]
+
+  subgraph MainPi[メイン Raspberry Pi]
+    ReverseProxy[Nginx / HTTPS]
+    App[Node.js Express API]
+    Db[(SQLite DB)]
+    Kiosk[Chromium kiosk]
   end
 
-  subgraph Main[メインサーバー]
-    ReverseProxy[リバースプロキシ / HTTPS 終端]
-    Auth[認証・アクセス制御]
-    Aggregation[データ集約または各 Pi への中継]
+  FieldHub[現場 HUB]
+
+  subgraph Rooms[他電気室]
+    PiA[電気室 A Raspberry Pi\nkiosk 表示]
+    PiB[電気室 B Raspberry Pi\nkiosk 表示]
+    PiN[電気室 N Raspberry Pi\nkiosk 表示]
   end
 
-  subgraph OA[会社 OA LAN]
-    Office[事務所 PC]
-    AdminPc[管理者 PC]
-  end
-
-  Hub --> PiA
-  Hub --> PiB
-  Hub --> PiC
-  Hub <-->|現場側 NIC| Main
-  Main <-->|OA 側 NIC| OA
-  Office -->|HTTPS| ReverseProxy
-  AdminPc -->|HTTPS| ReverseProxy
-  ReverseProxy --> Auth
-  Auth --> Aggregation
-  Aggregation -->|必要に応じて中継| PiA
-  Aggregation -->|必要に応じて中継| PiB
-  Aggregation -->|必要に応じて中継| PiC
+  Office -->|HTTPS 操作| OALAN
+  OALAN -->|HTTPS| ReverseProxy
+  ReverseProxy --> App
+  App --> Db
+  Kiosk -->|localhost / HTTPS| ReverseProxy
+  MainPi -->|現場用 LAN| FieldHub
+  FieldHub --> PiA
+  FieldHub --> PiB
+  FieldHub --> PiN
+  PiA -->|HTTPS でメイン Pi を表示| ReverseProxy
+  PiB -->|HTTPS でメイン Pi を表示| ReverseProxy
+  PiN -->|HTTPS でメイン Pi を表示| ReverseProxy
 ```
 
-この構成では、OA LAN と現場用 LAN を同一セグメントにせず、メインサーバーを境界にして通信経路、認証、証明書、ログ、バックアップ方針を管理します。各電気室の Raspberry Pi を独立稼働させる方式にするか、メインサーバーにデータを集約する方式にするかは、停止時の現場継続運用とデータ一元管理のどちらを優先するかで決定します。
+この構成では、データベースをメイン Raspberry Pi に集約し、事務所 PC と他電気室 Raspberry Pi は同じメイン Raspberry Pi の Web アプリへ接続します。メイン Raspberry Pi が単一障害点になるため、DB バックアップ、予備 microSD、予備 Raspberry Pi、UPS、復旧手順を事前に用意することが重要です。
 
 ## デプロイ・運用上のポイント
 
