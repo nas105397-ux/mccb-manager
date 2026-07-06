@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRequestListController } from "../hooks/useRequestListController";
+import { useRequestListPrintController } from "../hooks/useRequestListPrintController";
 import { REQUEST_PRINT_MODES } from "../shared/printSettings";
 import PrintableRequestForm from "./PrintableRequestForm";
 
@@ -123,12 +124,9 @@ export default function RequestListPanel({
   requestPrintMode = REQUEST_PRINT_MODES.STAR_RECEIPT,
 }) {
   const [activeView, setActiveView] = useState("active");
-  const [printRequest, setPrintRequest] = useState(null);
-  const [starPrintRequestId, setStarPrintRequestId] = useState(null);
   const [addPanelRequestId, setAddPanelRequestId] = useState(null);
   const [addSearchTerm, setAddSearchTerm] = useState("");
   const [selectedAddIds, setSelectedAddIds] = useState([]);
-  const isPrintDisabledBySetting = requestPrintMode === REQUEST_PRINT_MODES.NONE;
   const { activeRequestViews, historyRequestViews, toggleExpand } =
     useRequestListController({
       requests,
@@ -136,46 +134,12 @@ export default function RequestListPanel({
       mccbList,
     });
 
-  useEffect(() => {
-    if (!printRequest) return undefined;
-
-    const clearPrintRequest = () => setPrintRequest(null);
-    window.addEventListener("afterprint", clearPrintRequest);
-    const timerId = window.setTimeout(() => {
-      window.print();
-    }, 50);
-
-    return () => {
-      window.clearTimeout(timerId);
-      window.removeEventListener("afterprint", clearPrintRequest);
-    };
-  }, [printRequest]);
-
-  const handlePrintRequest = async (request) => {
-    if (requestPrintMode === REQUEST_PRINT_MODES.NONE) {
-      alert("管理者設定で依頼表の印刷は無効になっています。");
-      return;
-    }
-
-    if (requestPrintMode === REQUEST_PRINT_MODES.BROWSER) {
-      setPrintRequest(request);
-      return;
-    }
-
-    if (starPrintRequestId) return;
-
-    setStarPrintRequestId(request.id);
-    try {
-      const { printRequestReceipt } = await import("../shared/starReceiptPrinter");
-      await printRequestReceipt(request, mccbList);
-      alert("スター精密プリンターへ依頼表を送信しました。");
-    } catch (error) {
-      console.error(error);
-      alert(`レシート印刷に失敗しました。プリンター接続とブラウザのWebUSB許可を確認してください。\n${error?.message || error}`);
-    } finally {
-      setStarPrintRequestId(null);
-    }
-  };
+  const {
+    printRequest,
+    starPrintRequestId,
+    isPrintDisabledBySetting,
+    handlePrintRequest,
+  } = useRequestListPrintController({ requestPrintMode, mccbList });
 
   const openAddPanel = (requestId) => {
     setAddPanelRequestId((currentId) => (currentId === requestId ? null : requestId));
