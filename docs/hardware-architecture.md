@@ -1,88 +1,45 @@
 # ハードウェア構成図
 
-MCCB Manager の標準構成は、Raspberry Pi をアプリサーバー兼キオスク端末として使い、LAN 内の PC・タブレットから同じ Web 画面にアクセスする構成です。印刷が必要な端末にはスター精密プリンターを USB 接続し、ブラウザの WebUSB から直接印刷します。
+MCCB Manager の標準構成は、メイン Raspberry Pi 1 台をアプリサーバー兼キオスク端末として使う構成です。メイン Raspberry Pi にディスプレイと必要なプリンターを接続し、同じ本体上で Web アプリの表示と操作を行います。
 
 ## 標準構成
 
 ```mermaid
 flowchart LR
-  subgraph Site[現場 LAN]
-    Router[LAN ルーター / スイッチ]
+  Power[電源\nUSB-C]
+  Network[有線 LAN / Wi-Fi\n任意\n固定 IP 例: 192.168.40.111]
+  MainPi[メイン Raspberry Pi 5\nアプリ / DB / kiosk]
+  MainDisplay[メイン操作ディスプレイ\nHDMI]
+  MonitorDisplay[モニターディスプレイ\nHDMI / 任意]
+  Printer[スター精密プリンター\nUSB / 任意]
 
-    subgraph PiBox[Raspberry Pi 5 推奨]
-      Pi[Raspberry Pi OS Lite 64-bit]
-      Storage[microSD カード\nアプリ / SQLite DB / バックアップ]
-      Node[Node.js 24+\nExpress API]
-      Nginx[Nginx\nHTTPS 443 / HTTP 80]
-      Chromium[Chromium キオスク\n任意]
-    end
-
-    MainDisplay[メイン操作用ディスプレイ\nHDMI]
-    MonitorDisplay[電気室モニター用ディスプレイ\nHDMI / 任意]
-    ClientPc[事務所 PC\nChrome / Edge]
-    Tablet[タブレット\nブラウザ]
-    UsbPrinter[スター精密プリンター\nUSB / WebUSB]
-  end
-
-  Router <-->|有線 LAN または Wi-Fi| Pi
-  Router <-->|HTTPS| ClientPc
-  Router <-->|HTTPS| Tablet
-
-  Pi --> Storage
-  Pi --> Node
-  Pi --> Nginx
-  Pi --> Chromium
-  Pi -->|HDMI| MainDisplay
-  Pi -->|HDMI / 任意| MonitorDisplay
-
-  ClientPc -.->|USB 接続端末で印刷| UsbPrinter
-  Pi -.->|USB 接続時はキオスクから印刷可| UsbPrinter
-  Tablet -.->|USB 非対応端末は通常印刷対象外| UsbPrinter
+  Power --> MainPi
+  Network -.-> MainPi
+  MainPi -->|HDMI| MainDisplay
+  MainPi -->|HDMI| MonitorDisplay
+  MainPi -.->|USB / WebUSB| Printer
 ```
 
-## 接続パターン
-
-```mermaid
-flowchart TB
-  subgraph ServerSide[Raspberry Pi 側]
-    PiPower[電源\n安定した USB-C 電源推奨]
-    PiLan[有線 LAN 推奨\n固定 IP 例: 192.168.40.111]
-    PiHdmi1[HDMI 1\nメイン操作画面]
-    PiHdmi2[HDMI 2\nモニター画面 任意]
-    PiUsb[USB\nプリンター接続 任意]
-  end
-
-  subgraph NetworkSide[LAN 側]
-    Switch[スイッチ / ルーター]
-    Pc[PC]
-    Mobile[タブレット]
-  end
-
-  PiPower --> PiLan
-  PiLan --> Switch
-  Switch --> Pc
-  Switch --> Mobile
-  PiHdmi1 --> MainScreen[操作画面ディスプレイ]
-  PiHdmi2 --> DashboardScreen[電気室モニターディスプレイ]
-  PiUsb --> Printer[スター精密プリンター]
-```
+- 電源は安定した USB-C 電源を使用します。
+- 有線 LAN / Wi-Fi は保守、更新、拡張端末接続が必要な場合に接続します。
+- プリンターは必要な場合だけメイン Raspberry Pi に USB 接続します。
 
 ## 役割別の機器一覧
 
 | 区分 | 機器 | 役割 | 備考 |
 | --- | --- | --- | --- |
-| サーバー | Raspberry Pi 5 推奨 | Web アプリ、API、SQLite DB、バックアップを常時稼働 | Node.js 24 以上を使用 |
+| サーバー / 操作端末 | メイン Raspberry Pi 5 推奨 | Web アプリ、API、SQLite DB、バックアップ、kiosk 表示を 1 台で常時稼働 | Node.js 24 以上を使用 |
 | ストレージ | microSD カード | OS、アプリ、`data/mccb_data.sqlite`、`data/backups/` を保存 | 定期的な DB バックアップ取得を推奨 |
-| ネットワーク | LAN ルーター / スイッチ | Pi、PC、タブレットを同一 LAN に接続 | 運用時は固定 IP が分かりやすい |
+| ネットワーク | 有線 LAN / Wi-Fi | メイン Raspberry Pi の保守、更新、拡張端末接続に使用 | 1 台運用だけなら常時接続は必須ではない |
 | 表示 | HDMI ディスプレイ | Pi 本体のキオスク表示 | メイン操作画面とモニター画面の 2 画面構成も可能 |
-| 操作端末 | PC / タブレット | `https://<Raspberry Pi の IP>/#/` を開いて操作 | WebUSB 印刷は Chrome/Edge かつ HTTPS または localhost が必要 |
-| 印刷 | スター精密プリンター | 停電依頼表などを印刷 | USB 接続した端末のブラウザから WebUSB で印刷 |
+| 操作端末 | メイン Raspberry Pi の Chromium kiosk | `https://localhost/#/` または `https://<Raspberry Pi の IP>/#/` を開いて操作 | 標準構成では Pi 本体で操作 |
+| 印刷 | スター精密プリンター | 停電依頼表などを印刷 | メイン Raspberry Pi に USB 接続し、kiosk から WebUSB で印刷 |
 
 ## 通信とポート
 
 ```mermaid
 flowchart LR
-  Client[PC / タブレット / キオスク Chromium]
+  Client[メイン Raspberry Pi\nキオスク Chromium]
   Nginx[Nginx on Raspberry Pi\n80 -> 443 リダイレクト\n443 HTTPS]
   App[Node.js Express\n127.0.0.1:5000]
   Db[(SQLite DB\nRaspberry Pi ローカル)]
@@ -93,99 +50,63 @@ flowchart LR
   App -->|ローカルファイルアクセス| Db
 ```
 
-- LAN 端末からは `https://<Raspberry Pi の IP>/#/` にアクセスします。
+- 標準構成では、メイン Raspberry Pi の kiosk から `https://localhost/#/` または `https://<Raspberry Pi の IP>/#/` にアクセスします。
 - Nginx は 80 番を 443 番へリダイレクトし、443 番で Express にリバースプロキシします。
 - Express は Raspberry Pi 内部の `127.0.0.1:5000` で動作します。
 - SQLite DB とバックアップは Raspberry Pi のローカルストレージに保存されます。
 
-## 将来構成案: OA LAN 接続 + メイン Raspberry Pi 中継
+## OA LAN 接続構成: 2 LAN メイン Raspberry Pi 中継
 
-今後、会社 OA LAN から事務所 PC で操作する構成では、メインの Raspberry Pi を「メインサーバー・DB・kiosk・LAN 間中継点」として配置します。接続の流れは `事務所 PC → OA LAN → メイン Raspberry Pi → 現場 HUB → 他電気室 Raspberry Pi` を想定します。
-
+会社 OA LAN から事務所 PC で操作し、現場側の Raspberry Pi へ展開する構成です。メイン Raspberry Pi は LAN ポートを 2 系統持たせ、OA LAN 側と現場 LAN 側の接続点にします。
 ```mermaid
 flowchart LR
-  OfficePc[事務所 PC\nブラウザ操作]
+  OfficePc[事務所 PC]
+  OaLan[OA LAN]
+  MainPi[メイン Raspberry Pi\nLAN 1: OA LAN / LAN 2: 現場 LAN]
+  FieldHub[現場 HUB]
+  FieldPi1[1 LAN 現場 Raspberry Pi]
+  FieldPi2[1 LAN 現場 Raspberry Pi]
+  FieldPiN[1 LAN 現場 Raspberry Pi]
 
-  subgraph OaLan[会社 OA LAN]
-    OaNetwork[会社ネットワーク\nOA LAN HUB / スイッチ]
-  end
-
-  subgraph MainPiZone[メイン電気室 / 中央設置]
-    MainPi[メイン Raspberry Pi\nメインサーバー / DB / kiosk]
-    MainDb[(SQLite DB\nメインデータ)]
-    MainDisplay[メイン kiosk ディスプレイ]
-    MainPrinter[USB プリンター\n必要時]
-  end
-
-  subgraph FieldLan[現場用 LAN]
-    FieldHub[現場 HUB / スイッチ]
-
-    subgraph RoomA[他電気室 A]
-      PiA[Raspberry Pi\n表示 / 操作端末]
-      DisplayA[表示ディスプレイ]
-    end
-
-    subgraph RoomB[他電気室 B]
-      PiB[Raspberry Pi\n表示 / 操作端末]
-      DisplayB[表示ディスプレイ]
-    end
-
-    subgraph RoomN[他電気室 N]
-      PiN[Raspberry Pi\n表示 / 操作端末]
-      DisplayN[表示ディスプレイ]
-    end
-  end
-
-  OfficePc -->|HTTPS 操作| OaNetwork
-  OaNetwork -->|OA LAN| MainPi
-  MainPi --> MainDb
-  MainPi -->|HDMI| MainDisplay
-  MainPi -.->|USB| MainPrinter
-  MainPi -->|現場用 LAN| FieldHub
-  FieldHub --> PiA
-  FieldHub --> PiB
-  FieldHub --> PiN
-  PiA --> DisplayA
-  PiB --> DisplayB
-  PiN --> DisplayN
-  PiA -->|HTTPS / kiosk 表示| MainPi
-  PiB -->|HTTPS / kiosk 表示| MainPi
-  PiN -->|HTTPS / kiosk 表示| MainPi
+  OfficePc <-->|HTTPS| OaLan
+  OaLan <-->|LAN 1| MainPi
+  MainPi <-->|LAN 2| FieldHub
+  FieldHub <-->|LAN| FieldPi1
+  FieldHub <-->|LAN| FieldPi2
+  FieldHub <-->|LAN| FieldPiN
 ```
 
-### 将来構成の接続順
+### 機器ごとの役割
 
-```text
-事務所 PC
-  ↓
-会社 OA LAN
-  ↓
-メイン Raspberry Pi（メインサーバー・DB・kiosk）
-  ↓
-現場 HUB
-  ↓
-他電気室 Raspberry Pi
-```
+| 機器 | LAN 接続 | 役割 |
+| --- | --- | --- |
+| 事務所 PC | OA LAN に接続 | ブラウザで MCCB Manager を操作 |
+| OA LAN | 事務所 PC とメイン Raspberry Pi の LAN 1 を接続 | 事務所側ネットワーク |
+| メイン Raspberry Pi | LAN 1: OA LAN、LAN 2: 現場 HUB | Web アプリ、SQLite DB、kiosk、OA LAN と現場 LAN の接続点 |
+| HUB | メイン Raspberry Pi の LAN 2 と現場 Raspberry Pi を接続 | 現場側端末の集約 |
+| 現場 Raspberry Pi | 現場 HUB に接続 | メイン Raspberry Pi の画面を kiosk 表示、または現場操作端末として利用 |
 
-### 将来構成の考え方
+### 構成の考え方
 
-- メイン Raspberry Pi は、OA LAN 側からの入口、アプリ本体、SQLite DB、kiosk 表示を兼ねます。
+- メイン Raspberry Pi は、OA LAN 側からの入口、アプリ本体、SQLite DB、kiosk 表示、現場 LAN 側への接続点を兼ねます。
+- メイン Raspberry Pi の LAN 1 を OA LAN 側、LAN 2 を現場 HUB 側に分けます。
 - 事務所 PC は会社 OA LAN に接続し、ブラウザでメイン Raspberry Pi の MCCB Manager に HTTPS 接続して操作します。
-- 現場側は、メイン Raspberry Pi から現場 HUB に接続し、HUB 配下に他電気室の Raspberry Pi を収容します。
-- 他電気室 Raspberry Pi は、メイン Raspberry Pi の画面を kiosk 表示する端末として使う想定です。
+- 現場側は、メイン Raspberry Pi の現場 LAN 側ポートから現場 HUB に接続し、HUB 配下に 1 LAN の Raspberry Pi を収容します。
+- 現場 Raspberry Pi は、メイン Raspberry Pi の画面を kiosk 表示する端末として使う想定です。
 - DB をメイン Raspberry Pi に集約することで、事務所 PC と各電気室端末が同じデータを参照できます。
-- OA LAN と現場用 LAN を接続するため、メイン Raspberry Pi では通信制御、HTTPS、認証、ログ管理を特に重視します。
+- OA LAN と現場 LAN の境界にメイン Raspberry Pi を置くため、通信制御、HTTPS、認証、ログ管理を特に重視します。
 
-### 将来構成で検討が必要な項目
+### 構成で検討が必要な項目
 
 | 項目 | 検討内容 |
 | --- | --- |
 | メイン Raspberry Pi の配置 | OA LAN と現場 HUB の両方へ接続できる場所、電源、UPS、保守性 |
+| LAN ポート | メイン Raspberry Pi は 2 LAN 構成にする。内蔵 LAN + USB LAN アダプターなどを想定 |
 | ネットワーク分離 | OA LAN 側と現場用 LAN 側を同一セグメントにするか、別セグメントにしてルーティングするか |
-| IP アドレス設計 | OA LAN 側 IP、現場用 LAN 側 IP、他電気室 Raspberry Pi の固定 IP |
-| 通信制御 | 事務所 PC からメイン Raspberry Pi への HTTPS、他電気室 Pi からメイン Raspberry Pi への HTTPS |
+| IP アドレス設計 | メイン Raspberry Pi の OA LAN 側 IP、現場 LAN 側 IP、現場 Raspberry Pi の固定 IP |
+| 通信制御 | 事務所 PC からメイン Raspberry Pi への HTTPS、現場 Raspberry Pi からメイン Raspberry Pi への HTTPS |
 | 認証 | 事務所 PC からの操作権限、管理者権限、パスワード運用 |
-| HTTPS 証明書 | OA LAN 端末と他電気室 Pi で警告なく使える証明書配布または社内 CA 利用 |
+| HTTPS 証明書 | OA LAN 端末と現場 Raspberry Pi で警告なく使える証明書配布または社内 CA 利用 |
 | DB / バックアップ | メイン Raspberry Pi の SQLite DB バックアップ、microSD 障害対策、復旧手順 |
 | 障害時運用 | メイン Raspberry Pi 停止時に全端末が操作不可になるため、予備機または復旧手順を用意 |
 | 印刷 | メイン Raspberry Pi 接続プリンターで印刷するか、事務所 PC 側で印刷するか |

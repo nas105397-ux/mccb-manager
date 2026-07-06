@@ -13,19 +13,19 @@ flowchart LR
   end
 
   subgraph RaspberryPi[Raspberry Pi / アプリ稼働環境]
-    Nginx[Nginx\nHTTPS 終端・静的配信]
-    Static[ビルド済みフロントエンド\ndist/]
+    Nginx[Nginx\nHTTPS 終端・リバースプロキシ]
     Api[Node.js + Express\nserver.js]
+    Static[ビルド済みフロントエンド\ndist/]
     Service[停電依頼・札割当ロジック\nserver/requestAssignmentService.js]
     Store[SQLite ストア\ndbStore.js]
     Db[(data/mccb_data.sqlite\nWAL 有効)]
     Backups[(data/backups/\nDB バックアップ)]
   end
 
-  Browser -->|HTTPS / #/ 画面表示| Nginx
-  Kiosk -->|localhost または HTTPS| Nginx
-  Nginx --> Static
-  Static -->|Fetch /api/*| Api
+  Browser -->|HTTPS / #/ 画面表示・Fetch /api/*| Nginx
+  Kiosk -->|localhost または HTTPS / Fetch /api/*| Nginx
+  Nginx -->|proxy_pass 127.0.0.1:5000| Api
+  Api -->|index.html / assets 配信| Static
   Api --> Service
   Api --> Store
   Service --> Store
@@ -169,7 +169,8 @@ flowchart LR
 
   subgraph MainPi[メイン Raspberry Pi]
     ReverseProxy[Nginx / HTTPS]
-    App[Node.js Express API]
+    App[Node.js Express\nAPI + SPA 配信]
+    Static[dist/]
     Db[(SQLite DB)]
     Kiosk[Chromium kiosk]
   end
@@ -185,6 +186,7 @@ flowchart LR
   Office -->|HTTPS 操作| OALAN
   OALAN -->|HTTPS| ReverseProxy
   ReverseProxy --> App
+  App --> Static
   App --> Db
   Kiosk -->|localhost / HTTPS| ReverseProxy
   MainPi -->|現場用 LAN| FieldHub
@@ -200,7 +202,8 @@ flowchart LR
 
 ## デプロイ・運用上のポイント
 
-- 本番運用では Raspberry Pi 上で Node.js/Express を起動し、Nginx から静的ファイルと API を提供します。
+- 本番運用では Raspberry Pi 上で Node.js/Express を起動し、Nginx は HTTPS 終端と `127.0.0.1:5000` へのリバースプロキシを担当します。
+- Express は `/api/*` とビルド済みフロントエンド `dist/` の SPA 配信を担当します。
 - クライアント側のルーティングは `HashRouter` なので、各画面は `/#/request` や `/#/admin` のような URL で開きます。
 - WebUSB 印刷を使う端末は、Chrome/Edge で `localhost` または HTTPS の安全なコンテキストから開く必要があります。
 - SQLite は WAL モードで動作し、定期チェックポイントとバックアップ作成に対応します。
