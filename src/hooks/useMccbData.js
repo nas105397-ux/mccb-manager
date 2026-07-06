@@ -38,6 +38,18 @@ const mergeChildCardChanges = (currentMccb, changedMccb) => ({
   childCards: changedMccb.childCards || currentMccb.childCards,
 });
 
+/**
+ * 停電作業依頼APIは、札の貸出状態が変わったMCCBだけを返す。
+ * 一覧の表示名やお気に入り等のローカル表示情報は維持し、子札状態だけを差し替える。
+ */
+const mergeChangedMccbsByChildCards = (currentList, changedMccbs = []) => {
+  const changedById = new Map(changedMccbs.map((mccb) => [mccb.id, mccb]));
+  return currentList.map((mccb) => {
+    const changedMccb = changedById.get(mccb.id);
+    return changedMccb ? mergeChildCardChanges(mccb, changedMccb) : mccb;
+  });
+};
+
 /** サーバー受信データのパース・デフォルト値マージ */
 const parseServerData = (data) => {
   const source = data && typeof data === "object" ? data : {};
@@ -104,6 +116,16 @@ export function useMccbData() {
     );
     setLogPageInfo(nextPageInfo);
     setPagedLogs(getPageSlice(safeLogs, nextPageInfo));
+  }, []);
+
+  // ログ更新は再描画コストが高いため、即時操作の描画を妨げないよう transition 化する。
+  const applyLogsInTransition = useCallback((nextLogs) => {
+    startTransition(() => applyLogs(nextLogs));
+  }, [applyLogs]);
+
+  const applyChangedMccbs = useCallback((changedMccbs) => {
+    if (!Array.isArray(changedMccbs)) return;
+    setMccbList((prev) => mergeChangedMccbsByChildCards(prev, changedMccbs));
   }, []);
 
   const applyRequestHistory = useCallback((nextHistory) => {
@@ -323,21 +345,11 @@ export function useMccbData() {
             prev.map((item) => (item.id === result.mccb.id ? result.mccb : item)),
           );
         }
-        if (Array.isArray(result.logs)) {
-          const nextLogs = Array.isArray(result.logs) ? result.logs : [];
-          startTransition(() => {
-            setLogs(nextLogs);
-            const nextPageInfo = createPageInfo(1, LOG_PAGE_SIZE, nextLogs.length);
-            setLogPageInfo(nextPageInfo);
-            setPagedLogs(getPageSlice(nextLogs, nextPageInfo));
-          });
-        }
-        if (result.version) {
-          lastVersion.current = Number(result.version);
-        }
+        if (Array.isArray(result.logs)) applyLogsInTransition(result.logs);
+        applyVersion(result.version);
       });
     },
-    [runSyncTask],
+    [applyLogsInTransition, applyVersion, runSyncTask],
   );
 
   /** 停電・送電状態だけを更新する軽量操作 */
@@ -372,18 +384,8 @@ export function useMccbData() {
               prev.map((item) => (item.id === result.mccb.id ? result.mccb : item)),
             );
           }
-          if (Array.isArray(result.logs)) {
-            const nextLogs = Array.isArray(result.logs) ? result.logs : [];
-            startTransition(() => {
-              setLogs(nextLogs);
-              const nextPageInfo = createPageInfo(1, LOG_PAGE_SIZE, nextLogs.length);
-              setLogPageInfo(nextPageInfo);
-              setPagedLogs(getPageSlice(nextLogs, nextPageInfo));
-            });
-          }
-          if (result.version) {
-            lastVersion.current = Number(result.version);
-          }
+          if (Array.isArray(result.logs)) applyLogsInTransition(result.logs);
+          applyVersion(result.version);
         } catch (error) {
           if (previousMccb) {
             setMccbList((prev) =>
@@ -398,7 +400,7 @@ export function useMccbData() {
         }
       });
     },
-    [runSyncTask],
+    [applyLogsInTransition, applyVersion, runSyncTask],
   );
 
   /** 設備マスタの完全削除 */
@@ -936,30 +938,12 @@ export function useMccbData() {
 
         const result = await res.json();
         createdRequest = result.request || null;
-        if (Array.isArray(result.changedMccbs)) {
-          setMccbList((prev) => {
-            const changedById = new Map(
-              result.changedMccbs.map((mccb) => [mccb.id, mccb]),
-            );
-            return prev.map((mccb) => {
-              const changedMccb = changedById.get(mccb.id);
-              return changedMccb ? mergeChildCardChanges(mccb, changedMccb) : mccb;
-            });
-          });
-        }
+        applyChangedMccbs(result.changedMccbs);
         if (Array.isArray(result.requests)) {
           setRequests(result.requests);
         }
-        if (Array.isArray(result.logs)) {
-          const nextLogs = Array.isArray(result.logs) ? result.logs : [];
-          setLogs(nextLogs);
-          const nextPageInfo = createPageInfo(1, LOG_PAGE_SIZE, nextLogs.length);
-          setLogPageInfo(nextPageInfo);
-          setPagedLogs(getPageSlice(nextLogs, nextPageInfo));
-        }
-        if (result.version) {
-          lastVersion.current = Number(result.version);
-        }
+        if (Array.isArray(result.logs)) applyLogs(result.logs);
+        applyVersion(result.version);
       });
 
       if (!createdRequest) {
@@ -968,7 +952,7 @@ export function useMccbData() {
 
       return createdRequest;
     },
-    [runSyncTask],
+    [applyChangedMccbs, applyLogs, applyVersion, runSyncTask],
   );
 
   const addTargetsToRequest = useCallback(
@@ -990,35 +974,16 @@ export function useMccbData() {
           );
         }
 
-        if (Array.isArray(result.changedMccbs)) {
-          setMccbList((prev) => {
-            const changedById = new Map(
-              result.changedMccbs.map((mccb) => [mccb.id, mccb]),
-            );
-            return prev.map((mccb) => {
-              const changedMccb = changedById.get(mccb.id);
-              return changedMccb ? mergeChildCardChanges(mccb, changedMccb) : mccb;
-            });
-          });
-        }
+        applyChangedMccbs(result.changedMccbs);
         if (Array.isArray(result.requests)) {
           setRequests(result.requests);
         }
-        if (Array.isArray(result.logs)) {
-          const nextLogs = Array.isArray(result.logs) ? result.logs : [];
-          setLogs(nextLogs);
-          const nextPageInfo = createPageInfo(1, LOG_PAGE_SIZE, nextLogs.length);
-          setLogPageInfo(nextPageInfo);
-          setPagedLogs(getPageSlice(nextLogs, nextPageInfo));
-        }
-        if (result.version) {
-          lastVersion.current = Number(result.version);
-        }
+        if (Array.isArray(result.logs)) applyLogs(result.logs);
+        applyVersion(result.version);
       });
     },
-    [runSyncTask],
+    [applyChangedMccbs, applyLogs, applyVersion, runSyncTask],
   );
-
 
   const updateRequestTargetCard = useCallback(
     (requestId, targetId, action) => {
@@ -1039,33 +1004,15 @@ export function useMccbData() {
           );
         }
 
-        if (Array.isArray(result.changedMccbs)) {
-          setMccbList((prev) => {
-            const changedById = new Map(
-              result.changedMccbs.map((mccb) => [mccb.id, mccb]),
-            );
-            return prev.map((mccb) => {
-              const changedMccb = changedById.get(mccb.id);
-              return changedMccb ? mergeChildCardChanges(mccb, changedMccb) : mccb;
-            });
-          });
-        }
+        applyChangedMccbs(result.changedMccbs);
         if (Array.isArray(result.requests)) {
           setRequests(result.requests);
         }
-        if (Array.isArray(result.logs)) {
-          const nextLogs = Array.isArray(result.logs) ? result.logs : [];
-          setLogs(nextLogs);
-          const nextPageInfo = createPageInfo(1, LOG_PAGE_SIZE, nextLogs.length);
-          setLogPageInfo(nextPageInfo);
-          setPagedLogs(getPageSlice(nextLogs, nextPageInfo));
-        }
-        if (result.version) {
-          lastVersion.current = Number(result.version);
-        }
+        if (Array.isArray(result.logs)) applyLogs(result.logs);
+        applyVersion(result.version);
       });
     },
-    [runSyncTask],
+    [applyChangedMccbs, applyLogs, applyVersion, runSyncTask],
   );
 
   /** 停電作業依頼の解約・完了処理（使用札の解放） */
@@ -1084,17 +1031,7 @@ export function useMccbData() {
         }
 
         const result = await res.json();
-        if (Array.isArray(result.changedMccbs)) {
-          setMccbList((prev) => {
-            const changedById = new Map(
-              result.changedMccbs.map((mccb) => [mccb.id, mccb]),
-            );
-            return prev.map((mccb) => {
-              const changedMccb = changedById.get(mccb.id);
-              return changedMccb ? mergeChildCardChanges(mccb, changedMccb) : mccb;
-            });
-          });
-        }
+        applyChangedMccbs(result.changedMccbs);
         if (Array.isArray(result.requests)) {
           setRequests(result.requests);
         }
@@ -1110,19 +1047,11 @@ export function useMccbData() {
             getPageSlice(result.requestHistory, nextHistoryPageInfo),
           );
         }
-        if (Array.isArray(result.logs)) {
-          const nextLogs = Array.isArray(result.logs) ? result.logs : [];
-          setLogs(nextLogs);
-          const nextPageInfo = createPageInfo(1, LOG_PAGE_SIZE, nextLogs.length);
-          setLogPageInfo(nextPageInfo);
-          setPagedLogs(getPageSlice(nextLogs, nextPageInfo));
-        }
-        if (result.version) {
-          lastVersion.current = Number(result.version);
-        }
+        if (Array.isArray(result.logs)) applyLogs(result.logs);
+        applyVersion(result.version);
       });
     },
-    [runSyncTask],
+    [applyChangedMccbs, applyLogs, applyVersion, runSyncTask],
   );
 
   return {
