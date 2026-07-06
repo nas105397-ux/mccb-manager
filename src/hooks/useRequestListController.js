@@ -1,6 +1,57 @@
 import { useCallback, useMemo, useState } from 'react';
 
-export function useRequestListController({ requests = [], requestHistory = [], mccbList = [] }) {
+const DUMMY_LABEL = 'ダミー';
+
+const isDummyMccb = (mccb) => mccb.isDummy || mccb.name?.includes(DUMMY_LABEL);
+
+const getReservedCard = (actualMccb, reserveInfo) => {
+  if (!reserveInfo?.cardNo) return null;
+  return actualMccb?.childCards?.find((card) => card.id === reserveInfo.cardNo) ?? null;
+};
+
+const getDisplayName = ({ targetMccb, actualMccb, reserveInfo, isAllocatedFromDummy }) => {
+  if (isDummyMccb(targetMccb) && reserveInfo?.customDummyName) {
+    return `${targetMccb.name} (${reserveInfo.customDummyName})`;
+  }
+  if (isAllocatedFromDummy) {
+    return `${actualMccb.name} (${targetMccb.name})`;
+  }
+  return targetMccb.name;
+};
+
+const buildRequestTargetView = (targetId, req, mccbMap) => {
+  const targetMccb = mccbMap.get(targetId);
+  if (!targetMccb) return null;
+
+  const reserveInfo = req.reservedCards?.[targetId];
+  const actualMccb = reserveInfo?.actualMccbId
+    ? mccbMap.get(reserveInfo.actualMccbId)
+    : null;
+  const isAllocatedFromDummy = !!actualMccb && actualMccb.id !== targetMccb.id;
+  const reservedCard = getReservedCard(actualMccb, reserveInfo);
+
+  return {
+    id: targetId,
+    room: targetMccb.room,
+    name: getDisplayName({
+      targetMccb,
+      actualMccb,
+      reserveInfo,
+      isAllocatedFromDummy,
+    }),
+    isPowerOff: targetMccb.isPowerOff,
+    reserveInfo,
+    isAllocatedFromDummy,
+    isCardBorrowed: !!reservedCard?.isBorrowed,
+    cardWorkerName: reservedCard?.workerName || '',
+  };
+};
+
+export function useRequestListController({
+  requests = [],
+  requestHistory = [],
+  mccbList = [],
+}) {
   const [expandedRequests, setExpandedRequests] = useState({});
 
   const mccbMap = useMemo(() => {
@@ -14,50 +65,18 @@ export function useRequestListController({ requests = [], requestHistory = [], m
     }));
   }, []);
 
+  // 依頼に保存された targetMccbIds を、画面表示用の名称・札状態付きデータへ正規化する。
   const buildTargets = useCallback((req) => {
     return (req.targetMccbIds || [])
-      .map((targetId) => {
-        const targetMccb = mccbMap.get(targetId);
-        if (!targetMccb) return null;
-
-        const reserveInfo = req.reservedCards?.[targetId];
-        const actualMccb = reserveInfo?.actualMccbId
-          ? mccbMap.get(reserveInfo.actualMccbId)
-          : null;
-        const isOriginalDummy =
-          targetMccb.isDummy || targetMccb.name?.includes("ダミー");
-        const isAllocatedFromDummy =
-          !!actualMccb && actualMccb.id !== targetMccb.id;
-
-        let mccbDisplayName = targetMccb.name;
-        if (isOriginalDummy && reserveInfo?.customDummyName) {
-          mccbDisplayName = `${targetMccb.name} (${reserveInfo.customDummyName})`;
-        } else if (isAllocatedFromDummy) {
-          mccbDisplayName = `${actualMccb.name} (${targetMccb.name})`;
-        }
-
-        const reservedCard = reserveInfo?.cardNo
-          ? actualMccb?.childCards?.find((card) => card.id === reserveInfo.cardNo)
-          : null;
-
-        return {
-          id: targetId,
-          room: targetMccb.room,
-          name: mccbDisplayName,
-          isPowerOff: targetMccb.isPowerOff,
-          reserveInfo,
-          isAllocatedFromDummy,
-          isCardBorrowed: !!reservedCard?.isBorrowed,
-          cardWorkerName: reservedCard?.workerName || "",
-        };
-      })
+      .map((targetId) => buildRequestTargetView(targetId, req, mccbMap))
       .filter(Boolean);
   }, [mccbMap]);
 
   const activeRequestViews = useMemo(() => {
     return requests.map((req) => {
       const targets = buildTargets(req);
-      const isAllPowerOff = targets.length > 0 && targets.every((target) => target.isPowerOff);
+      const isAllPowerOff =
+        targets.length > 0 && targets.every((target) => target.isPowerOff);
 
       return {
         ...req,

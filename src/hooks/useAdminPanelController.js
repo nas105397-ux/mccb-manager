@@ -5,6 +5,34 @@ import {
   loadStarPrinterConnection,
 } from '../shared/starPrinterConnection';
 
+const CSV_HEADER = '電気室,区分,設備名称\n';
+const CSV_BOM = new Uint8Array([0xEF, 0xBB, 0xBF]);
+
+const normalizeCsvCell = (value = '') => String(value).replace(/[,"]/g, '');
+
+const buildMccbCsv = (mccbList) =>
+  mccbList.reduce((csvContent, item) => {
+    const row = [item.room, item.category, item.name]
+      .map(normalizeCsvCell)
+      .join(',');
+    return `${csvContent}${row}\n`;
+  }, CSV_HEADER);
+
+const downloadTextFile = ({ content, fileName, type }) => {
+  const blob = new Blob([CSV_BOM, content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', fileName);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
+const getTodayString = () => new Date().toISOString().slice(0, 10);
+
 export function useAdminPanelController({
   onSaveEntry,
   mccbList,
@@ -19,6 +47,7 @@ export function useAdminPanelController({
   updateDeviceGroup,
   deleteDeviceGroup,
 }) {
+  // マスター登録フォーム・管理UIの一時入力値
   const [room, setRoom] = useState('');
   const [category, setCategory] = useState('');
   const [name, setName] = useState('');
@@ -26,6 +55,8 @@ export function useAdminPanelController({
   const [newCategoryInput, setNewCategoryInput] = useState('');
   const [newGroupName, setNewGroupName] = useState('');
   const [selectedGroupId, setSelectedGroupId] = useState(null);
+
+  // スター精密プリンター接続はブラウザ端末ごとに保存・検証する。
   const [starPrinterConnection, setStarPrinterConnection] = useState(() =>
     loadStarPrinterConnection(),
   );
@@ -60,24 +91,11 @@ export function useAdminPanelController({
       return;
     }
 
-    let csvContent = '電気室,区分,設備名称\n';
-    mccbList.forEach((item) => {
-      const cleanRoom = item.room.replace(/[,"]/g, '');
-      const cleanCategory = item.category.replace(/[,"]/g, '');
-      const cleanName = item.name.replace(/[,"]/g, '');
-      csvContent += `${cleanRoom},${cleanCategory},${cleanName}\n`;
+    downloadTextFile({
+      content: buildMccbCsv(mccbList),
+      fileName: `登録設備データ_${getTodayString()}.csv`,
+      type: 'text/csv;charset=utf-8;',
     });
-
-    const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
-    const blob = new Blob([bom, csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `登録設備データ_${new Date().toISOString().slice(0, 10)}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   const handleCSVButtonClick = () => {
