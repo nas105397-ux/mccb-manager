@@ -1,47 +1,45 @@
 import { useCallback, useMemo, useState } from 'react';
 
+const createMasterDraft = (mccb) => ({
+  room: mccb.room,
+  category: mccb.category,
+  name: mccb.name,
+});
+
+const updateChildCard = (childCards, cardId, updater) =>
+  childCards.map((card) => (card.id === cardId ? updater(card) : card));
+
 export function useControlModalController({ mccb, onUpdate, onUpdatePower }) {
   const [masterDrafts, setMasterDrafts] = useState({});
 
-  const currentDraft = masterDrafts[mccb.id] ?? {
-    room: mccb.room,
-    category: mccb.category,
-    name: mccb.name,
-  };
+  const currentDraft = masterDrafts[mccb.id] ?? createMasterDraft(mccb);
 
   const room = currentDraft.room;
   const category = currentDraft.category;
   const name = currentDraft.name;
 
-  const setRoom = useCallback((value) => {
+  // 管理者編集欄は保存前の下書きをMCCB単位で保持し、モーダル再描画時の入力消失を防ぐ。
+  const updateMasterDraft = useCallback((field, value) => {
     setMasterDrafts((prev) => ({
       ...prev,
       [mccb.id]: {
-        ...(prev[mccb.id] ?? { room: mccb.room, category: mccb.category, name: mccb.name }),
-        room: value,
+        ...(prev[mccb.id] ?? createMasterDraft(mccb)),
+        [field]: value,
       },
     }));
-  }, [mccb.id, mccb.room, mccb.category, mccb.name]);
+  }, [mccb]);
+
+  const setRoom = useCallback((value) => {
+    updateMasterDraft('room', value);
+  }, [updateMasterDraft]);
 
   const setCategory = useCallback((value) => {
-    setMasterDrafts((prev) => ({
-      ...prev,
-      [mccb.id]: {
-        ...(prev[mccb.id] ?? { room: mccb.room, category: mccb.category, name: mccb.name }),
-        category: value,
-      },
-    }));
-  }, [mccb.id, mccb.room, mccb.category, mccb.name]);
+    updateMasterDraft('category', value);
+  }, [updateMasterDraft]);
 
   const setName = useCallback((value) => {
-    setMasterDrafts((prev) => ({
-      ...prev,
-      [mccb.id]: {
-        ...(prev[mccb.id] ?? { room: mccb.room, category: mccb.category, name: mccb.name }),
-        name: value,
-      },
-    }));
-  }, [mccb.id, mccb.room, mccb.category, mccb.name]);
+    updateMasterDraft('name', value);
+  }, [updateMasterDraft]);
 
   const hasBorrowedCards = useMemo(() => {
     return mccb.childCards.some((card) => card.isBorrowed);
@@ -64,10 +62,11 @@ export function useControlModalController({ mccb, onUpdate, onUpdatePower }) {
   }, [isSendingBlocked, mccb, onUpdate, onUpdatePower]);
 
   const handleReturnCard = useCallback((cardId) => {
-    const updatedCards = mccb.childCards.map((card) => {
-      if (card.id !== cardId) return card;
-      return { ...card, isBorrowed: false, workerName: '' };
-    });
+    const updatedCards = updateChildCard(mccb.childCards, cardId, (card) => ({
+      ...card,
+      isBorrowed: false,
+      workerName: '',
+    }));
 
     onUpdate({ ...mccb, childCards: updatedCards });
   }, [mccb, onUpdate]);
@@ -79,10 +78,11 @@ export function useControlModalController({ mccb, onUpdate, onUpdatePower }) {
       return;
     }
 
-    const updatedCards = mccb.childCards.map((card) => {
-      if (card.id !== cardId) return card;
-      return { ...card, isBorrowed: true, workerName: worker };
-    });
+    const updatedCards = updateChildCard(mccb.childCards, cardId, (card) => ({
+      ...card,
+      isBorrowed: true,
+      workerName: worker,
+    }));
 
     onUpdate({ ...mccb, childCards: updatedCards });
   }, [mccb, onUpdate]);

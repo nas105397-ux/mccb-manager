@@ -18,6 +18,13 @@ import {
   normalizeCategoryColors,
 } from './src/shared/categoryColorUtils.js';
 import { countBorrowedCards } from './src/shared/mccbViewUtils.js';
+import {
+  cloneMccbListForMutation,
+  createRequestAssignmentService,
+  getChangedMccbs,
+  hasBorrowedChildCard,
+  preservePowerStateForRequestChanges,
+} from './server/requestAssignmentService.js';
 
 const app = express();
 
@@ -197,120 +204,6 @@ function createMccbChangeLog(before, after) {
   };
 }
 
-const isDummyMccb = (mccb) =>
-  mccb?.isDummy || mccb?.name?.includes("ダミー") || mccb?.id?.includes("DUMMY");
-
-const hasBorrowedChildCard = (mccb) =>
-  mccb?.childCards?.some((card) => card.isBorrowed) ?? false;
-
-const findFirstFreeChildCardIndex = (mccb) =>
-  mccb?.childCards?.findIndex((card) => !card.isBorrowed) ?? -1;
-
-const compareMccbNameNumeric = (a, b) =>
-  (a.name || "").localeCompare(b.name || "", "ja", { numeric: true });
-
-function getAvailableDummyCandidates(targetMccb, currentMccbList) {
-  const availableDummies = currentMccbList.filter(
-    (mccb) => isDummyMccb(mccb) && !hasBorrowedChildCard(mccb),
-  );
-  const sameRoom = availableDummies
-    .filter((mccb) => mccb.room === targetMccb.room)
-    .sort(compareMccbNameNumeric);
-  const otherRooms = availableDummies
-    .filter((mccb) => mccb.room !== targetMccb.room)
-    .sort((a, b) => {
-      if (a.name === "ダミー0" && b.name !== "ダミー0") return -1;
-      if (a.name !== "ダミー0" && b.name === "ダミー0") return 1;
-      return compareMccbNameNumeric(a, b);
-    });
-
-  return [...sameRoom, ...otherRooms];
-}
-
-function findExistingDummyAssignment(targetId, currentRequests, currentMccbList) {
-  for (const request of currentRequests) {
-    const reservedInfo = request.reservedCards?.[targetId];
-    if (!reservedInfo?.actualMccbId || reservedInfo.actualMccbId === targetId) {
-      continue;
-    }
-
-    const assignedMccb = currentMccbList.find(
-      (mccb) => mccb.id === reservedInfo.actualMccbId,
-    );
-    if (!isDummyMccb(assignedMccb)) {
-      continue;
-    }
-
-    const availableIdx = findFirstFreeChildCardIndex(assignedMccb);
-    if (availableIdx !== -1) {
-      return { finalMccb: assignedMccb, availableIdx };
-    }
-  }
-
-  return null;
-}
-
-function findAvailableCard(targetId, targetMccb, currentMccbList, currentRequests) {
-  const isOriginalDummy = isDummyMccb(targetMccb);
-
-  if (!isOriginalDummy) {
-    const existingDummy = findExistingDummyAssignment(
-      targetId,
-      currentRequests,
-      currentMccbList,
-    );
-    if (existingDummy) {
-      return existingDummy;
-    }
-  }
-
-  const ownCardIdx = findFirstFreeChildCardIndex(targetMccb);
-  if (ownCardIdx !== -1) {
-    return { finalMccb: targetMccb, availableIdx: ownCardIdx };
-  }
-  if (isOriginalDummy) {
-    return { finalMccb: null, availableIdx: -1 };
-  }
-
-  for (const dummy of getAvailableDummyCandidates(targetMccb, currentMccbList)) {
-    const idx = findFirstFreeChildCardIndex(dummy);
-    if (idx !== -1) {
-      return { finalMccb: dummy, availableIdx: idx };
-    }
-  }
-
-  return { finalMccb: null, availableIdx: -1 };
-}
-
-function cloneMccbListForMutation(mccbList) {
-  return mccbList.map((mccb) => ({
-    ...mccb,
-    childCards: Array.isArray(mccb.childCards)
-      ? mccb.childCards.map((card) => ({ ...card }))
-      : [],
-  }));
-}
-
-function dedupeMccbs(mccbList) {
-  return [...new Map(mccbList.map((mccb) => [mccb.id, mccb])).values()];
-}
-
-function getChangedMccbs(beforeList, afterList) {
-  const beforeById = new Map(beforeList.map((mccb) => [mccb.id, mccb]));
-  return afterList.filter((mccb) => {
-    const before = beforeById.get(mccb.id);
-    return JSON.stringify(before?.childCards || []) !== JSON.stringify(mccb.childCards || []);
-  });
-}
-
-function preservePowerStateForRequestChanges(beforeList, changedMccbs) {
-  const beforeById = new Map(beforeList.map((mccb) => [mccb.id, mccb]));
-  return changedMccbs.map((mccb) => ({
-    ...mccb,
-    isPowerOff: beforeById.get(mccb.id)?.isPowerOff ?? mccb.isPowerOff,
-  }));
-}
-
 function mergeMccbMasterFields(incomingList, allowedFields) {
   const currentById = new Map(store.readAll().mccbList.map((mccb) => [mccb.id, mccb]));
   return incomingList.map((incoming) => {
@@ -327,207 +220,15 @@ function mergeMccbMasterFields(incomingList, allowedFields) {
   });
 }
 
-function getDateCode(date = new Date()) {
-  return `${date.getFullYear().toString().slice(-2)}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
-}
-
-function buildRequestAssignment(newRequest) {
-  const currentRequests = store.readCollection('requests') || [];
-  const targetMccbs = store.readMccbsByIds(newRequest.targetMccbIds);
-  const dummyMccbs = store.readDummyMccbs();
-  const beforeMccbList = dedupeMccbs([...targetMccbs, ...dummyMccbs]);
-  let currentMccbList = cloneMccbListForMutation(beforeMccbList);
-
-  const actualReservations = new Map();
-  currentRequests.forEach((request) => {
-    if (!request.reservedCards) return;
-    Object.entries(request.reservedCards).forEach(([, resInfo]) => {
-      if (!resInfo || !resInfo.actualMccbId) return;
-      const actualId = resInfo.actualMccbId;
-      if (!actualReservations.has(actualId)) {
-        actualReservations.set(actualId, new Map());
-      }
-      const cardMap = actualReservations.get(actualId);
-      if (resInfo.cardNo != null) {
-        cardMap.set(resInfo.cardNo, request.workerName);
-      }
-    });
-  });
-
-  currentMccbList = currentMccbList.map((mccb) => {
-    const cardMap = actualReservations.get(mccb.id);
-    const updatedCards = mccb.childCards.map((card) => {
-      if (cardMap && cardMap.has(card.id)) {
-        return {
-          ...card,
-          isBorrowed: true,
-          workerName: cardMap.get(card.id) || "",
-        };
-      }
-      return {
-        ...card,
-        isBorrowed: !!card.isBorrowed,
-        workerName: card.workerName || "",
-      };
-    });
-    return { ...mccb, childCards: updatedCards };
-  });
-
-  const reservedCards = {};
-  for (const targetId of newRequest.targetMccbIds) {
-    const originalMccb = currentMccbList.find((mccb) => mccb.id === targetId);
-    if (!originalMccb) {
-      reservedCards[targetId] = {
-        actualMccbId: null,
-        cardNo: null,
-        displayName: "空きなし",
-        customDummyName: null,
-      };
-      continue;
-    }
-
-    const { finalMccb, availableIdx } = findAvailableCard(
-      targetId,
-      originalMccb,
-      currentMccbList,
-      currentRequests,
-    );
-
-    if (finalMccb && availableIdx !== -1) {
-      currentMccbList = currentMccbList.map((mccb) => {
-        if (mccb.id === finalMccb.id) {
-          const updatedCards = [...mccb.childCards];
-          updatedCards[availableIdx] = {
-            ...updatedCards[availableIdx],
-            isBorrowed: true,
-            workerName: newRequest.workerName,
-          };
-          return { ...mccb, childCards: updatedCards };
-        }
-        return mccb;
-      });
-
-      const assignedCardNo =
-        finalMccb.childCards[availableIdx]?.id ?? availableIdx + 1;
-
-      reservedCards[targetId] = {
-        actualMccbId: finalMccb.id,
-        cardNo: assignedCardNo,
-        displayName: finalMccb.name,
-        customDummyName: newRequest.dummyNames?.[targetId] || null,
-      };
-    } else {
-      reservedCards[targetId] = {
-        actualMccbId: null,
-        cardNo: null,
-        displayName: "空きなし",
-        customDummyName: null,
-      };
-    }
-  }
-
-  return {
-    currentRequests,
-    beforeMccbList,
-    currentMccbList,
-    finalRequest: { ...newRequest, reservedCards },
-  };
-}
-
-function buildRequestTargetAddition(targetRequest, targetMccbIds, dummyNames = {}) {
-  const existingTargetIds = new Set(targetRequest.targetMccbIds || []);
-  const additionalTargetIds = [...new Set(targetMccbIds)]
-    .filter((id) => id && !existingTargetIds.has(id));
-
-  if (additionalTargetIds.length === 0) {
-    return null;
-  }
-
-  const previewRequest = {
-    ...targetRequest,
-    targetMccbIds: additionalTargetIds,
-    dummyNames,
-  };
-  const { beforeMccbList, currentMccbList, finalRequest } =
-    buildRequestAssignment(previewRequest);
-
-  return {
-    beforeMccbList,
-    currentMccbList,
-    additionalTargetIds,
-    updatedRequest: {
-      ...targetRequest,
-      targetMccbIds: [
-        ...(targetRequest.targetMccbIds || []),
-        ...additionalTargetIds,
-      ],
-      reservedCards: {
-        ...(targetRequest.reservedCards || {}),
-        ...(finalRequest.reservedCards || {}),
-      },
-      dummyNames: {
-        ...(targetRequest.dummyNames || {}),
-        ...dummyNames,
-      },
-    },
-  };
-}
-
-function buildRequestPreviewItems(finalRequest, assignmentMccbList) {
-  const mccbById = new Map(assignmentMccbList.map((mccb) => [mccb.id, mccb]));
-  const dateCode = getDateCode();
-
-  return (finalRequest.targetMccbIds || [])
-    .map((targetId) => {
-      const originalMccb = mccbById.get(targetId);
-      const reserveInfo = finalRequest.reservedCards?.[targetId];
-      const actualMccb = reserveInfo?.actualMccbId
-        ? mccbById.get(reserveInfo.actualMccbId)
-        : null;
-
-      if (!originalMccb && !reserveInfo) return null;
-
-      const finalMccb = actualMccb || originalMccb;
-      const isOriginalDummy = isDummyMccb(originalMccb);
-      const isAllocatedFromDummy =
-        !!actualMccb && !!originalMccb && actualMccb.id !== originalMccb.id;
-      const cardNo = reserveInfo?.cardNo ?? 1;
-
-      let name = originalMccb?.name || reserveInfo?.displayName || "空きなし";
-      if (isOriginalDummy && reserveInfo?.customDummyName) {
-        name = `${originalMccb.name} (${reserveInfo.customDummyName})`;
-      } else if (isAllocatedFromDummy) {
-        name = `${actualMccb.name} (${originalMccb.name})`;
-      }
-
-      const cardLabel = isAllocatedFromDummy
-        ? `代替:${actualMccb.name} No.${cardNo}`
-        : `子札 No.${cardNo}`;
-      const generatedCardNo = finalMccb
-        ? `${dateCode}-${finalMccb.id.slice(-4)}-${cardNo}`
-        : `${dateCode}-NONE-${cardNo}`;
-
-      return {
-        ...(originalMccb || {}),
-        id: targetId,
-        room: originalMccb?.room || finalMccb?.room || "",
-        name,
-        cardLabel,
-        generatedCardNo,
-        isDummy: isAllocatedFromDummy || isOriginalDummy,
-        allocatedDummyName: actualMccb?.name || null,
-        reserveInfo,
-      };
-    })
-    .filter(Boolean);
-}
-
 ensureDefaultDatabasePath();
 
 const store = createMccbStore({
   dbPath: DB_PATH,
   defaults: DEFAULT_DATA,
 });
+
+// 停電依頼の札割当ロジックはサービスへ分離し、API層を薄く保つ。
+const requestAssignmentService = createRequestAssignmentService({ store });
 
 function normalizeStoredLogs() {
   const currentLogs = store.readCollection('logs');
@@ -1085,12 +786,12 @@ app.post('/api/requests/preview', (req, res) => {
       return res.status(400).json({ error: '依頼プレビューデータが不正です。' });
     }
 
-    const { finalRequest, currentMccbList } = buildRequestAssignment(previewRequest);
+    const { finalRequest, currentMccbList } = requestAssignmentService.buildRequestAssignment(previewRequest);
 
     res.json({
       status: 'success',
       request: finalRequest,
-      previewItems: buildRequestPreviewItems(finalRequest, currentMccbList),
+      previewItems: requestAssignmentService.buildRequestPreviewItems(finalRequest, currentMccbList),
       version: store.getVersion(),
     });
   } catch (error) {
@@ -1113,7 +814,7 @@ app.post('/api/requests', (req, res) => {
       beforeMccbList,
       currentMccbList,
       finalRequest,
-    } = buildRequestAssignment(newRequest);
+    } = requestAssignmentService.buildRequestAssignment(newRequest);
 
     const requests = [finalRequest, ...currentRequests];
     const logs = createUpdatedLogs(
@@ -1169,7 +870,7 @@ app.patch('/api/requests/:id/targets', (req, res) => {
       return res.status(404).json({ error: '対象の依頼が見つかりません。' });
     }
 
-    const addition = buildRequestTargetAddition(
+    const addition = requestAssignmentService.buildRequestTargetAddition(
       targetRequest,
       targetMccbIds,
       dummyNames,
