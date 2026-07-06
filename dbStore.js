@@ -13,6 +13,22 @@ const COLLECTION_KEYS = [
   'historySettings',
 ];
 
+const CORE_COLLECTION_KEYS = [
+  'rooms',
+  'categories',
+  'categoryColors',
+  'logSettings',
+  'requests',
+  'deviceGroups',
+  'historySettings',
+];
+
+const UPSERT_COLLECTION_SQL = `
+  INSERT INTO app_collections (key, value_json)
+  VALUES (?, ?)
+  ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json
+`;
+
 const boolToInt = (value) => (value ? 1 : 0);
 const intToBool = (value) => value === 1;
 
@@ -133,6 +149,19 @@ export function createMccbStore({ dbPath, defaults }) {
     return nextVersion;
   };
 
+  // 書き込み系処理は必ず即時トランザクションに乗せ、途中失敗時はDB状態を戻す。
+  const runImmediateTransaction = (operation) => {
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      const result = operation();
+      db.exec('COMMIT');
+      return result;
+    } catch (error) {
+      db.exec('ROLLBACK');
+      throw error;
+    }
+  };
+
   const checkpointWal = ({ force = false, mode = 'PASSIVE' } = {}) => {
     const now = Date.now();
     if (!force && now - lastCheckpointAt < 60_000) return null;
@@ -225,31 +254,18 @@ export function createMccbStore({ dbPath, defaults }) {
   };
 
   const writeCollection = (key, value) => {
-    db.prepare(
-      `INSERT INTO app_collections (key, value_json)
-       VALUES (?, ?)
-       ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json`,
-    ).run(key, JSON.stringify(value));
+    db.prepare(UPSERT_COLLECTION_SQL).run(key, JSON.stringify(value));
     return bumpVersion();
   };
 
   const writeCollections = (entries) => {
-    const upsert = db.prepare(
-      `INSERT INTO app_collections (key, value_json)
-       VALUES (?, ?)
-       ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json`,
-    );
+    const upsert = db.prepare(UPSERT_COLLECTION_SQL);
 
-    db.exec('BEGIN IMMEDIATE');
-    try {
+    runImmediateTransaction(() => {
       for (const [key, value] of Object.entries(entries)) {
         upsert.run(key, JSON.stringify(value));
       }
-      db.exec('COMMIT');
-    } catch (error) {
-      db.exec('ROLLBACK');
-      throw error;
-    }
+    });
 
     return bumpVersion();
   };
@@ -363,16 +379,11 @@ export function createMccbStore({ dbPath, defaults }) {
     const normalized = normalizeData(data, defaults);
     const now = Date.now();
 
-    db.exec('BEGIN IMMEDIATE');
-    try {
+    runImmediateTransaction(() => {
       db.exec('DELETE FROM child_cards');
       db.exec('DELETE FROM mccbs');
 
-      const upsertCollection = db.prepare(`
-        INSERT INTO app_collections (key, value_json)
-        VALUES (?, ?)
-        ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json
-      `);
+      const upsertCollection = db.prepare(UPSERT_COLLECTION_SQL);
 
       for (const mccb of normalized.mccbList) {
         writeMccb(mccb, now);
@@ -381,12 +392,7 @@ export function createMccbStore({ dbPath, defaults }) {
       for (const key of COLLECTION_KEYS) {
         upsertCollection.run(key, JSON.stringify(normalized[key]));
       }
-
-      db.exec('COMMIT');
-    } catch (error) {
-      db.exec('ROLLBACK');
-      throw error;
-    }
+    });
 
     return { ...normalized, version: bumpVersion() };
   };
@@ -456,15 +462,7 @@ export function createMccbStore({ dbPath, defaults }) {
   const readCoreData = () => {
     const data = {
       mccbList: readMccbList(),
-      ...readCollections([
-        'rooms',
-        'categories',
-        'categoryColors',
-        'logSettings',
-        'requests',
-        'deviceGroups',
-        'historySettings',
-      ]),
+      ...readCollections(CORE_COLLECTION_KEYS),
       logs: [],
       requestHistory: [],
     };
@@ -476,14 +474,9 @@ export function createMccbStore({ dbPath, defaults }) {
     const before = readMccb(updatedMccb.id);
     if (!before) return null;
 
-    db.exec('BEGIN IMMEDIATE');
-    try {
+    runImmediateTransaction(() => {
       writeMccb(updatedMccb);
-      db.exec('COMMIT');
-    } catch (error) {
-      db.exec('ROLLBACK');
-      throw error;
-    }
+    });
 
     const version = bumpVersion();
 
@@ -495,14 +488,9 @@ export function createMccbStore({ dbPath, defaults }) {
   };
 
   const createMccb = (mccb) => {
-    db.exec('BEGIN IMMEDIATE');
-    try {
+    runImmediateTransaction(() => {
       writeMccb(mccb);
-      db.exec('COMMIT');
-    } catch (error) {
-      db.exec('ROLLBACK');
-      throw error;
-    }
+    });
 
     return {
       mccb: readMccb(mccb.id),
@@ -514,15 +502,10 @@ export function createMccbStore({ dbPath, defaults }) {
     const existing = readMccb(id);
     if (!existing) return null;
 
-    db.exec('BEGIN IMMEDIATE');
-    try {
+    runImmediateTransaction(() => {
       db.prepare('DELETE FROM child_cards WHERE mccb_id = ?').run(id);
       db.prepare('DELETE FROM mccbs WHERE id = ?').run(id);
-      db.exec('COMMIT');
-    } catch (error) {
-      db.exec('ROLLBACK');
-      throw error;
-    }
+    });
 
     return {
       deleted: existing,
@@ -533,16 +516,11 @@ export function createMccbStore({ dbPath, defaults }) {
   const writeMccbs = (mccbs) => {
     const now = Date.now();
 
-    db.exec('BEGIN IMMEDIATE');
-    try {
+    runImmediateTransaction(() => {
       for (const mccb of mccbs) {
         writeMccb(mccb, now);
       }
-      db.exec('COMMIT');
-    } catch (error) {
-      db.exec('ROLLBACK');
-      throw error;
-    }
+    });
 
     return mccbs.length > 0 ? bumpVersion() : getVersion();
   };
