@@ -58,6 +58,11 @@ flowchart LR
 ## OA LAN 接続構成: 2 LAN メイン Raspberry Pi 中継
 
 会社 OA LAN から事務所 PC で操作し、現場側の Raspberry Pi へ展開する構成です。メイン Raspberry Pi は LAN ポートを 2 系統持たせ、OA LAN 側と現場 LAN 側の接続点にします。
+
+OA LAN と現場 LAN は切り離して運用します。メイン Raspberry Pi は両方の LAN に接続しますが、OA LAN と現場 LAN の間でパケットを転送するルーターやブリッジにはしません。両側の端末は、メイン Raspberry Pi 上の MCCB Manager へ HTTPS で接続するだけの構成にします。
+
+実機設定の具体案は [Raspberry Pi OA LAN 接続設定案](raspberry-pi-oalan-settings.md) にまとめます。
+
 ```mermaid
 flowchart LR
   OfficePc[事務所 PC]
@@ -94,7 +99,34 @@ flowchart LR
 - 現場側は、メイン Raspberry Pi の現場 LAN 側ポートから現場 HUB に接続し、HUB 配下に 1 LAN の Raspberry Pi を収容します。
 - 現場 Raspberry Pi は、メイン Raspberry Pi の画面を kiosk 表示する端末として使う想定です。
 - DB をメイン Raspberry Pi に集約することで、事務所 PC と各電気室端末が同じデータを参照できます。
-- OA LAN と現場 LAN の境界にメイン Raspberry Pi を置くため、通信制御、HTTPS、認証、ログ管理を特に重視します。
+- OA LAN と現場 LAN の境界にメイン Raspberry Pi を置くため、ネットワーク分離、通信制御、HTTPS、認証、ログ管理を特に重視します。
+- OA LAN から現場 Raspberry Pi へ直接 SSH やファイル共有で接続する運用は避け、必要な操作はメイン Raspberry Pi のアプリまたは保守手順に集約します。
+
+### ネットワーク分離の方針
+
+| 項目 | 方針 |
+| --- | --- |
+| セグメント | OA LAN と現場 LAN は別 IP セグメントにする |
+| L2 接続 | ブリッジ接続はしない。HUB 同士を直接つながない |
+| L3 転送 | メイン Raspberry Pi の IP フォワーディング、NAT、ルーティングは無効にする |
+| 公開サービス | 両 LAN に公開するのは Nginx の `443/tcp` を基本にする |
+| アプリ API | Express は `127.0.0.1:5000` のみで待ち受け、Nginx 経由に限定する |
+| SSH | 保守端末の固定 IP だけ許可し、常時開放しない |
+| 名前解決 | 必要なら OA LAN 用と現場 LAN 用で別名または別 IP を使う |
+| 更新通信 | OS やアプリ更新の経路を決め、現場 LAN から OA LAN や外部へ直接出さない |
+
+推奨イメージ:
+
+```text
+OA LAN:      192.168.10.0/24
+Main Pi LAN1 192.168.10.50
+
+現場 LAN:    192.168.40.0/24
+Main Pi LAN2 192.168.40.111
+現場 Pi:     192.168.40.121, 192.168.40.122 ...
+```
+
+この場合、事務所 PC は `https://192.168.10.50/#/`、現場 Raspberry Pi は `https://192.168.40.111/#/` を開きます。どちらも同じ MCCB Manager を表示しますが、OA LAN と現場 LAN の端末同士は直接通信しません。
 
 ### 構成で検討が必要な項目
 
@@ -102,9 +134,9 @@ flowchart LR
 | --- | --- |
 | メイン Raspberry Pi の配置 | OA LAN と現場 HUB の両方へ接続できる場所、電源、UPS、保守性 |
 | LAN ポート | メイン Raspberry Pi は 2 LAN 構成にする。内蔵 LAN + USB LAN アダプターなどを想定 |
-| ネットワーク分離 | OA LAN 側と現場用 LAN 側を同一セグメントにするか、別セグメントにしてルーティングするか |
+| ネットワーク分離 | OA LAN 側と現場用 LAN 側を別セグメントにし、ルーティングやブリッジを行わない |
 | IP アドレス設計 | メイン Raspberry Pi の OA LAN 側 IP、現場 LAN 側 IP、現場 Raspberry Pi の固定 IP |
-| 通信制御 | 事務所 PC からメイン Raspberry Pi への HTTPS、現場 Raspberry Pi からメイン Raspberry Pi への HTTPS |
+| 通信制御 | 事務所 PC からメイン Raspberry Pi への HTTPS、現場 Raspberry Pi からメイン Raspberry Pi への HTTPS、保守用 SSH の接続元制限 |
 | 認証 | 事務所 PC からの操作権限、管理者権限、パスワード運用 |
 | HTTPS 証明書 | OA LAN 端末と現場 Raspberry Pi で警告なく使える証明書配布または社内 CA 利用 |
 | DB / バックアップ | メイン Raspberry Pi の SQLite DB バックアップ、microSD 障害対策、復旧手順 |

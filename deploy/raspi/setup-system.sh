@@ -70,6 +70,7 @@ Type=simple
 User=$USER
 WorkingDirectory=$APP_DIR
 Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
 Environment=PORT=5000
 ExecStart=$NODE_BIN $APP_DIR/server.js
 Restart=always
@@ -137,8 +138,23 @@ DNS.3 = localhost
 IP.1 = 127.0.0.1
 IP.2 = $MCCB_SERVER_HOST
 SSL_CONFIG
+    DNS_INDEX=4
+    for EXTRA_DNS in $(echo "${MCCB_CERT_EXTRA_DNS:-}" | tr ',;' '  '); do
+      if [ -n "$EXTRA_DNS" ]; then
+        echo "DNS.$DNS_INDEX = $EXTRA_DNS" >> "$OPENSSL_CONFIG"
+        DNS_INDEX=$((DNS_INDEX + 1))
+      fi
+    done
+    IP_INDEX=3
     if [ -n "$LOCAL_IP" ] && [ "$LOCAL_IP" != "$MCCB_SERVER_HOST" ]; then
-      echo "IP.3 = $LOCAL_IP" >> "$OPENSSL_CONFIG"
+      echo "IP.$IP_INDEX = $LOCAL_IP" >> "$OPENSSL_CONFIG"
+      IP_INDEX=$((IP_INDEX + 1))
+    fi
+    for EXTRA_IP in $(echo "${MCCB_CERT_EXTRA_IPS:-}" | tr ',;' '  '); do
+      if [ -n "$EXTRA_IP" ] && [ "$EXTRA_IP" != "$MCCB_SERVER_HOST" ] && [ "$EXTRA_IP" != "$LOCAL_IP" ]; then
+        echo "IP.$IP_INDEX = $EXTRA_IP" >> "$OPENSSL_CONFIG"
+        IP_INDEX=$((IP_INDEX + 1))
+      fi
     fi
 
     sudo openssl req -x509 -nodes -days 825 -newkey rsa:2048 \

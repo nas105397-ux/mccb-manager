@@ -5,6 +5,7 @@
 
 - [システム構成図](docs/system-architecture.md)
 - [ハードウェア構成図](docs/hardware-architecture.md)
+- [Raspberry Pi OA LAN 接続設定案](docs/raspberry-pi-oalan-settings.md)
 
 Raspberry Piで常時表示し、PCやタブレットからも同じ画面を開いて使えます。
 

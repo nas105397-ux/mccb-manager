@@ -40,6 +40,7 @@ const __dirname = path.dirname(__filename);
 const DATA_DIR = path.join(__dirname, 'data');
 const BACKUP_DIR = path.join(DATA_DIR, 'backups');
 const DB_PATH = process.env.MCCB_DB_PATH || path.join(DATA_DIR, 'mccb_data.sqlite');
+const HOST = process.env.HOST || process.env.MCCB_SERVER_BIND_HOST || '0.0.0.0';
 const PORT = process.env.PORT || 5000;
 const BACKUP_MAX_FILES = Number(process.env.MCCB_BACKUP_MAX_FILES || 10);
 const AUTO_BACKUP_ENABLED = process.env.MCCB_AUTO_BACKUP_ENABLED !== '0';
@@ -1105,11 +1106,12 @@ app.get('/{*splat}', (req, res) => {
 // ==========================================
 // 4. サーバーの起動
 // ==========================================
-httpServer = app.listen(PORT, () => {
+httpServer = app.listen(PORT, HOST, () => {
   const localIp = getLocalIpAddress();
   console.log(`==================================================`);
   console.log(` 🚀 禁止札データ(SQLite) ＆ Webサーバーが一体型で正常稼働しました`);
-  console.log(` 🌐 接続URL: http://${localIp}:${PORT}`);
+  console.log(` 🌐 待受: http://${HOST}:${PORT}`);
+  console.log(` 🌐 LAN接続URL目安: http://${localIp}:${PORT}`);
   console.log(` 💾 DB: ${DB_PATH}`);
   console.log(`==================================================`);
 });

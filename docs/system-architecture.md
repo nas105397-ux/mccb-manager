@@ -162,6 +162,8 @@ sequenceDiagram
 
 会社 OA LAN から事務所 PC で操作する将来構成では、メイン Raspberry Pi がアプリサーバー、SQLite DB、kiosk、OA LAN と現場用 LAN の接続点を兼ねます。接続順は `事務所 PC → OA LAN → メイン Raspberry Pi → 現場 HUB → 他電気室 Raspberry Pi` です。
 
+ただし、OA LAN と現場 LAN は同一ネットワークとして接続せず、メイン Raspberry Pi をルーターやブリッジとして使わない方針にします。両 LAN からアクセスできる対象は、メイン Raspberry Pi 上の MCCB Manager HTTPS 入口だけに限定します。
+
 ```mermaid
 flowchart LR
   Office[事務所 PC]
@@ -199,6 +201,18 @@ flowchart LR
 ```
 
 この構成では、データベースをメイン Raspberry Pi に集約し、事務所 PC と他電気室 Raspberry Pi は同じメイン Raspberry Pi の Web アプリへ接続します。メイン Raspberry Pi が単一障害点になるため、DB バックアップ、予備 microSD、予備 Raspberry Pi、UPS、復旧手順を事前に用意することが重要です。
+
+### OA LAN 接続時のセキュリティ方針
+
+- OA LAN 側と現場 LAN 側は別セグメントにし、L2 ブリッジ、NAT、IP フォワーディングを無効にします。
+- OA LAN から現場 Raspberry Pi や現場機器へ直接到達できない構成にします。
+- 現場 LAN から OA LAN 上の PC、ファイルサーバー、インターネットへ直接到達できない構成にします。
+- メイン Raspberry Pi の Nginx だけを両 LAN に公開し、公開ポートは原則 `443/tcp` に限定します。
+- Express API は `127.0.0.1:5000` のみで待ち受け、LAN 側へ直接公開しません。
+- SSH は保守用に必要な接続元だけ許可し、OA LAN 側または保守端末の固定 IP に制限します。
+- 管理者モードは初期パスワードを必ず変更し、操作ログと DB バックアップを定期確認します。
+- 証明書は自己署名の個別配布より、可能なら社内 CA または端末管理で信頼配布します。
+- OS、Node.js、Nginx の更新手順を決め、更新前に DB バックアップを取得します。
 
 ## デプロイ・運用上のポイント
 
