@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useAppController } from "./hooks/useAppController";
 import Header from "./components/Header";
 import AdminPanel from "./components/AdminPanel";
@@ -6,6 +7,7 @@ import ControlModal from "./components/ControlModal";
 import RequestFormPanel from "./components/RequestFormPanel";
 import RequestListPanel from "./components/RequestListPanel";
 import DashboardView from "./components/DashboardView";
+import OperationGuideSidebar from "./components/OperationGuideSidebar";
 import VirtualizedMccbGrid from "./components/VirtualizedMccbGrid";
 import {
   HashRouter as Router,
@@ -17,7 +19,9 @@ import {
 function AppContent() {
   // 処理ロジックは useAppController に集約し、ここではUIレンダリングに専念する
   const controller = useAppController();
-  const isFixedOperationScreen = controller.activeTab === "/" && !controller.isAdmin;
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const isOperationScreen = controller.activeTab === "/";
+  const isFixedOperationScreen = isOperationScreen && !controller.isAdmin;
   const adminPanel = (
     <AdminPanel
       onImportCSV={controller.importFromCSV}
@@ -94,6 +98,20 @@ function AppContent() {
             >
               🖥️ 電気室モニター
             </button>
+            {isOperationScreen && (
+              <button
+                type="button"
+                onClick={() => setIsGuideOpen((current) => !current)}
+                className={`px-4 py-2 rounded-lg text-xs font-black border transition-all cursor-pointer shadow-sm flex items-center gap-1 ${
+                  isGuideOpen
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                }`}
+                aria-pressed={isGuideOpen}
+              >
+                {isGuideOpen ? "操作説明を閉じる" : "操作説明"}
+              </button>
+            )}
           </div>
 
           <button
@@ -118,32 +136,40 @@ function AppContent() {
                     : ""
                 }
               >
-                <Header
-                  searchTerm={controller.searchTerm}
-                  setSearchTerm={controller.setSearchTerm}
-                  filterStatus={controller.filterStatus}
-                  setFilterStatus={controller.setFilterStatus}
-                  filterRoom={controller.filterRoom}
-                  setFilterRoom={controller.setFilterRoom}
-                  filterFavorite={controller.filterFavorite}
-                  setFilterFavorite={controller.setFilterFavorite}
-                  totalCount={controller.totalCount}
-                  offCount={controller.offCount}
-                  onCount={controller.onCount}
-                  isAdmin={controller.isAdmin}
-                  setIsAdmin={controller.setIsAdmin}
-                  rooms={controller.rooms}
-                />
-
-                <div className={isFixedOperationScreen ? "flex-1 min-h-0" : "mt-4"}>
-                  <VirtualizedMccbGrid
-                    items={controller.filteredMccbList}
-                    borrowedCountMap={controller.borrowedCountMap}
-                    onSelect={controller.handleSelect}
-                    onToggleFavorite={controller.handleToggleFavorite}
-                    activeMccbIds={controller.activeMccbIds}
-                    categoryColors={controller.categoryColors}
+                <div
+                  className={
+                    isFixedOperationScreen
+                      ? "flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden"
+                      : ""
+                  }
+                >
+                  <Header
+                    searchTerm={controller.searchTerm}
+                    setSearchTerm={controller.setSearchTerm}
+                    filterStatus={controller.filterStatus}
+                    setFilterStatus={controller.setFilterStatus}
+                    filterRoom={controller.filterRoom}
+                    setFilterRoom={controller.setFilterRoom}
+                    filterFavorite={controller.filterFavorite}
+                    setFilterFavorite={controller.setFilterFavorite}
+                    totalCount={controller.totalCount}
+                    offCount={controller.offCount}
+                    onCount={controller.onCount}
+                    isAdmin={controller.isAdmin}
+                    setIsAdmin={controller.setIsAdmin}
+                    rooms={controller.rooms}
                   />
+
+                  <div className={isFixedOperationScreen ? "flex-1 min-h-0" : "mt-4"}>
+                    <VirtualizedMccbGrid
+                      items={controller.filteredMccbList}
+                      borrowedCountMap={controller.borrowedCountMap}
+                      onSelect={controller.handleSelect}
+                      onToggleFavorite={controller.handleToggleFavorite}
+                      activeMccbIds={controller.activeMccbIds}
+                      categoryColors={controller.categoryColors}
+                    />
+                  </div>
                 </div>
 
                 {controller.currentMccb && (
@@ -208,6 +234,13 @@ function AppContent() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
+
+      {isOperationScreen && (
+        <OperationGuideSidebar
+          isOpen={isGuideOpen}
+          onClose={() => setIsGuideOpen(false)}
+        />
+      )}
     </div>
   );
 }
