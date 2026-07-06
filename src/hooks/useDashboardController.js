@@ -8,16 +8,20 @@ const API_URL = '/api/mccb';
 const CORE_API_URL = `${API_URL}?core=1`;
 const VERSION_URL = `${API_URL}/version`;
 const ACTIVITY_LOG_LIMIT = 20;
+const STORAGE_KEYS = {
+  DARK_MODE: 'dashboard_is_dark_mode',
+  COL_LAYOUT: 'dashboard_col_layout',
+};
 const LOGS_PAGE_URL = `/api/logs?page=1&pageSize=${ACTIVITY_LOG_LIMIT}`;
 export const POLL_INTERVAL = 15000;
 const INITIAL_DATA = { mccbList: [], logs: [], requests: [], categoryColors: {} };
 
 const getInitialDarkMode = () => {
-  const savedMode = localStorage.getItem('dashboard_is_dark_mode');
+  const savedMode = localStorage.getItem(STORAGE_KEYS.DARK_MODE);
   return savedMode !== null ? savedMode === 'true' : true;
 };
 
-const getInitialColLayout = () => localStorage.getItem('dashboard_col_layout') || 'auto';
+const getInitialColLayout = () => localStorage.getItem(STORAGE_KEYS.COL_LAYOUT) || 'auto';
 
 export function useDashboardController() {
   const [data, setData] = useState(INITIAL_DATA);
@@ -26,17 +30,19 @@ export function useDashboardController() {
   const [colLayout, setColLayout] = useState(getInitialColLayout);
   const lastVersion = useRef(0);
 
+  // モニター画面は常時表示されるため、表示設定を端末ごとに保存する。
   useEffect(() => {
-    localStorage.setItem('dashboard_is_dark_mode', isDarkMode);
+    localStorage.setItem(STORAGE_KEYS.DARK_MODE, isDarkMode);
   }, [isDarkMode]);
 
   useEffect(() => {
-    localStorage.setItem('dashboard_col_layout', colLayout);
+    localStorage.setItem(STORAGE_KEYS.COL_LAYOUT, colLayout);
   }, [colLayout]);
 
   useEffect(() => {
     let disposed = false;
 
+    // version が変わった時だけ本体データを取り直し、通常時の通信量を抑える。
     const fetchFullData = async () => {
       try {
         const [coreRes, logsRes] = await Promise.all([
@@ -96,6 +102,7 @@ export function useDashboardController() {
     };
   }, []);
 
+  // 停電中MCCBと統計値は同じ走査で作成し、監視画面の再計算を最小限にする。
   const { processedOffMccbs, stats } = useMemo(() => {
     const nameOverlayMap = createRequestNameOverlayMap(
       data.requests,
