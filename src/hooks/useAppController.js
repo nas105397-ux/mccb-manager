@@ -205,15 +205,15 @@ export function useAppController() {
   const navItems = useMemo(() => {
     const items = [
       { path: "/", label: "🔖 禁止札操作画面" },
-      { path: "/request", label: "🖨️ 停電作業 依頼発行・印刷" },
+      { path: "/request", label: "🖨️ 依頼発行・印刷" },
       {
         path: "/request-list",
-        label: `📋 依頼一覧・進捗 (${requests.length})`,
+        label: `📋 依頼一覧 (${requests.length})`,
       },
     ];
 
     if (isAdmin) {
-      items.push({ path: "/admin", label: "⚙️ 管理者画面" });
+      items.push({ path: "/admin", label: "⚙️ 管理画面" });
     }
 
     return items;

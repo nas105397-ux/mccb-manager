@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useAppController } from "./hooks/useAppController";
 import Header from "./components/Header";
 import AdminPanel from "./components/AdminPanel";
@@ -19,9 +19,18 @@ import {
 function AppContent() {
   // 処理ロジックは useAppController に集約し、ここではUIレンダリングに専念する
   const controller = useAppController();
-  const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [openGuidePath, setOpenGuidePath] = useState(null);
   const isOperationScreen = controller.activeTab === "/";
   const isFixedOperationScreen = isOperationScreen && !controller.isAdmin;
+  const guideType = useMemo(() => {
+    if (controller.activeTab === "/request") return "request";
+    if (controller.activeTab === "/request-list") return "requestList";
+    if (controller.activeTab === "/") return "operation";
+    return null;
+  }, [controller.activeTab]);
+  const isGuideAvailable = Boolean(guideType);
+  const isGuideOpen = openGuidePath === controller.activeTab;
+
   const adminPanel = (
     <AdminPanel
       onImportCSV={controller.importFromCSV}
@@ -98,10 +107,16 @@ function AppContent() {
             >
               🖥️ 電気室モニター
             </button>
-            {isOperationScreen && (
+            {isGuideAvailable && (
               <button
                 type="button"
-                onClick={() => setIsGuideOpen((current) => !current)}
+                onClick={() =>
+                  setOpenGuidePath((currentPath) =>
+                    currentPath === controller.activeTab
+                      ? null
+                      : controller.activeTab,
+                  )
+                }
                 className={`px-4 py-2 rounded-lg text-xs font-black border transition-all cursor-pointer shadow-sm flex items-center gap-1 ${
                   isGuideOpen
                     ? "bg-blue-600 text-white border-blue-600"
@@ -235,10 +250,11 @@ function AppContent() {
         </Routes>
       </div>
 
-      {isOperationScreen && (
+      {isGuideAvailable && (
         <OperationGuideSidebar
           isOpen={isGuideOpen}
-          onClose={() => setIsGuideOpen(false)}
+          onClose={() => setOpenGuidePath(null)}
+          guideType={guideType}
         />
       )}
     </div>
