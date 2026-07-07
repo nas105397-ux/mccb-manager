@@ -4,6 +4,8 @@ MCCB Manager は Raspberry Pi OS Lite 64-bit 固定で運用します。Raspberr
 
 Liteではデスクトップ環境を入れず、最小のX + Openbox + Chromiumだけでkiosk表示します。Piをサーバー専用にして別端末から見る場合は、kiosk関連は不要です。
 
+この文書では、Raspberry Pi OS Lite の初期セットアップと kiosk 関連パッケージの導入を扱います。Windows PC からのデプロイは [Raspberry Pi オフライン SSH デプロイ](README-ssh-deploy.md)、日常操作やバックアップは [取扱説明・運用ガイド](../../docs/operation-guide.md) を参照してください。
+
 ## 推奨構成
 
 ```text
@@ -331,3 +333,9 @@ http://<Raspberry Pi IP>:5000/#/monitor
 - Raspberry Pi OS with Desktop（通常OS）は対象外です。誤って通常OSで実行した場合、セットアップスクリプトは停止します。
 - LiteではDesktop版の設定画面がありません。画面回転、解像度、ネットワーク固定IPなどはCLIで設定します。
 - Pi本体表示が不要なら、kioskを入れずサーバー専用にした方が最も軽くなります。
+
+## 関連ドキュメント
+
+- [Raspberry Pi オフライン SSH デプロイ](README-ssh-deploy.md)
+- [取扱説明・運用ガイド](../../docs/operation-guide.md)
+- [ハードウェア構成](../../docs/hardware-architecture.md)

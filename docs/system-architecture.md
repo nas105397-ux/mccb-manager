@@ -1,6 +1,8 @@
-# システム構成図
+# システム構成
 
 MCCB Manager は、Raspberry Pi 上で常時稼働する単一拠点向け Web アプリです。React/Vite の画面、Express API、Node.js 組み込み SQLite による永続化を 1 台に集約し、Pi 本体の kiosk、PC、タブレットから同じ画面を利用します。
+
+この文書では、アプリケーション、API、DB、同期処理の構成をまとめます。Raspberry Pi、ディスプレイ、プリンター、LAN の物理構成は [ハードウェア構成](hardware-architecture.md)、OA LAN と現場 LAN の実機設定は [Raspberry Pi OA LAN 接続設定案](raspberry-pi-oalan-settings.md) を参照してください。
 
 ## 標準システム構成
 
@@ -148,9 +150,9 @@ sequenceDiagram
   UI-->>User: 依頼一覧更新・印刷へ
 ```
 
-## OA LAN 拡張構成
+## OA LAN 拡張構成の位置づけ
 
-会社 OA LAN から事務所 PC で操作し、現場側 Raspberry Pi はメイン Raspberry Pi の画面を kiosk 表示する構成です。メイン Raspberry Pi は OA LAN と現場 LAN の両方に接続しますが、ルーター、NAT、ブリッジとしては使いません。両 LAN から公開する入口は MCCB Manager の HTTPS のみに限定します。
+会社 OA LAN から事務所 PC で操作し、現場側 Raspberry Pi はメイン Raspberry Pi の画面を kiosk 表示する構成です。アプリケーションとしては標準構成と同じく、データベースをメイン Raspberry Pi に集約し、全端末が同じ Web アプリへ HTTPS で接続します。
 
 ```mermaid
 flowchart LR
@@ -189,19 +191,9 @@ flowchart LR
   PiN -->|HTTPS でメイン Pi を表示| Nginx2
 ```
 
-この構成では、データベースをメイン Raspberry Pi に集約し、事務所 PC と各電気室端末は同じ Web アプリへ接続します。メイン Raspberry Pi が単一障害点になるため、DB バックアップ、予備 microSD、予備 Raspberry Pi、UPS、復旧手順を事前に用意します。
+OA LAN と現場 LAN は別セグメントにし、メイン Raspberry Pi をルーター、NAT、ブリッジとして使いません。公開する入口は原則 Nginx の HTTPS `443/tcp` に限定し、Express API は `127.0.0.1:5000` のみで待ち受けます。
 
-### OA LAN 接続時のセキュリティ方針
-
-- OA LAN 側と現場 LAN 側は別セグメントにし、L2 ブリッジ、NAT、IP フォワーディングを無効にします。
-- OA LAN から現場 Raspberry Pi や現場機器へ直接到達できない構成にします。
-- 現場 LAN から OA LAN 上の PC、ファイルサーバー、インターネットへ直接到達できない構成にします。
-- メイン Raspberry Pi の Nginx だけを両 LAN に公開し、公開ポートは原則 `443/tcp` に限定します。
-- Express API は `127.0.0.1:5000` のみで待ち受け、LAN 側へ直接公開しません。
-- SSH は保守用に必要な接続元だけ許可し、OA LAN 側または保守端末の固定 IP に制限します。
-- 管理者モードは初期パスワードを必ず変更し、操作ログと DB バックアップを定期確認します。
-- 証明書は自己署名の個別配布より、可能なら社内 CA または端末管理で信頼配布します。
-- OS、Node.js、Nginx の更新手順を決め、更新前に DB バックアップを取得します。
+物理構成の検討は [ハードウェア構成](hardware-architecture.md)、固定 IP、IP 転送無効化、ファイアウォール、証明書の設定例は [Raspberry Pi OA LAN 接続設定案](raspberry-pi-oalan-settings.md) にまとめています。
 
 ## 運用上のポイント
 
@@ -211,3 +203,4 @@ flowchart LR
 - WebUSB 印刷を使う端末は、Chrome/Edge で `localhost` または HTTPS の安全なコンテキストから開く必要があります。
 - SQLite は WAL モードで動作し、定期チェックポイントとバックアップ作成に対応します。
 - 管理画面から CSV 取込・マスター編集・ログ管理・履歴管理・DB バックアップ作成を実行できます。
+- メイン Raspberry Pi が単一障害点になるため、DB バックアップ、予備 microSD、予備 Raspberry Pi、UPS、復旧手順を事前に用意します。

@@ -4,7 +4,8 @@
 
 PC 側でアプリをビルドし、`dist/`、サーバーファイル、`src/shared/`、`deploy/`、サーバ実行に必要な `node_modules` だけをまとめて SSH で Raspberry Pi へ転送します。Raspberry Pi 側のセットアップでは `apt`、NodeSource、`npm install` は実行しません。
 
-Lite OS の初期セットアップは `deploy/raspi/README-lite.md` を参照してください。
+Lite OS の初期セットアップは [Raspberry Pi OS Lite 導入手順](README-lite.md) を参照してください。
+日常操作、バックアップ、更新時の注意、トラブル確認は [取扱説明・運用ガイド](../../docs/operation-guide.md) を参照してください。
 
 ## Raspberry Pi OS Lite イメージの事前準備
 
@@ -138,3 +139,9 @@ journalctl -u mccb-manager.service --no-pager -n 80
 systemctl status nginx
 systemctl --user status mccb-kiosk.service
 ```
+
+## 関連ドキュメント
+
+- [Raspberry Pi OS Lite 導入手順](README-lite.md)
+- [取扱説明・運用ガイド](../../docs/operation-guide.md)
+- [システム構成](../../docs/system-architecture.md)
