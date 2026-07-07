@@ -1,4 +1,4 @@
-# Raspberry Pi OS Lite kiosk setup
+# Raspberry Pi OS Lite 導入手順
 
 MCCB Manager は Raspberry Pi OS Lite 64-bit 固定で運用します。Raspberry Pi OS with Desktop（通常OS）は使用しません。
 
@@ -53,7 +53,7 @@ sudo reboot
 
 再起動後、再度SSH接続します。
 
-## 3. Lite用の最小GUI環境を入れる
+## 3. Lite用パッケージを入れる
 
 先に必要パッケージだけ手動で入れる場合は、以下を実行します。
 
@@ -115,13 +115,22 @@ sudo TARGET_USER=pi INSTALL_KIOSK=0 bash deploy/raspi/setup-lite-os.sh
 
 既存のデプロイスクリプトはPi上にNode.js 24以上が入っている前提です。
 
+オンライン環境で入れる場合:
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
+sudo apt install -y nodejs
+```
+
 確認:
 
 ```bash
 node -v
+npm -v
+node -e "require('node:sqlite').DatabaseSync"
 ```
 
-`v24.x.x` 以上ならOKです。
+`v24.x.x` 以上で、`node:sqlite` の確認がエラーにならなければOKです。
 
 入っていない場合は、オンライン環境でNode.js 24以上を入れてからオフライン運用へ移してください。
 
@@ -129,8 +138,16 @@ node -v
 
 Windows PC側で実行します。
 
+kiosk表示あり:
+
 ```powershell
 .\deploy\raspi\deploy-over-ssh.ps1 -Target pi@<Raspberry Pi IP> -StartKiosk
+```
+
+kiosk表示なし:
+
+```powershell
+.\deploy\raspi\deploy-over-ssh.ps1 -Target pi@<Raspberry Pi IP>
 ```
 
 クリック実行する場合:

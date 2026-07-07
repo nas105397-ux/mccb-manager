@@ -52,8 +52,8 @@ if ! node -e "require('node:sqlite').DatabaseSync" >/dev/null 2>&1; then
   exit 1
 fi
 
-if [ ! -d node_modules ]; then
-  echo "node_modules was not deployed. Run deploy-over-ssh.ps1 without -SkipBuild, or include node_modules in the package." >&2
+if [ ! -d node_modules/express ] || [ ! -d node_modules/cors ]; then
+  echo "Server runtime dependencies were not deployed. Run deploy-over-ssh.ps1 without -SkipBuild, or restore node_modules with npm ci." >&2
   exit 1
 fi
 
@@ -155,7 +155,7 @@ SSL_CONFIG
         echo "IP.$IP_INDEX = $EXTRA_IP" >> "$OPENSSL_CONFIG"
         IP_INDEX=$((IP_INDEX + 1))
       fi
-    fi
+    done
 
     sudo openssl req -x509 -nodes -days 825 -newkey rsa:2048 \
       -keyout "$KEY_PATH" \

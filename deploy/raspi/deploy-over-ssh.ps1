@@ -77,6 +77,78 @@ function Copy-RepoItem {
   Copy-Item -Path $Source -Destination $Destination -Recurse -Force
 }
 
+function Get-LockfilePackage {
+  param(
+    [Parameter(Mandatory = $true)]
+    [object]$PackageLock,
+
+    [Parameter(Mandatory = $true)]
+    [string]$PackageName
+  )
+
+  $PackagePath = "node_modules/$PackageName"
+  if (-not $PackageLock['packages'].ContainsKey($PackagePath)) {
+    return $null
+  }
+
+  return $PackageLock['packages'][$PackagePath]
+}
+
+function Get-RuntimePackageNames {
+  param([string[]]$RootPackageNames)
+
+  $PackageLockPath = Join-Path $RepoRoot 'package-lock.json'
+  $PackageLock = Get-Content -Raw -Path $PackageLockPath | ConvertFrom-Json -AsHashtable
+  $Queue = [System.Collections.Generic.Queue[string]]::new()
+  $Seen = [System.Collections.Generic.HashSet[string]]::new()
+
+  foreach ($PackageName in $RootPackageNames) {
+    $Queue.Enqueue($PackageName)
+  }
+
+  while ($Queue.Count -gt 0) {
+    $PackageName = $Queue.Dequeue()
+    if (-not $Seen.Add($PackageName)) {
+      continue
+    }
+
+    $Package = Get-LockfilePackage -PackageLock $PackageLock -PackageName $PackageName
+    if ($null -eq $Package) {
+      throw "Runtime dependency '$PackageName' was not found in package-lock.json."
+    }
+
+    if ($Package.ContainsKey('dependencies')) {
+      foreach ($Dependency in $Package['dependencies'].Keys) {
+        $Queue.Enqueue($Dependency)
+      }
+    }
+  }
+
+  return $Seen
+}
+
+function Copy-NodeModulePackage {
+  param([string]$PackageName)
+
+  $Source = Join-Path $RepoRoot "node_modules/$PackageName"
+  if (-not (Test-Path $Source)) {
+    throw "Runtime dependency '$PackageName' was not found in node_modules. Run npm ci and try again."
+  }
+
+  $Destination = Join-Path $StageDir "node_modules/$PackageName"
+  $DestinationParent = Split-Path $Destination -Parent
+  New-Item -ItemType Directory -Force -Path $DestinationParent | Out-Null
+  Copy-Item -Path $Source -Destination $Destination -Recurse -Force
+}
+
+function Copy-RuntimeNodeModules {
+  $RuntimePackageNames = Get-RuntimePackageNames -RootPackageNames @('cors', 'express')
+
+  foreach ($PackageName in $RuntimePackageNames) {
+    Copy-NodeModulePackage $PackageName
+  }
+}
+
 function Convert-StagedUnixLineEndings {
   $Patterns = @('*.sh', '*.service', '*.conf')
   foreach ($Pattern in $Patterns) {
@@ -146,14 +218,16 @@ try {
   @(
     'package.json',
     'package-lock.json',
-    'node_modules',
     'server.js',
     'dbStore.js',
+    'server',
     'src/shared',
     'dist',
     'deploy',
     'README.md'
   ) | ForEach-Object { Copy-RepoItem $_ }
+
+  Copy-RuntimeNodeModules
 
   Convert-StagedUnixLineEndings
 
