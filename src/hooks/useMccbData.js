@@ -860,7 +860,7 @@ export function useMccbData() {
   );
 
   const updateDeviceGroup = useCallback(
-    (id, updatedGroup) => {
+    (id, updatedGroup, options = {}) => {
       const nextGroups = deviceGroups.map((g) =>
         g.id === id ? updatedGroup : g,
       );
@@ -869,7 +869,11 @@ export function useMccbData() {
         const res = await fetch("/api/admin/device-groups", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ deviceGroups: nextGroups }),
+          body: JSON.stringify({
+            deviceGroups: nextGroups,
+            logType: options.logType || LOG_TYPES.MASTER_UPDATE,
+            logMessage: options.logMessage,
+          }),
         });
         if (!res.ok) throw new Error(`設備グループ更新に失敗しました (${res.status})`);
         const result = await res.json();

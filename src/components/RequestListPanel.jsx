@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useRequestBarcodeScanner } from "../hooks/useRequestBarcodeScanner";
 import { useRequestListController } from "../hooks/useRequestListController";
 import { useRequestListPrintController } from "../hooks/useRequestListPrintController";
 import { REQUEST_PRINT_MODES } from "../shared/printSettings";
@@ -144,6 +145,12 @@ export default function RequestListPanel({
     isPrintDisabledBySetting,
     handlePrintRequest,
   } = useRequestListPrintController({ requestPrintMode, mccbList });
+
+  useRequestBarcodeScanner({
+    activeRequestViews,
+    historyRequestViews,
+    onCompleteRequest: onDeleteRequest,
+  });
 
   const openAddPanel = (requestId) => {
     setAddPanelRequestId((currentId) => (currentId === requestId ? null : requestId));

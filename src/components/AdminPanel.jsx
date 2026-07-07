@@ -147,6 +147,7 @@ export default function AdminPanel({
     handleAddCategory,
     handleCreateGroup,
     handleDeleteGroup,
+    handleEditGroupPrompt,
     handleToggleDeviceInGroup,
     handleConnectStarPrinter,
     handleClearStarPrinterConnection,
@@ -407,12 +408,20 @@ export default function AdminPanel({
                       <span className="font-semibold truncate">
                         {g.name} ({g.mccbIds?.length || 0})
                       </span>
-                      <button
-                        onClick={(e) => handleDeleteGroup(g, e)}
-                        className={UI_STYLES.btnDangerSmall}
-                      >
-                        削除
-                      </button>
+                      <div className="flex gap-1 shrink-0">
+                        <button
+                          onClick={(e) => handleEditGroupPrompt(g, e)}
+                          className={UI_STYLES.btnTextSmall}
+                        >
+                          編集
+                        </button>
+                        <button
+                          onClick={(e) => handleDeleteGroup(g, e)}
+                          className={UI_STYLES.btnDangerSmall}
+                        >
+                          削除
+                        </button>
+                      </div>
                     </div>
                   ))
                 )}

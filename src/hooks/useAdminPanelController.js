@@ -147,6 +147,27 @@ export function useAdminPanelController({
     }
   };
 
+  const handleEditGroupPrompt = (group, e) => {
+    e.stopPropagation();
+    const oldName = group.name || '';
+    const res = window.prompt(`グループ「${oldName}」の新しい名称を入力してください:`, oldName);
+    const nextName = res?.trim();
+    if (!nextName || nextName === oldName) return;
+
+    if (deviceGroups.some((g) => g.id !== group.id && g.name === nextName)) {
+      alert(`グループ「${nextName}」は既に存在します。`);
+      return;
+    }
+
+    updateDeviceGroup(
+      group.id,
+      { ...group, name: nextName },
+      {
+        logMessage: `設備グループ「${oldName}」を「${nextName}」に名称変更しました。`,
+      },
+    );
+  };
+
   const handleToggleDeviceInGroup = (deviceId) => {
     if (!currentGroup) return;
 
@@ -234,6 +255,7 @@ export function useAdminPanelController({
     handleAddCategory,
     handleCreateGroup,
     handleDeleteGroup,
+    handleEditGroupPrompt,
     handleToggleDeviceInGroup,
     handleConnectStarPrinter,
     handleClearStarPrinterConnection,
