@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useAdminPanelController } from "../hooks/useAdminPanelController";
 import {
   CATEGORY_COLOR_PRESETS,
@@ -83,6 +84,18 @@ const getLogBadgeClass = (type) => {
   }
 };
 
+const formatBackupDate = (createdAt) => {
+  if (!createdAt) return "日時不明";
+  return new Date(createdAt).toLocaleString("ja-JP");
+};
+
+const formatBackupSize = (size) => {
+  const bytes = Number(size || 0);
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+};
+
 // ==========================================
 // 2. メインコンポーネント
 // ==========================================
@@ -113,10 +126,13 @@ export default function AdminPanel({
   historySettings = { maxSize: 500 },
   onClearRequestHistory = () => {},
   onChangeMaxHistorySize = () => {},
+  databaseBackups = [],
   onCreateDatabaseBackup = () => {},
+  onRestoreDatabaseBackup = () => {},
   requestPrintMode,
   onChangeRequestPrintMode = () => {},
 }) {
+  const [selectedBackupFile, setSelectedBackupFile] = useState("");
   const {
     room,
     setRoom,
@@ -167,6 +183,11 @@ export default function AdminPanel({
     deleteDeviceGroup,
   });
   const currentRequestPrintMode = normalizeRequestPrintMode(requestPrintMode);
+  const selectedBackupFileName = databaseBackups.some(
+    (backup) => backup.fileName === selectedBackupFile,
+  )
+    ? selectedBackupFile
+    : databaseBackups[0]?.fileName || "";
 
   // --- 画面レンダリング ---
   return (
@@ -658,19 +679,50 @@ export default function AdminPanel({
 
           <div className="rounded-xl border border-gray-200 p-4 bg-white">
             <h3 className={UI_STYLES.labelSubsection}>
-              DBバックアップ
+              DBバックアップ・復旧
             </h3>
             <div className="space-y-4 text-xs font-bold">
               <div className="text-gray-500 font-medium">
-                現在のSQLite DBを data/backups に保存します。最新10件を保持します。
+                現在のSQLite DBを data/backups に保存します。最新10件を保持します。復旧前にも現在DBを自動バックアップします。
               </div>
-              <button
-                type="button"
-                onClick={onCreateDatabaseBackup}
-                className={UI_STYLES.btnCsvAction}
-              >
-                💾 DBバックアップ作成
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onCreateDatabaseBackup}
+                  className={UI_STYLES.btnCsvAction}
+                >
+                  💾 DBバックアップ作成
+                </button>
+              </div>
+              <div className="space-y-2 rounded-lg border border-red-100 bg-red-50/40 p-3">
+                <label className="block text-[11px] font-black text-red-700">
+                  復旧するバックアップ
+                </label>
+                <select
+                  value={selectedBackupFileName}
+                  onChange={(e) => setSelectedBackupFile(e.target.value)}
+                  disabled={databaseBackups.length === 0}
+                  className={`${UI_STYLES.select} disabled:bg-gray-100 disabled:text-gray-400`}
+                >
+                  {databaseBackups.length === 0 ? (
+                    <option value="">バックアップがありません</option>
+                  ) : (
+                    databaseBackups.map((backup) => (
+                      <option key={backup.fileName} value={backup.fileName}>
+                        {backup.fileName} / {formatBackupDate(backup.createdAt)} / {formatBackupSize(backup.size)}
+                      </option>
+                    ))
+                  )}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => onRestoreDatabaseBackup(selectedBackupFileName)}
+                  disabled={!selectedBackupFileName}
+                  className={`${UI_STYLES.btnClearAction} disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  ♻️ 選択バックアップからDB復旧
+                </button>
+              </div>
             </div>
           </div>
 

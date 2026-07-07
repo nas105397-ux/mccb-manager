@@ -25,9 +25,10 @@ function AppContent() {
   const guideType = useMemo(() => {
     if (controller.activeTab === "/request") return "request";
     if (controller.activeTab === "/request-list") return "requestList";
+    if (controller.activeTab === "/admin" && controller.isAdmin) return "admin";
     if (controller.activeTab === "/") return "operation";
     return null;
-  }, [controller.activeTab]);
+  }, [controller.activeTab, controller.isAdmin]);
   const isGuideAvailable = Boolean(guideType);
   const isGuideOpen = openGuidePath === controller.activeTab;
 
@@ -59,7 +60,9 @@ function AppContent() {
       historySettings={controller.historySettings}
       onClearRequestHistory={controller.clearRequestHistory}
       onChangeMaxHistorySize={controller.changeMaxHistorySize}
+      databaseBackups={controller.databaseBackups}
       onCreateDatabaseBackup={controller.createDatabaseBackup}
+      onRestoreDatabaseBackup={controller.restoreDatabaseBackup}
       requestPrintMode={controller.requestPrintMode}
       onChangeRequestPrintMode={controller.setRequestPrintMode}
     />

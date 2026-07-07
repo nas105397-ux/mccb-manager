@@ -258,6 +258,42 @@ walCheckpointTimer.unref?.();
 
 let httpServer = null;
 
+function listDatabaseBackups() {
+  if (!fs.existsSync(BACKUP_DIR)) return [];
+
+  return fs
+    .readdirSync(BACKUP_DIR, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && /^mccb_data_\d{8}_\d{6}\.sqlite$/.test(entry.name))
+    .map((entry) => {
+      const filePath = path.join(BACKUP_DIR, entry.name);
+      const stat = fs.statSync(filePath);
+      return {
+        fileName: entry.name,
+        size: stat.size,
+        createdAt: stat.mtimeMs,
+      };
+    })
+    .sort((a, b) => b.createdAt - a.createdAt);
+}
+
+function resolveBackupPath(fileName) {
+  const requestedFileName = String(fileName || '');
+  const safeFileName = path.basename(requestedFileName);
+  if (
+    safeFileName !== requestedFileName ||
+    !/^mccb_data_\d{8}_\d{6}\.sqlite$/.test(safeFileName)
+  ) {
+    throw new Error('復旧対象のバックアップファイル名が不正です。');
+  }
+
+  const backupPath = path.join(BACKUP_DIR, safeFileName);
+  if (!fs.existsSync(backupPath)) {
+    throw new Error('復旧対象のバックアップファイルが見つかりません。');
+  }
+
+  return backupPath;
+}
+
 function createDatabaseBackup(reason = '手動') {
   const backup = store.createBackup({
     backupDir: BACKUP_DIR,
@@ -275,6 +311,42 @@ function createDatabaseBackup(reason = '手動') {
     backup,
     logs,
     version: store.getVersion(),
+  };
+}
+
+function restoreDatabaseBackup(fileName) {
+  const backupPath = resolveBackupPath(fileName);
+  const backupStore = createMccbStore({
+    dbPath: backupPath,
+    defaults: DEFAULT_DATA,
+  });
+  let backupData;
+
+  try {
+    backupData = backupStore.readAll();
+  } finally {
+    backupStore.close();
+  }
+
+  const rollbackBackup = store.createBackup({
+    backupDir: BACKUP_DIR,
+    maxFiles: BACKUP_MAX_FILES,
+  });
+  const maxLogSize = backupData.logSettings?.maxSize || DEFAULT_MAX_SIZE;
+  const logs = createUpdatedLogs(
+    LOG_TYPES.SYSTEM,
+    `DBをバックアップから復旧しました: ${fileName}（復旧前バックアップ: ${rollbackBackup.fileName}）`,
+    backupData.logs,
+    maxLogSize,
+  );
+  const saved = store.saveAll({ ...backupData, logs });
+
+  return {
+    data: { ...saved, logs },
+    restoredFrom: fileName,
+    rollbackBackup,
+    backups: listDatabaseBackups(),
+    version: store.getVersion() || saved.version,
   };
 }
 
@@ -394,6 +466,38 @@ app.post('/api/admin/backups', (req, res) => {
   } catch (error) {
     console.error("DBバックアップ作成失敗:", error);
     res.status(500).json({ error: 'DBバックアップの作成に失敗しました' });
+  }
+});
+
+/** SQLite DBバックアップ一覧 */
+app.get('/api/admin/backups', (req, res) => {
+  try {
+    res.json({
+      status: 'success',
+      backups: listDatabaseBackups(),
+      version: store.getVersion(),
+    });
+  } catch (error) {
+    console.error("DBバックアップ一覧取得失敗:", error);
+    res.status(500).json({ error: 'DBバックアップ一覧の取得に失敗しました' });
+  }
+});
+
+/** SQLite DBをバックアップから復旧 */
+app.post('/api/admin/backups/restore', (req, res) => {
+  try {
+    const fileName = req.body?.fileName;
+    const result = restoreDatabaseBackup(fileName);
+
+    res.json({
+      status: 'success',
+      ...result,
+    });
+  } catch (error) {
+    console.error("DBバックアップ復旧失敗:", error);
+    res.status(500).json({
+      error: error.message || 'DBバックアップからの復旧に失敗しました',
+    });
   }
 });
 

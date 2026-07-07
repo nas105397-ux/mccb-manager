@@ -33,6 +33,7 @@ export function useAppController() {
     draftRequests,
     requestHistory,
     historySettings,
+    databaseBackups,
     addRequest,
     addDraftRequest,
     issueDraftRequest,
@@ -57,6 +58,7 @@ export function useAppController() {
     updateDeviceGroup,
     deleteDeviceGroup,
     createDatabaseBackup,
+    restoreDatabaseBackup,
     updateMccbPower,
   } = useMccbData();
 
@@ -237,6 +239,7 @@ export function useAppController() {
     pagedRequestHistory,
     historyPageInfo,
     historySettings,
+    databaseBackups,
     logs,
     pagedLogs,
     logPageInfo,
@@ -296,6 +299,7 @@ export function useAppController() {
     updateDeviceGroup,
     deleteDeviceGroup,
     createDatabaseBackup,
+    restoreDatabaseBackup,
     // 新規追加: アクティブな MCCB ID の集合（MCCB カード再描画最適化に利用）
     activeMccbIds,
   };

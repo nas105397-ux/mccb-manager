@@ -12,6 +12,7 @@ const CORE_API_URL = `${API_URL}?core=1`;
 const VERSION_URL = `${API_URL}/version`;
 const LOGS_PAGE_URL = "/api/logs";
 const HISTORY_PAGE_URL = "/api/request-history";
+const BACKUPS_URL = "/api/admin/backups";
 const POLL_INTERVAL = 5000; // 3s -> 5s に緩和
 const LOG_PAGE_SIZE = 50;
 const HISTORY_PAGE_SIZE = 20;
@@ -98,6 +99,7 @@ export function useMccbData() {
   const [historyPageInfo, setHistoryPageInfo] = useState(() =>
     createPageInfo(1, HISTORY_PAGE_SIZE),
   );
+  const [databaseBackups, setDatabaseBackups] = useState([]);
   const [historySettings, setHistorySettings] = useState({
     maxSize: DEFAULT_MAX_SIZE,
   });
@@ -148,6 +150,37 @@ export function useMccbData() {
     }
   }, []);
 
+  const applyServerData = useCallback(
+    (data) => {
+      const parsed = parseServerData(data);
+      applyVersion(parsed.version);
+      setMccbList(parsed.mccbList);
+      setRooms(parsed.rooms);
+      setCategories(parsed.categories);
+      setCategoryColors(parsed.categoryColors);
+      if (!data?.core) {
+        applyLogs(parsed.logs);
+      }
+      setLogSettings(parsed.logSettings);
+      setRequests(parsed.requests);
+      setDraftRequests(parsed.draftRequests);
+      setDeviceGroups(parsed.deviceGroups);
+      if (!data?.core) {
+        applyRequestHistory(parsed.requestHistory);
+      }
+      setHistorySettings(parsed.historySettings);
+    },
+    [applyLogs, applyRequestHistory, applyVersion],
+  );
+
+  const fetchDatabaseBackups = useCallback(async () => {
+    const res = await fetch(BACKUPS_URL);
+    if (!res.ok) throw new Error(`DBバックアップ一覧の取得に失敗しました (${res.status})`);
+    const result = await res.json();
+    setDatabaseBackups(Array.isArray(result.backups) ? result.backups : []);
+    return result.backups || [];
+  }, []);
+
   /** 非同期サーバー書き込み処理をキューイングし、自動ポーリングと衝突させない制御ラッパー */
   const runSyncTask = useCallback((taskFn) => {
     pauseTimer.current = Date.now() + 5000; // 手動操作後は自動巡回を一時停止
@@ -167,44 +200,6 @@ export function useMccbData() {
 
   // --- 定期自動同期ポーリング設定 (useEffect) ---
   useEffect(() => {
-    const applyLogsPageFromArray = (nextLogs) => {
-      const nextPageInfo = createPageInfo(1, LOG_PAGE_SIZE, nextLogs.length);
-      setLogPageInfo(nextPageInfo);
-      setPagedLogs(getPageSlice(nextLogs, nextPageInfo));
-    };
-
-    const applyHistoryPageFromArray = (nextHistory) => {
-      const nextPageInfo = createPageInfo(
-        1,
-        HISTORY_PAGE_SIZE,
-        nextHistory.length,
-      );
-      setHistoryPageInfo(nextPageInfo);
-      setPagedRequestHistory(getPageSlice(nextHistory, nextPageInfo));
-    };
-
-    const applyServerData = (data) => {
-      const parsed = parseServerData(data);
-      lastVersion.current = parsed.version || lastVersion.current;
-      setMccbList(parsed.mccbList);
-      setRooms(parsed.rooms);
-      setCategories(parsed.categories);
-      setCategoryColors(parsed.categoryColors);
-      if (!data.core) {
-        setLogs(parsed.logs);
-        applyLogsPageFromArray(parsed.logs);
-      }
-      setLogSettings(parsed.logSettings);
-      setRequests(parsed.requests);
-      setDraftRequests(parsed.draftRequests);
-      setDeviceGroups(parsed.deviceGroups);
-      if (!data.core) {
-        setRequestHistory(parsed.requestHistory);
-        applyHistoryPageFromArray(parsed.requestHistory);
-      }
-      setHistorySettings(parsed.historySettings);
-    };
-
     const fetchPageSnapshots = () => {
       fetch(`${LOGS_PAGE_URL}?page=1&pageSize=${LOG_PAGE_SIZE}`)
         .then((res) => res.json())
@@ -264,9 +259,15 @@ export function useMccbData() {
     };
 
     fetchData();
+    fetch(BACKUPS_URL)
+      .then((res) => res.json())
+      .then((result) => {
+        setDatabaseBackups(Array.isArray(result.backups) ? result.backups : []);
+      })
+      .catch((err) => console.error("DBバックアップ一覧同期エラー:", err));
     const timer = setInterval(fetchData, POLL_INTERVAL);
     return () => clearInterval(timer);
-  }, []);
+  }, [applyServerData]);
 
   const fetchLogsPage = useCallback(async (page = 1) => {
     const res = await fetch(
@@ -916,7 +917,7 @@ export function useMccbData() {
 
   const createDatabaseBackup = useCallback(() => {
     runSyncTask(async () => {
-      const res = await fetch("/api/admin/backups", { method: "POST" });
+      const res = await fetch(BACKUPS_URL, { method: "POST" });
       if (!res.ok) throw new Error(`DBバックアップの作成に失敗しました (${res.status})`);
 
       const result = await res.json();
@@ -924,9 +925,48 @@ export function useMccbData() {
         applyLogs(result.logs);
       }
       applyVersion(result.version);
+      await fetchDatabaseBackups();
       alert(`DBバックアップを作成しました。\n${result.backup?.fileName || ""}`);
     });
-  }, [applyLogs, applyVersion, runSyncTask]);
+  }, [applyLogs, applyVersion, fetchDatabaseBackups, runSyncTask]);
+
+  const restoreDatabaseBackup = useCallback((fileName) => {
+    if (!fileName) {
+      alert("復旧するバックアップを選択してください。");
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `現在のDBをバックアップ「${fileName}」の内容で復旧します。\n復旧前の現在DBも自動バックアップします。\n実行してもよろしいですか？`,
+      )
+    ) {
+      return;
+    }
+
+    runSyncTask(async () => {
+      const res = await fetch(`${BACKUPS_URL}/restore`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileName }),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const message =
+          result?.error || `DBバックアップからの復旧に失敗しました (${res.status})`;
+        alert(message);
+        throw new Error(message);
+      }
+
+      if (result.data) {
+        applyServerData(result.data);
+      }
+      setDatabaseBackups(Array.isArray(result.backups) ? result.backups : []);
+      alert(
+        `DBをバックアップから復旧しました。\n復旧元: ${result.restoredFrom || fileName}\n復旧前バックアップ: ${result.rollbackBackup?.fileName || ""}`,
+      );
+    });
+  }, [applyServerData, runSyncTask]);
 
   // --- ⚡ 停電作業依頼発行（自動スライド札割り当てシミュレーション） ---
   const addRequest = useCallback(
@@ -1174,11 +1214,13 @@ export function useMccbData() {
     pagedRequestHistory,
     historyPageInfo,
     historySettings,
+    databaseBackups,
     deviceGroups,
     addDeviceGroup,
     updateDeviceGroup,
     deleteDeviceGroup,
     createDatabaseBackup,
+    restoreDatabaseBackup,
     updateMccb,
     updateMccbPower,
     saveMccbEntry,
