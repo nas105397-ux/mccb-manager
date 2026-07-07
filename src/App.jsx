@@ -21,7 +21,7 @@ function AppContent() {
   const controller = useAppController();
   const [openGuidePath, setOpenGuidePath] = useState(null);
   const isOperationScreen = controller.activeTab === "/";
-  const isFixedOperationScreen = isOperationScreen && !controller.isAdmin;
+  const isFixedOperationScreen = isOperationScreen;
   const guideType = useMemo(() => {
     if (controller.activeTab === "/request") return "request";
     if (controller.activeTab === "/request-list") return "requestList";
@@ -131,11 +131,12 @@ function AppContent() {
 
           <button
             onClick={controller.handleToggleAdmin}
-            className={`px-3 py-1.5 rounded-lg text-[11px] font-black tracking-wide border cursor-pointer shadow-sm transition-all whitespace-nowrap mr-1 ${controller.isAdmin ? "bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100" : "bg-gray-50 border-gray-300 text-gray-500 hover:bg-gray-100"}`}
+            className={`px-3 py-1.5 rounded-lg text-[11px] font-black tracking-wide border cursor-pointer shadow-sm transition-all whitespace-nowrap mr-1 
+                      ${controller.isAdmin ? "bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100" : "bg-gray-50 border-gray-300 text-gray-500 hover:bg-gray-100"}`}
           >
             {controller.isAdmin
               ? "🔓 モード: 管理者"
-              : "🔒 モード: 一般ユーザー"}
+              : "🔒 モード: ユーザー"}
           </button>
         </div>
 
