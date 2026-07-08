@@ -1,3 +1,4 @@
+// MCCB 個別操作モーダル。停電/送電、子札貸出、管理者向けマスタ編集を扱う。
 import { useMemo, useState } from 'react';
 import { useControlModalController } from '../hooks/useControlModalController';
 import {

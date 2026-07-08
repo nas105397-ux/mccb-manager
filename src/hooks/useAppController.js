@@ -1,3 +1,4 @@
+// アプリ全体の画面状態と集約済み操作関数を App コンポーネントへ渡す controller hook。
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useMccbData } from "./useMccbData";

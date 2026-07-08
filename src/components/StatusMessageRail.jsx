@@ -1,3 +1,4 @@
+// 操作結果メッセージを画面端に一時表示する通知レール。
 export default function StatusMessageRail({ message, onClose }) {
   if (!message) return null;
 

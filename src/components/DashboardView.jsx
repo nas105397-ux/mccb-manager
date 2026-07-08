@@ -1,3 +1,4 @@
+// 電気室モニター用の全画面ビュー。停電中設備と直近ログを監視表示する。
 import { useEffect, useState } from 'react';
 import { useDashboardController, POLL_INTERVAL } from '../hooks/useDashboardController';
 import VirtualizedOffMccbGrid from './VirtualizedOffMccbGrid';

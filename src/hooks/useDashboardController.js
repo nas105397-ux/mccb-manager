@@ -1,3 +1,4 @@
+// 電気室モニター画面の定期同期、表示設定、停電中設備の集計を管理する。
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   countBorrowedCards,

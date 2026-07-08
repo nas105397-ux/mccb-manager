@@ -1,3 +1,4 @@
+// 画面別の操作ガイドを右側に表示する補助パネル。
 const GUIDE_CONTENT = {
   operation: {
     eyebrow: "OPERATION GUIDE",

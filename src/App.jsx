@@ -1,3 +1,4 @@
+// 画面ルーティングと共通レイアウトを担当する最上位コンポーネント。
 import { useMemo, useState } from "react";
 import { useAppController } from "./hooks/useAppController";
 import Header from "./components/Header";

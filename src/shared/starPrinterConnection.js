@@ -1,3 +1,4 @@
+// Star WebUSB プリンター接続情報の検出・保存・削除を担当する。
 import { STAR_PRINTER_CONNECTION_STORAGE_KEY } from "./printSettings";
 
 const STAR_USB_INTERFACE_TYPE = "Usb";

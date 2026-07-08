@@ -1,3 +1,4 @@
+// 区分ごとの表示色プリセットと、未設定時の正規化処理。
 export const CATEGORY_COLOR_PRESETS = {
   white: {
     label: "白",

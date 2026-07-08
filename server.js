@@ -28,6 +28,8 @@ import {
 
 const app = express();
 
+// MCCB Manager の本番サーバー入口。
+// 静的配信、SQLite 永続化、API ルート、依頼発行時の子札予約をまとめる。
 // --- ミドルウェア設定 ---
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
@@ -232,6 +234,7 @@ function mergeMccbMasterFields(incomingList, allowedFields) {
 
 ensureDefaultDatabasePath();
 
+// store は全 API の単一の永続化境界。DB 直接操作は dbStore.js に閉じ込める。
 const store = createMccbStore({
   dbPath: DB_PATH,
   defaults: DEFAULT_DATA,
@@ -251,6 +254,7 @@ function normalizeStoredLogs() {
 normalizeStoredLogs();
 store.checkpointWal({ force: true, mode: 'TRUNCATE' });
 
+// WAL を定期 checkpoint し、Raspberry Pi の常時運用でも DB ファイル肥大を抑える。
 const walCheckpointTimer = setInterval(() => {
   store.checkpointWal({ mode: 'PASSIVE' });
 }, WAL_CHECKPOINT_INTERVAL_MS);
@@ -279,6 +283,7 @@ function listDatabaseBackups() {
 function resolveBackupPath(fileName) {
   const requestedFileName = String(fileName || '');
   const safeFileName = path.basename(requestedFileName);
+  // 復旧 API はファイル名だけを受け付け、ディレクトリ traversal を防ぐ。
   if (
     safeFileName !== requestedFileName ||
     !/^mccb_data_\d{8}_\d{6}\.sqlite$/.test(safeFileName)
@@ -328,6 +333,7 @@ function restoreDatabaseBackup(fileName) {
     backupStore.close();
   }
 
+  // 復旧前の現行 DB も残し、誤復旧時に戻せる逃げ道を確保する。
   const rollbackBackup = store.createBackup({
     backupDir: BACKUP_DIR,
     maxFiles: BACKUP_MAX_FILES,
@@ -930,6 +936,7 @@ app.post('/api/requests', (req, res) => {
       finalRequest,
     } = requestAssignmentService.buildRequestAssignment(newRequest);
 
+    // 依頼本体と、実際に子札状態が変わった MCCB だけを保存して応答 payload を小さくする。
     const requests = [finalRequest, ...currentRequests];
     const logs = createUpdatedLogs(
       LOG_TYPES.OPERATION,
@@ -975,6 +982,7 @@ app.post('/api/draft-requests', (req, res) => {
       ...draftRequest,
       id: `DRAFT-${Date.now()}`,
       timestamp: getTimestamp(),
+      // 仮発行は設備選定だけを保存し、本発行時点の空き札で再計算する。
       reservedCards: undefined,
     };
     const draftRequests = [finalDraft, ...currentDrafts];
@@ -1177,6 +1185,7 @@ app.patch('/api/requests/:id/targets/:targetId/card', (req, res) => {
     let operated = false;
     let blockedByOtherWorker = false;
 
+    // 一時返却/再貸出は予約済みの 1 枚だけを操作し、他作業者の札は触らない。
     currentMccbList = currentMccbList.map((mccb) => {
       if (mccb.id !== reserveInfo.actualMccbId || !Array.isArray(mccb.childCards)) {
         return mccb;
@@ -1264,6 +1273,7 @@ app.delete('/api/requests/:id', (req, res) => {
     const beforeMccbList = store.readMccbsByIds(affectedMccbIds);
     let currentMccbList = cloneMccbListForMutation(beforeMccbList);
 
+    // 完了時は依頼者本人が確保している札だけを返却し、別作業者の貸出状態を守る。
     if (reqToDelete.reservedCards) {
       Object.keys(reqToDelete.reservedCards).forEach((targetId) => {
         const resInfo = reqToDelete.reservedCards[targetId];

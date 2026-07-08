@@ -1,3 +1,4 @@
+// 発行中・仮発行・履歴の依頼一覧。設備追加や一時返却もここから操作する。
 import { useState } from "react";
 import { useRequestBarcodeScanner } from "../hooks/useRequestBarcodeScanner";
 import { useRequestListController } from "../hooks/useRequestListController";

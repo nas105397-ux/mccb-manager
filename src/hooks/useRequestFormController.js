@@ -1,3 +1,4 @@
+// 停電依頼作成フォームの入力、設備選択、印刷方式ごとの発行処理を管理する。
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { REQUEST_PRINT_MODES } from '../shared/printSettings';
 import {

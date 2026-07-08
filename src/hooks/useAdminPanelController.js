@@ -1,3 +1,4 @@
+// 管理画面のフォーム状態、CSV 出力、マスター編集、Starプリンター接続を束ねる。
 import { useMemo, useRef, useState } from 'react';
 import {
   clearStarPrinterConnection,

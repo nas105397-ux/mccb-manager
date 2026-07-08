@@ -2,6 +2,8 @@ const DUMMY_LABEL = 'ダミー';
 const DUMMY_ID_FRAGMENT = 'DUMMY';
 const NO_AVAILABLE_CARD_LABEL = '空きなし';
 
+// 依頼発行時の子札割当ルールを API ルートから分離した純粋寄りのサービス。
+// 通常MCCBの空き札を優先し、不足時だけ同室 -> 他室のダミー札へ退避する。
 const isDummyMccb = (mccb) =>
   mccb?.isDummy ||
   mccb?.name?.includes(DUMMY_LABEL) ||
@@ -71,6 +73,7 @@ const collectActualReservations = (currentRequests) => {
   return actualReservations;
 };
 
+// 現在発行中の依頼を先に反映し、同じ子札を二重予約しないようにする。
 const applyExistingReservationsToMccbs = (mccbList, actualReservations) =>
   mccbList.map((mccb) => {
     const cardMap = actualReservations.get(mccb.id);
@@ -108,6 +111,7 @@ function getAvailableDummyCandidates(targetMccb, currentMccbList) {
   const availableDummies = currentMccbList.filter(
     (mccb) => isDummyMccb(mccb) && !hasBorrowedChildCard(mccb),
   );
+  // 現場で探しやすいよう、同じ電気室のダミーを優先する。
   const sameRoom = availableDummies
     .filter((mccb) => mccb.room === targetMccb.room)
     .sort(compareMccbNameNumeric);
@@ -123,6 +127,7 @@ function getAvailableDummyCandidates(targetMccb, currentMccbList) {
 }
 
 function findExistingDummyAssignment(targetId, currentRequests, currentMccbList) {
+  // 同じ対象設備が既にダミーへ割り当て済みなら、そのダミーの空き札を継続利用する。
   for (const request of currentRequests) {
     const reservedInfo = request.reservedCards?.[targetId];
     if (!reservedInfo?.actualMccbId || reservedInfo.actualMccbId === targetId) {
@@ -235,6 +240,7 @@ export function createRequestAssignmentService({ store }) {
   }
 
   function buildRequestTargetAddition(targetRequest, targetMccbIds, dummyNames = {}) {
+    // 既存依頼への追加時は、重複選択を除外して追加分だけを割当シミュレーションする。
     const existingTargetIds = new Set(targetRequest.targetMccbIds || []);
     const additionalTargetIds = [...new Set(targetMccbIds)].filter(
       (id) => id && !existingTargetIds.has(id),
@@ -275,6 +281,7 @@ export function createRequestAssignmentService({ store }) {
   }
 
   function buildRequestPreviewItems(finalRequest, assignmentMccbList) {
+    // 印刷・画面プレビュー用に、元設備名と実際に貸し出す札の表示名をここで確定する。
     const mccbById = new Map(assignmentMccbList.map((mccb) => [mccb.id, mccb]));
     const dateCode = getDateCode();
 

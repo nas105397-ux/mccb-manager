@@ -1,3 +1,4 @@
+// MCCB 一覧の仮想スクロールグリッド。大量設備でも操作画面を軽く保つ。
 import { useEffect, useRef, useState } from "react";
 import { FixedSizeList as List } from "react-window";
 import MccbCard from "./MccbCard";

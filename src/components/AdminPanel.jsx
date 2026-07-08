@@ -1,3 +1,4 @@
+// 管理画面。設備マスタ、電気室/区分、ログ、DBバックアップ、印刷設定をまとめて扱う。
 import { useState } from "react";
 import { useAdminPanelController } from "../hooks/useAdminPanelController";
 import {

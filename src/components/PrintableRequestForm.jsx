@@ -1,3 +1,4 @@
+// ブラウザ印刷向けの停電依頼表レイアウト。
 const getIssueDate = (request) => {
   const timestampValue = Number(String(request.id || "").replace("REQ-", ""));
   if (Number.isFinite(timestampValue) && timestampValue > 0) {

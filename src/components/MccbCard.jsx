@@ -1,3 +1,4 @@
+// 一覧に表示する MCCB カード。状態色、貸出数、依頼中表示をまとめる。
 import React from "react";
 import { useMccbCardController } from "../hooks/useMccbCardController";
 import { getCategoryBadgeClass } from "../shared/categoryColorUtils";

@@ -1,3 +1,4 @@
+// Star レシートプリンター向けの依頼票データ整形と印刷実行処理。
 import {
   InterfaceType,
   Options,

@@ -1,3 +1,4 @@
+// メイン操作画面の検索・状態フィルター・件数サマリーを表示するヘッダー。
 export default function Header({
   searchTerm,
   setSearchTerm,

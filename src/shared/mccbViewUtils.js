@@ -1,3 +1,4 @@
+// MCCB 一覧表示用の派生データを作る共有 utility。
 export const countBorrowedCards = (mccb) =>
   mccb?.childCards?.reduce(
     (count, card) => count + (card.isBorrowed ? 1 : 0),

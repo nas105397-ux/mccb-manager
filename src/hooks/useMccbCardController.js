@@ -1,3 +1,4 @@
+// MCCB カードのクリック・お気に入り操作を親ハンドラーへ橋渡しする。
 import { useCallback } from "react";
 
 export function useMccbCardController({

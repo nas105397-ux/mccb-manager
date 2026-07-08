@@ -1,3 +1,4 @@
+// 停電依頼の作成画面。対象設備選択、プレビュー、仮発行/本発行を担当する。
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import PrintPreviewForm from "./PrintPreviewForm";
 import StatusMessageRail from "./StatusMessageRail";

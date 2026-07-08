@@ -1,3 +1,4 @@
+// モニター画面向けの停電中 MCCB 仮想グリッド。貸出者表示に合わせて行高を測定する。
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { VariableSizeGrid as Grid } from 'react-window';
 import { getCategoryBadgeClass } from '../shared/categoryColorUtils';

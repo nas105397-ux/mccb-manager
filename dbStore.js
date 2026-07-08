@@ -1,6 +1,7 @@
 import fs from 'fs';
 import { DatabaseSync } from 'node:sqlite';
 
+// SQLite 永続化層。MCCB/子札は正規化テーブル、その他の画面設定や履歴は JSON collection として保存する。
 const COLLECTION_KEYS = [
   'rooms',
   'categories',
@@ -165,6 +166,7 @@ export function createMccbStore({ dbPath, defaults }) {
     }
   };
 
+  // WAL 運用中のファイル肥大対策。バックアップ/終了時は TRUNCATE で確実に反映する。
   const checkpointWal = ({ force = false, mode = 'PASSIVE' } = {}) => {
     const now = Date.now();
     if (!force && now - lastCheckpointAt < 60_000) return null;
@@ -192,6 +194,7 @@ export function createMccbStore({ dbPath, defaults }) {
       throw new Error('backupDir is required');
     }
 
+    // コピー前に WAL を本体へ取り込み、単体の .sqlite だけで復旧できるバックアップにする。
     checkpointWal({ force: true, mode: 'TRUNCATE' });
     fs.mkdirSync(backupDir, { recursive: true });
 
@@ -382,6 +385,7 @@ export function createMccbStore({ dbPath, defaults }) {
     const normalized = normalizeData(data, defaults);
     const now = Date.now();
 
+    // CSV 取込やバックアップ復旧は全体置換なので、MCCB と collection を同一 transaction で入れ替える。
     runImmediateTransaction(() => {
       db.exec('DELETE FROM child_cards');
       db.exec('DELETE FROM mccbs');
@@ -463,6 +467,7 @@ export function createMccbStore({ dbPath, defaults }) {
   };
 
   const readCoreData = () => {
+    // 常時ポーリングでは大きくなりやすいログ/履歴を省き、画面状態だけを同期する。
     const data = {
       mccbList: readMccbList(),
       ...readCollections(CORE_COLLECTION_KEYS),
@@ -519,6 +524,7 @@ export function createMccbStore({ dbPath, defaults }) {
   const writeMccbs = (mccbs) => {
     const now = Date.now();
 
+    // 依頼発行などの部分更新用。変更がない場合は version を進めない。
     runImmediateTransaction(() => {
       for (const mccb of mccbs) {
         writeMccb(mccb, now);

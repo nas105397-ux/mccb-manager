@@ -79,6 +79,7 @@ const parseServerData = (data) => {
 // 2. カスタムフック定義
 // ==========================================
 export function useMccbData() {
+  // サーバーデータの単一フロントキャッシュ。各画面はこの hook の状態と操作関数だけを参照する。
   const [mccbList, setMccbList] = useState([]);
   const [rooms, setRooms] = useState(DEFAULT_ROOMS);
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
@@ -158,6 +159,7 @@ export function useMccbData() {
       setRooms(parsed.rooms);
       setCategories(parsed.categories);
       setCategoryColors(parsed.categoryColors);
+      // core 同期では肥大化しやすいログ/履歴を受け取らないため、既存ページ状態を維持する。
       if (!data?.core) {
         applyLogs(parsed.logs);
       }
@@ -201,6 +203,7 @@ export function useMccbData() {
   // --- 定期自動同期ポーリング設定 (useEffect) ---
   useEffect(() => {
     const fetchPageSnapshots = () => {
+      // ログと依頼履歴はページ単位で同期し、通常巡回の payload を抑える。
       fetch(`${LOGS_PAGE_URL}?page=1&pageSize=${LOG_PAGE_SIZE}`)
         .then((res) => res.json())
         .then((result) => {
@@ -250,6 +253,7 @@ export function useMccbData() {
         .then((res) => res.json())
         .then((data) => {
           const nextVersion = Number(data.version || 0);
+          // version が進んだ時だけ全体同期し、複数端末運用時の無駄な再描画を避ける。
           if (nextVersion && nextVersion !== lastVersion.current) {
             return fetchFullData();
           }

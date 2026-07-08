@@ -1,3 +1,4 @@
+// 依頼発行・印刷・保存の結果を UI に表示するための定型メッセージ。
 export const STATUS_MESSAGE_KEYS = {
   REQUEST_ISSUED: 'requestIssued',
   REQUEST_RECEIPT_SENT: 'requestReceiptSent',

@@ -1,3 +1,4 @@
+// 依頼票バーコード読み取りをキーボード入力として受け、対象依頼の完了確認へつなぐ。
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
 const SCAN_IDLE_MS = 180;

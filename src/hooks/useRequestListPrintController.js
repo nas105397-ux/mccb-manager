@@ -1,3 +1,4 @@
+// 依頼一覧からの再印刷処理と、印刷方式ごとのステータスメッセージを管理する。
 import { useEffect, useState } from "react";
 import { REQUEST_PRINT_MODES } from "../shared/printSettings";
 import {

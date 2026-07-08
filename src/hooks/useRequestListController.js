@@ -1,3 +1,4 @@
+// 依頼一覧の展開状態と、対象設備ごとの表示名・札状態の組み立てを担当する。
 import { useCallback, useMemo, useState } from 'react';
 
 const DUMMY_LABEL = 'ダミー';

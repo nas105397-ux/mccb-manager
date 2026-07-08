@@ -1,3 +1,4 @@
+// 個別 MCCB モーダルの入力状態と停電/送電・子札操作の安全確認を管理する。
 import { useCallback, useMemo, useState } from 'react';
 import {
   createStatusMessage,

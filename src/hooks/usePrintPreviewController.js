@@ -1,3 +1,4 @@
+// 停電依頼の印刷プレビュー用に、サーバー割当結果を取得して表示状態を管理する。
 import { useEffect, useMemo, useState } from 'react';
 
 const REQUEST_PREVIEW_URL = '/api/requests/preview';
