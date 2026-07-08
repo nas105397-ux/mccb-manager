@@ -1,31 +1,31 @@
 // 管理画面のフォーム状態、CSV 出力、マスター編集、Starプリンター接続を束ねる。
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from "react";
 import {
   clearStarPrinterConnection,
   discoverStarPrinterConnection,
   loadStarPrinterConnection,
-} from '../shared/starPrinterConnection';
+} from "../shared/starPrinterConnection";
 
-const CSV_HEADER = '電気室,区分,設備名称\n';
+const CSV_HEADER = "電気室,区分,設備名称\n";
 const CSV_BOM = new Uint8Array([0xEF, 0xBB, 0xBF]);
 
-const normalizeCsvCell = (value = '') => String(value).replace(/[,"]/g, '');
+const normalizeCsvCell = (value = "") => String(value).replace(/[,"]/g, "");
 
 const buildMccbCsv = (mccbList) =>
   mccbList.reduce((csvContent, item) => {
     const row = [item.room, item.category, item.name]
       .map(normalizeCsvCell)
-      .join(',');
+      .join(",");
     return `${csvContent}${row}\n`;
   }, CSV_HEADER);
 
 const downloadTextFile = ({ content, fileName, type }) => {
   const blob = new Blob([CSV_BOM, content], { type });
   const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.setAttribute('href', url);
-  link.setAttribute('download', fileName);
-  link.style.visibility = 'hidden';
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", fileName);
+  link.style.visibility = "hidden";
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -49,19 +49,19 @@ export function useAdminPanelController({
   deleteDeviceGroup,
 }) {
   // マスター登録フォーム・管理UIの一時入力値
-  const [room, setRoom] = useState('');
-  const [category, setCategory] = useState('');
-  const [name, setName] = useState('');
-  const [newRoomInput, setNewRoomInput] = useState('');
-  const [newCategoryInput, setNewCategoryInput] = useState('');
-  const [newGroupName, setNewGroupName] = useState('');
+  const [room, setRoom] = useState("");
+  const [category, setCategory] = useState("");
+  const [name, setName] = useState("");
+  const [newRoomInput, setNewRoomInput] = useState("");
+  const [newCategoryInput, setNewCategoryInput] = useState("");
+  const [newGroupName, setNewGroupName] = useState("");
   const [selectedGroupId, setSelectedGroupId] = useState(null);
 
   // スター精密プリンター接続はブラウザ端末ごとに保存・検証する。
   const [starPrinterConnection, setStarPrinterConnection] = useState(() =>
     loadStarPrinterConnection(),
   );
-  const [starPrinterConnectionStatus, setStarPrinterConnectionStatus] = useState('');
+  const [starPrinterConnectionStatus, setStarPrinterConnectionStatus] = useState("");
   const [isConnectingStarPrinter, setIsConnectingStarPrinter] = useState(false);
   const [isTestingStarPrinter, setIsTestingStarPrinter] = useState(false);
   const csvInputRef = useRef(null);
@@ -74,28 +74,28 @@ export function useAdminPanelController({
     e.preventDefault();
     if (!name.trim()) return;
 
-    const selectedRoom = room || rooms[0] || '';
-    const selectedCategory = category || categories[0] || '';
+    const selectedRoom = room || rooms[0] || "";
+    const selectedCategory = category || categories[0] || "";
 
     if (!selectedRoom || !selectedCategory) {
-      alert('電気室または区分が正しく設定されていません。マスター登録を確認してください。');
+      alert("電気室または区分が正しく設定されていません。マスター登録を確認してください。");
       return;
     }
 
     onSaveEntry({ room: selectedRoom, category: selectedCategory, name: name.trim() });
-    setName('');
+    setName("");
   };
 
   const handleExportCSV = () => {
     if (!mccbList || mccbList.length === 0) {
-      alert('出力する設備データがありません。');
+      alert("出力する設備データがありません。");
       return;
     }
 
     downloadTextFile({
       content: buildMccbCsv(mccbList),
       fileName: `登録設備データ_${getTodayString()}.csv`,
-      type: 'text/csv;charset=utf-8;',
+      type: "text/csv;charset=utf-8;",
     });
   };
 
@@ -120,21 +120,21 @@ export function useAdminPanelController({
   const handleAddRoom = () => {
     if (newRoomInput.trim()) {
       addRoom(newRoomInput.trim());
-      setNewRoomInput('');
+      setNewRoomInput("");
     }
   };
 
   const handleAddCategory = () => {
     if (newCategoryInput.trim()) {
       addCategory(newCategoryInput.trim());
-      setNewCategoryInput('');
+      setNewCategoryInput("");
     }
   };
 
   const handleCreateGroup = () => {
     if (newGroupName.trim()) {
       addDeviceGroup(newGroupName.trim());
-      setNewGroupName('');
+      setNewGroupName("");
     }
   };
 
@@ -150,7 +150,7 @@ export function useAdminPanelController({
 
   const handleEditGroupPrompt = (group, e) => {
     e.stopPropagation();
-    const oldName = group.name || '';
+    const oldName = group.name || "";
     const res = window.prompt(`グループ「${oldName}」の新しい名称を入力してください:`, oldName);
     const nextName = res?.trim();
     if (!nextName || nextName === oldName) return;
@@ -186,11 +186,11 @@ export function useAdminPanelController({
     if (isConnectingStarPrinter) return;
 
     setIsConnectingStarPrinter(true);
-    setStarPrinterConnectionStatus('プリンターを検索しています。ブラウザのUSB接続許可で対象プリンターを選択してください。');
+    setStarPrinterConnectionStatus("プリンターを検索しています。ブラウザのUSB接続許可で対象プリンターを選択してください。");
     try {
       const connection = await discoverStarPrinterConnection();
       setStarPrinterConnection(connection);
-      setStarPrinterConnectionStatus('プリンター接続情報を保存しました。');
+      setStarPrinterConnectionStatus("プリンター接続情報を保存しました。");
     } catch (error) {
       console.error(error);
       setStarPrinterConnectionStatus(`接続に失敗しました: ${error?.message || error}`);
@@ -202,22 +202,22 @@ export function useAdminPanelController({
   const handleClearStarPrinterConnection = () => {
     clearStarPrinterConnection();
     setStarPrinterConnection(null);
-    setStarPrinterConnectionStatus('保存済みのプリンター接続情報を削除しました。');
+    setStarPrinterConnectionStatus("保存済みのプリンター接続情報を削除しました。");
   };
 
   const handlePrintStarPrinterTestPage = async () => {
     if (isTestingStarPrinter) return;
     if (!starPrinterConnection) {
-      setStarPrinterConnectionStatus('先にプリンター接続を完了してください。');
+      setStarPrinterConnectionStatus("先にプリンター接続を完了してください。");
       return;
     }
 
     setIsTestingStarPrinter(true);
-    setStarPrinterConnectionStatus('テスト印刷を送信しています。');
+    setStarPrinterConnectionStatus("テスト印刷を送信しています。");
     try {
-      const { printStarPrinterTestPage } = await import('../shared/starReceiptPrinter');
+      const { printStarPrinterTestPage } = await import("../shared/starReceiptPrinter");
       await printStarPrinterTestPage();
-      setStarPrinterConnectionStatus('テスト印刷を送信しました。');
+      setStarPrinterConnectionStatus("テスト印刷を送信しました。");
     } catch (error) {
       console.error(error);
       setStarPrinterConnectionStatus(`テスト印刷に失敗しました: ${error?.message || error}`);

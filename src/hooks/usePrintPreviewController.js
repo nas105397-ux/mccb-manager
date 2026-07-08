@@ -1,7 +1,7 @@
 // 停電依頼の印刷プレビュー用に、サーバー割当結果を取得して表示状態を管理する。
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from "react";
 
-const REQUEST_PREVIEW_URL = '/api/requests/preview';
+const REQUEST_PREVIEW_URL = "/api/requests/preview";
 
 export function usePrintPreviewController({
   selectedMccbIds,
@@ -10,7 +10,7 @@ export function usePrintPreviewController({
 }) {
   const { now, dateCode } = useMemo(() => {
     const currentDate = new Date();
-    const code = `${currentDate.getFullYear().toString().slice(-2)}${(currentDate.getMonth() + 1).toString().padStart(2, '0')}${currentDate.getDate().toString().padStart(2, '0')}`;
+    const code = `${currentDate.getFullYear().toString().slice(-2)}${(currentDate.getMonth() + 1).toString().padStart(2, "0")}${currentDate.getDate().toString().padStart(2, "0")}`;
     return { now: currentDate, dateCode: code };
   }, []);
 
@@ -30,9 +30,9 @@ export function usePrintPreviewController({
     [previewRequest],
   );
   const [previewState, setPreviewState] = useState({
-    key: '',
+    key: "",
     items: [],
-    error: '',
+    error: "",
   });
 
   useEffect(() => {
@@ -44,8 +44,8 @@ export function usePrintPreviewController({
 
     const timerId = window.setTimeout(() => {
       fetch(REQUEST_PREVIEW_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         signal: abortController.signal,
         body: JSON.stringify({
           request: previewRequest,
@@ -62,17 +62,17 @@ export function usePrintPreviewController({
             setPreviewState({
               key: previewKey,
               items: result.previewItems || [],
-              error: '',
+              error: "",
             });
           }
         })
         .catch((error) => {
-          if (error.name === 'AbortError') return;
-          console.error('停電依頼プレビュー作成エラー:', error);
+          if (error.name === "AbortError") return;
+          console.error("停電依頼プレビュー作成エラー:", error);
           setPreviewState({
             key: previewKey,
             items: [],
-            error: error.message || 'プレビュー作成に失敗しました',
+            error: error.message || "プレビュー作成に失敗しました",
           });
         });
     }, 150);
@@ -94,6 +94,6 @@ export function usePrintPreviewController({
     previewRequestKey,
     selectedMccbsWithAssignedCards,
     isPreviewLoading: hasSelection && !isCurrentPreview,
-    previewError: hasSelection && isCurrentPreview ? previewState.error : '',
+    previewError: hasSelection && isCurrentPreview ? previewState.error : "",
   };
 }

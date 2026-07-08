@@ -414,7 +414,7 @@ export function useMccbData() {
   /** 設備マスタの完全削除 */
   const deleteMccb = useCallback(
     (id) => {
-      if (window.confirm(`完全に削除してもよろしいですか？`)) {
+      if (window.confirm("完全に削除してもよろしいですか？")) {
         setMccbList((prev) => prev.filter((item) => item.id !== id));
         runSyncTask(async () => {
           const res = await fetch(`/api/mccbs/${encodeURIComponent(id)}`, {
@@ -490,7 +490,7 @@ export function useMccbData() {
     (roomName) => {
       if (
         !mccbList.some((m) => m.room === roomName) &&
-        window.confirm(`削除しますか？`)
+        window.confirm("削除しますか？")
       ) {
         const nextRooms = rooms.filter((r) => r !== roomName);
         setRooms(nextRooms);
@@ -584,7 +584,7 @@ export function useMccbData() {
     (categoryName) => {
       if (
         !mccbList.some((m) => m.category === categoryName) &&
-        window.confirm(`削除しますか？`)
+        window.confirm("削除しますか？")
       ) {
         const nextCategories = categories.filter((c) => c !== categoryName);
         const nextCategoryColors = normalizeCategoryColors(

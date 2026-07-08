@@ -1,11 +1,11 @@
 // MCCB 個別操作モーダル。停電/送電、子札貸出、管理者向けマスタ編集を扱う。
-import { useMemo, useState } from 'react';
-import { useControlModalController } from '../hooks/useControlModalController';
+import { useMemo, useState } from "react";
+import { useControlModalController } from "../hooks/useControlModalController";
 import {
   createStatusMessage,
   STATUS_MESSAGE_KEYS,
-} from '../shared/statusMessages';
-import StatusMessageRail from './StatusMessageRail';
+} from "../shared/statusMessages";
+import StatusMessageRail from "./StatusMessageRail";
 
 // ==========================================
 // 1. メインコンポーネント (ControlModal)
@@ -48,15 +48,15 @@ export default function ControlModal({ mccb, requests = [], onClose, onUpdate, o
 
   // --- 画面レンダリング ---
   return (
-    <div 
+    <div
       onClick={onClose}
       className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 print:hidden"
     >
-      <div 
-        onClick={(e) => e.stopPropagation()} 
+      <div
+        onClick={(e) => e.stopPropagation()}
         className="bg-white rounded-2xl border border-gray-200 w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]"
       >
-        
+
         {/* 🔝 SECTION 1: モーダルヘッダー */}
         <div className="bg-gray-50 border-b p-4 flex justify-between items-center shrink-0">
           <div>
@@ -84,7 +84,7 @@ export default function ControlModal({ mccb, requests = [], onClose, onUpdate, o
 
         {/* 📜 モーダルボディ */}
         <div className="p-6 overflow-y-auto space-y-6 flex-1 text-sm text-gray-700">
-          
+
           {/* ⚡ SECTION 2: 停電・送電ステータス切り替えトグル */}
           <div className="bg-gray-50 p-4 rounded-xl border flex items-center justify-between">
             <div>
@@ -99,16 +99,16 @@ export default function ControlModal({ mccb, requests = [], onClose, onUpdate, o
             <button
               onClick={handleTogglePower}
               disabled={isSendingBlocked}
-              title={isSendingBlocked ? '未返却の子札があるため送電できません' : undefined}
+              title={isSendingBlocked ? "未返却の子札があるため送電できません" : undefined}
               className={`px-5 py-2 rounded-xl text-xs font-black border ${
                 isSendingBlocked
-                  ? 'bg-gray-300 text-gray-500 border-gray-400 cursor-not-allowed opacity-60'
+                  ? "bg-gray-300 text-gray-500 border-gray-400 cursor-not-allowed opacity-60"
                   : isPowerOff
-                    ? 'bg-red-600 text-white border-red-700 hover:bg-red-700 cursor-pointer'
-                    : 'bg-green-600 text-white border-green-700 hover:bg-green-700 cursor-pointer'
+                    ? "bg-red-600 text-white border-red-700 hover:bg-red-700 cursor-pointer"
+                    : "bg-green-600 text-white border-green-700 hover:bg-green-700 cursor-pointer"
               }`}
             >
-              {isPowerOff ? '🔴 現在：操作禁止（停電中）' : '🟢 現在：通常運用（送電中）'}
+              {isPowerOff ? "🔴 現在：操作禁止（停電中）" : "🟢 現在：通常運用（送電中）"}
             </button>
           </div>
 
@@ -117,11 +117,11 @@ export default function ControlModal({ mccb, requests = [], onClose, onUpdate, o
             <h3 className="font-black text-gray-800 flex items-center gap-1.5 border-b pb-1">
               🔖 子札 貸出個別管理 <span className="text-xs font-normal text-gray-400">(全5枚)</span>
             </h3>
-            
+
             <div className="grid grid-cols-1 gap-2">
               {mccb.childCards.map((card) => (
-                <CardRow 
-                  key={`${card.id}-${card.isBorrowed ? 'borrowed' : 'free'}-${temporarilyReturnedCardMap.has(card.id) ? 'temp-returned' : 'normal'}`}
+                <CardRow
+                  key={`${card.id}-${card.isBorrowed ? "borrowed" : "free"}-${temporarilyReturnedCardMap.has(card.id) ? "temp-returned" : "normal"}`}
                   card={card}
                   temporaryReturnInfo={temporarilyReturnedCardMap.get(card.id)}
                   onBorrow={(name) => handleBorrowCard(card.id, name)}
@@ -141,7 +141,7 @@ export default function ControlModal({ mccb, requests = [], onClose, onUpdate, o
                       ),
                     );
                   }}
-                  onReturn={() => handleReturnCard(card.id)} 
+                  onReturn={() => handleReturnCard(card.id)}
                 />
               ))}
             </div>
@@ -153,13 +153,13 @@ export default function ControlModal({ mccb, requests = [], onClose, onUpdate, o
               <h3 className="font-black text-red-700 text-xs tracking-wider uppercase border-b pb-1">
                 🔒 管理者用：マスタ情報直接編集
               </h3>
-              
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-500 mb-1">設置エリア（電気室）</label>
-                  <select 
-                    value={room} 
-                    onChange={(e) => setRoom(e.target.value)} 
+                  <select
+                    value={room}
+                    onChange={(e) => setRoom(e.target.value)}
                     className="border p-2 rounded text-sm w-full bg-gray-50"
                   >
                     {rooms.map(r => <option key={r} value={r}>{r}</option>)}
@@ -167,9 +167,9 @@ export default function ControlModal({ mccb, requests = [], onClose, onUpdate, o
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-500 mb-1">区分カテゴリ</label>
-                  <select 
-                    value={category} 
-                    onChange={(e) => setCategory(e.target.value)} 
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
                     className="border p-2 rounded text-sm w-full bg-gray-50"
                   >
                     {categories.map(c => <option key={c} value={c}>{c}</option>)}
@@ -177,10 +177,10 @@ export default function ControlModal({ mccb, requests = [], onClose, onUpdate, o
                 </div>
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-bold text-gray-500 mb-1">設備名称</label>
-                  <input 
-                    type="text" 
-                    value={name} 
-                    onChange={(e) => setName(e.target.value)} 
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
                     className="border p-2 rounded text-xs w-full bg-gray-50 focus:bg-white focus:outline-none"
                   />
                 </div>
@@ -213,23 +213,23 @@ export default function ControlModal({ mccb, requests = [], onClose, onUpdate, o
 // 3. サブコンポーネント (CardRow)
 // ==========================================
 function CardRow({ card, temporaryReturnInfo, onBorrow, onBorrowTemporaryReturn, onReturn }) {
-  const [inputName, setInputName] = useState('');
+  const [inputName, setInputName] = useState("");
 
   return (
     <div className={`p-3 rounded-xl border flex flex-wrap items-center justify-between gap-2 text-xs ${
       card.isBorrowed
-        ? 'bg-amber-50/40 border-amber-200'
+        ? "bg-amber-50/40 border-amber-200"
         : temporaryReturnInfo
-          ? 'bg-sky-50/70 border-sky-200'
-          : 'bg-gray-50/50 border-gray-200'
+          ? "bg-sky-50/70 border-sky-200"
+          : "bg-gray-50/50 border-gray-200"
     }`}>
       <div className="flex items-center gap-2">
         <span className={`font-mono px-1.5 py-0.5 rounded text-[10px] font-black ${
           card.isBorrowed
-            ? 'bg-amber-600 text-white'
+            ? "bg-amber-600 text-white"
             : temporaryReturnInfo
-              ? 'bg-sky-600 text-white'
-              : 'bg-gray-200 text-gray-500'
+              ? "bg-sky-600 text-white"
+              : "bg-gray-200 text-gray-500"
         }`}>
           No.{card.id}
         </span>
@@ -264,7 +264,7 @@ function CardRow({ card, temporaryReturnInfo, onBorrow, onBorrowTemporaryReturn,
           </button>
         ) : (
           <div className="flex items-center gap-1">
-            <input 
+            <input
               type="text"
               placeholder="手動使用者名"
               value={inputName}

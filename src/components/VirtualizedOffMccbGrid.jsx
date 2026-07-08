@@ -1,25 +1,25 @@
 // モニター画面向けの停電中 MCCB 仮想グリッド。貸出者表示に合わせて行高を測定する。
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { VariableSizeGrid as Grid } from 'react-window';
-import { getCategoryBadgeClass } from '../shared/categoryColorUtils';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { VariableSizeGrid as Grid } from "react-window";
+import { getCategoryBadgeClass } from "../shared/categoryColorUtils";
 
 const getColumnCountFromLayout = (colLayout, width) => {
-  if (colLayout === 'auto') return Math.max(1, Math.floor(width / 330));
+  if (colLayout === "auto") return Math.max(1, Math.floor(width / 330));
 
-  if (colLayout === '3') {
+  if (colLayout === "3") {
     if (width >= 1024) return 3;
     if (width >= 768) return 2;
     return 1;
   }
 
-  if (colLayout === '4') {
+  if (colLayout === "4") {
     if (width >= 1280) return 4;
     if (width >= 1024) return 3;
     if (width >= 640) return 2;
     return 1;
   }
 
-  if (colLayout === '5') {
+  if (colLayout === "5") {
     if (width >= 1536) return 5;
     if (width >= 1280) return 4;
     if (width >= 768) return 3;
@@ -34,12 +34,12 @@ const WorkerBadge = memo(function WorkerBadge({ card, isDarkMode }) {
   return (
     <span
       className={`text-sm border-2 px-3 py-1 rounded font-black flex items-center gap-2 whitespace-nowrap ${
-        isDarkMode ? 'bg-gray-950 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-800'
+        isDarkMode ? "bg-gray-950 border-gray-700 text-white" : "bg-white border-gray-300 text-gray-800"
       }`}
     >
       <span
         className={`font-mono text-xs px-1.5 py-0.5 rounded ${
-          isDarkMode ? 'bg-amber-950 text-amber-400' : 'bg-amber-100 text-amber-700'
+          isDarkMode ? "bg-amber-950 text-amber-400" : "bg-amber-100 text-amber-700"
         }`}
       >
         No.{card.id}
@@ -58,20 +58,20 @@ const OffMccbCard = memo(function OffMccbCard({
 }) {
   const isReturnedPowerOff = workers.length === 0;
   const cardClass = isReturnedPowerOff
-    ? (isDarkMode ? 'bg-sky-950/40 border-sky-500' : 'bg-sky-50/70 border-sky-500')
-    : (isDarkMode ? 'bg-red-950/40 border-red-500' : 'bg-red-50/70 border-red-500');
+    ? (isDarkMode ? "bg-sky-950/40 border-sky-500" : "bg-sky-50/70 border-sky-500")
+    : (isDarkMode ? "bg-red-950/40 border-red-500" : "bg-red-50/70 border-red-500");
   const titleBorderClass = isReturnedPowerOff
-    ? (isDarkMode ? 'border-sky-800' : 'border-sky-200')
-    : (isDarkMode ? 'border-red-800' : 'border-red-200');
+    ? (isDarkMode ? "border-sky-800" : "border-sky-200")
+    : (isDarkMode ? "border-red-800" : "border-red-200");
   const sectionTextClass = isReturnedPowerOff
-    ? (isDarkMode ? 'text-sky-300' : 'text-sky-700')
-    : (isDarkMode ? 'text-red-300' : 'text-red-700');
+    ? (isDarkMode ? "text-sky-300" : "text-sky-700")
+    : (isDarkMode ? "text-red-300" : "text-red-700");
   const footerClass = isReturnedPowerOff
-    ? (isDarkMode ? 'border-sky-800/70 text-sky-300' : 'border-sky-200 text-sky-700')
-    : (isDarkMode ? 'border-red-800/70 text-red-300' : 'border-red-200 text-red-700');
+    ? (isDarkMode ? "border-sky-800/70 text-sky-300" : "border-sky-200 text-sky-700")
+    : (isDarkMode ? "border-red-800/70 text-red-300" : "border-red-200 text-red-700");
   const statusBadgeClass = isReturnedPowerOff
-    ? (isDarkMode ? 'bg-sky-950 text-sky-300 border-sky-800' : 'bg-sky-100 text-sky-800 border-sky-300')
-    : (isDarkMode ? 'bg-red-950 text-red-500 border-red-900/40' : 'bg-red-100 text-red-700 border-red-200');
+    ? (isDarkMode ? "bg-sky-950 text-sky-300 border-sky-800" : "bg-sky-100 text-sky-800 border-sky-300")
+    : (isDarkMode ? "bg-red-950 text-red-500 border-red-900/40" : "bg-red-100 text-red-700 border-red-200");
 
   return (
     <div
@@ -81,7 +81,7 @@ const OffMccbCard = memo(function OffMccbCard({
         <div className="flex justify-between items-start gap-2 mb-2">
           <span
             className={`text-xs border px-2.5 py-0.5 rounded font-black truncate ${
-              isDarkMode ? 'bg-gray-950 border-gray-700 text-gray-300' : 'bg-white border-gray-300 text-gray-600'
+              isDarkMode ? "bg-gray-950 border-gray-700 text-gray-300" : "bg-white border-gray-300 text-gray-600"
             }`}
           >
             {mccb.room}
@@ -94,8 +94,8 @@ const OffMccbCard = memo(function OffMccbCard({
         <h3
           className={`text-2xl font-black tracking-wide border-b-2 pb-2 mb-3 truncate ${
             isAlternative
-              ? (isDarkMode ? 'text-amber-400 font-extrabold' : 'text-orange-400 font-extrabold')
-              : (isDarkMode ? 'text-white' : 'text-gray-900')
+              ? (isDarkMode ? "text-amber-400 font-extrabold" : "text-orange-400 font-extrabold")
+              : (isDarkMode ? "text-white" : "text-gray-900")
           } ${titleBorderClass}`}
         >
           {mccb.name}
@@ -103,13 +103,13 @@ const OffMccbCard = memo(function OffMccbCard({
 
         <div className="space-y-1.5">
           <p className={`text-xs font-extrabold tracking-wider ${sectionTextClass}`}>
-            {isReturnedPowerOff ? '▼ 子札状態:' : '▼ 子札保持者:'}
+            {isReturnedPowerOff ? "▼ 子札状態:" : "▼ 子札保持者:"}
           </p>
           <div className="flex flex-wrap gap-2">
             {isReturnedPowerOff ? (
               <span
                 className={`text-xs font-black px-2.5 py-1 rounded border ${
-                  isDarkMode ? 'bg-sky-950/70 border-sky-800 text-sky-300' : 'bg-sky-100 border-sky-300 text-sky-800'
+                  isDarkMode ? "bg-sky-950/70 border-sky-800 text-sky-300" : "bg-sky-100 border-sky-300 text-sky-800"
                 }`}
               >
                 ✅ 送電可能
@@ -134,7 +134,7 @@ const OffMccbCard = memo(function OffMccbCard({
             statusBadgeClass
           }`}
         >
-          {isReturnedPowerOff ? '送電可能' : '操作禁止'}
+          {isReturnedPowerOff ? "送電可能" : "操作禁止"}
         </span>
       </div>
     </div>
@@ -163,7 +163,7 @@ const MeasuredOffMccbCard = memo(function MeasuredOffMccbCard({
     measure();
 
     let observer;
-    if (typeof ResizeObserver !== 'undefined') {
+    if (typeof ResizeObserver !== "undefined") {
       observer = new ResizeObserver(measure);
       observer.observe(wrapperRef.current);
     }
@@ -212,16 +212,16 @@ export default function VirtualizedOffMccbGrid({
     };
 
     measure();
-    window.addEventListener('resize', measure);
+    window.addEventListener("resize", measure);
 
     let observer;
-    if (containerRef.current && typeof ResizeObserver !== 'undefined') {
+    if (containerRef.current && typeof ResizeObserver !== "undefined") {
       observer = new ResizeObserver(measure);
       observer.observe(containerRef.current);
     }
 
     return () => {
-      window.removeEventListener('resize', measure);
+      window.removeEventListener("resize", measure);
       if (observer) observer.disconnect();
     };
   }, []);
@@ -242,7 +242,7 @@ export default function VirtualizedOffMccbGrid({
   const itemMetas = useMemo(() => {
     return items.map((item) => {
       const workers = item.childCards?.filter((c) => c.isBorrowed) || [];
-      const isAlternative = item.name.includes('(');
+      const isAlternative = item.name.includes("(");
       const measuredHeight = measuredHeights[`${columnWidth}:${item.id}`];
 
       if (workers.length === 0) {
@@ -334,7 +334,7 @@ export default function VirtualizedOffMccbGrid({
                   ...style,
                   paddingRight: columnIndex < columnCount - 1 ? gap : 0,
                   paddingBottom: rowIndex < rowCount - 1 ? rowGap : 0,
-                  boxSizing: 'border-box',
+                  boxSizing: "border-box",
                 }}
               >
                 <MeasuredOffMccbCard

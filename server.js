@@ -1,10 +1,10 @@
-import express from 'express';
-import cors from 'cors';
-import fs from 'fs';
-import path from 'path'; 
-import os from 'os'; 
-import { fileURLToPath } from 'url';
-import { createMccbStore } from './dbStore.js';
+import express from "express";
+import cors from "cors";
+import fs from "fs";
+import path from "path";
+import os from "os";
+import { fileURLToPath } from "url";
+import { createMccbStore } from "./dbStore.js";
 import {
   DEFAULT_CATEGORIES,
   DEFAULT_CHILD_CARD_COUNT,
@@ -12,19 +12,19 @@ import {
   DEFAULT_ROOMS,
   LOG_TYPES,
   normalizeLogs,
-} from './src/shared/appConstants.js';
+} from "./src/shared/appConstants.js";
 import {
   DEFAULT_CATEGORY_COLOR_KEYS,
   normalizeCategoryColors,
-} from './src/shared/categoryColorUtils.js';
-import { countBorrowedCards } from './src/shared/mccbViewUtils.js';
+} from "./src/shared/categoryColorUtils.js";
+import { countBorrowedCards } from "./src/shared/mccbViewUtils.js";
 import {
   cloneMccbListForMutation,
   createRequestAssignmentService,
   getChangedMccbs,
   hasBorrowedChildCard,
   preservePowerStateForRequestChanges,
-} from './server/requestAssignmentService.js';
+} from "./server/requestAssignmentService.js";
 
 const app = express();
 
@@ -32,21 +32,21 @@ const app = express();
 // 静的配信、SQLite 永続化、API ルート、依頼発行時の子札予約をまとめる。
 // --- ミドルウェア設定 ---
 app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // ESモジュール環境用の __dirname 互換定義
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DATA_DIR = path.join(__dirname, 'data');
-const BACKUP_DIR = path.join(DATA_DIR, 'backups');
-const DB_PATH = process.env.MCCB_DB_PATH || path.join(DATA_DIR, 'mccb_data.sqlite');
-const HOST = process.env.HOST || process.env.MCCB_SERVER_BIND_HOST || '0.0.0.0';
+const DATA_DIR = path.join(__dirname, "data");
+const BACKUP_DIR = path.join(DATA_DIR, "backups");
+const DB_PATH = process.env.MCCB_DB_PATH || path.join(DATA_DIR, "mccb_data.sqlite");
+const HOST = process.env.HOST || process.env.MCCB_SERVER_BIND_HOST || "0.0.0.0";
 const PORT = process.env.PORT || 5000;
 const BACKUP_MAX_FILES = Number(process.env.MCCB_BACKUP_MAX_FILES || 10);
-const AUTO_BACKUP_ENABLED = process.env.MCCB_AUTO_BACKUP_ENABLED !== '0';
-const AUTO_BACKUP_ON_START = process.env.MCCB_AUTO_BACKUP_ON_START !== '0';
+const AUTO_BACKUP_ENABLED = process.env.MCCB_AUTO_BACKUP_ENABLED !== "0";
+const AUTO_BACKUP_ON_START = process.env.MCCB_AUTO_BACKUP_ON_START !== "0";
 const AUTO_BACKUP_INTERVAL_MS = Number(
   process.env.MCCB_AUTO_BACKUP_INTERVAL_MS || 24 * 60 * 60 * 1000,
 );
@@ -64,18 +64,18 @@ const createDefaultChildCards = () =>
   Array.from({ length: DEFAULT_CHILD_CARD_COUNT }, (_, i) => ({
     id: i + 1,
     isBorrowed: false,
-    workerName: '',
+    workerName: "",
   }));
 
-const createMccbId = (suffix = '') =>
-  `MCCB-${Date.now()}${suffix !== '' ? `-${suffix}` : ''}`;
+const createMccbId = (suffix = "") =>
+  `MCCB-${Date.now()}${suffix !== "" ? `-${suffix}` : ""}`;
 
-const normalizeMccbForCreate = (mccb, suffix = '') => ({
+const normalizeMccbForCreate = (mccb, suffix = "") => ({
   ...mccb,
   id: mccb?.id || createMccbId(suffix),
   room: mccb?.room || DEFAULT_ROOMS[0],
   category: mccb?.category || DEFAULT_CATEGORIES[0],
-  name: mccb?.name || '',
+  name: mccb?.name || "",
   isPowerOff: !!mccb?.isPowerOff,
   isFavorite: !!mccb?.isFavorite,
   childCards: Array.isArray(mccb?.childCards)
@@ -85,15 +85,15 @@ const normalizeMccbForCreate = (mccb, suffix = '') => ({
 
 // マスタデータ初期化用デフォルト値
 const DEFAULT_MCCB = [
-  { 
-    id: "SAMPLE-1", 
-    room: DEFAULT_ROOMS[0], 
-    category: DEFAULT_CATEGORIES[0], 
-    name: "No.1加熱炉 送風ファン用MCCB", 
-    isPowerOff: false, 
-    isFavorite: false, 
-    childCards: createDefaultChildCards(), 
-  }
+  {
+    id: "SAMPLE-1",
+    room: DEFAULT_ROOMS[0],
+    category: DEFAULT_CATEGORIES[0],
+    name: "No.1加熱炉 送風ファン用MCCB",
+    isPowerOff: false,
+    isFavorite: false,
+    childCards: createDefaultChildCards(),
+  },
 ];
 
 const DEFAULT_DATA = {
@@ -107,7 +107,7 @@ const DEFAULT_DATA = {
   draftRequests: [],
   deviceGroups: [],
   requestHistory: [],
-  historySettings: { maxSize: DEFAULT_MAX_SIZE }
+  historySettings: { maxSize: DEFAULT_MAX_SIZE },
 };
 
 // ==========================================
@@ -117,7 +117,7 @@ const DEFAULT_DATA = {
 /** サーバーログ用のタイムスタンプ文字列を生成 */
 function getTimestamp() {
   const now = new Date();
-  return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+  return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, "0")}-${now.getDate().toString().padStart(2, "0")} ${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}:${now.getSeconds().toString().padStart(2, "0")}`;
 }
 
 /** サーバーマシーンのローカルIPアドレス（IPv4）を自動検出 */
@@ -126,12 +126,12 @@ function getLocalIpAddress() {
   for (const name of Object.keys(nets)) {
     for (const net of nets[name]) {
       // family が IPv4 かつローカルホスト（internal）でない実アドレスを抽出
-      if ((net.family === 'IPv4' || net.family === 4) && !net.internal) {
+      if ((net.family === "IPv4" || net.family === 4) && !net.internal) {
         return net.address;
       }
     }
   }
-  return 'localhost';
+  return "localhost";
 }
 
 function createUpdatedLogs(type, message, currentLogs, maxSize) {
@@ -244,19 +244,19 @@ const store = createMccbStore({
 const requestAssignmentService = createRequestAssignmentService({ store });
 
 function normalizeStoredLogs() {
-  const currentLogs = store.readCollection('logs');
+  const currentLogs = store.readCollection("logs");
   const normalizedLogs = normalizeLogs(currentLogs);
   if (JSON.stringify(currentLogs) !== JSON.stringify(normalizedLogs)) {
-    store.writeCollection('logs', normalizedLogs);
+    store.writeCollection("logs", normalizedLogs);
   }
 }
 
 normalizeStoredLogs();
-store.checkpointWal({ force: true, mode: 'TRUNCATE' });
+store.checkpointWal({ force: true, mode: "TRUNCATE" });
 
 // WAL を定期 checkpoint し、Raspberry Pi の常時運用でも DB ファイル肥大を抑える。
 const walCheckpointTimer = setInterval(() => {
-  store.checkpointWal({ mode: 'PASSIVE' });
+  store.checkpointWal({ mode: "PASSIVE" });
 }, WAL_CHECKPOINT_INTERVAL_MS);
 walCheckpointTimer.unref?.();
 
@@ -281,25 +281,25 @@ function listDatabaseBackups() {
 }
 
 function resolveBackupPath(fileName) {
-  const requestedFileName = String(fileName || '');
+  const requestedFileName = String(fileName || "");
   const safeFileName = path.basename(requestedFileName);
   // 復旧 API はファイル名だけを受け付け、ディレクトリ traversal を防ぐ。
   if (
     safeFileName !== requestedFileName ||
     !/^mccb_data_\d{8}_\d{6}\.sqlite$/.test(safeFileName)
   ) {
-    throw new Error('復旧対象のバックアップファイル名が不正です。');
+    throw new Error("復旧対象のバックアップファイル名が不正です。");
   }
 
   const backupPath = path.join(BACKUP_DIR, safeFileName);
   if (!fs.existsSync(backupPath)) {
-    throw new Error('復旧対象のバックアップファイルが見つかりません。');
+    throw new Error("復旧対象のバックアップファイルが見つかりません。");
   }
 
   return backupPath;
 }
 
-function createDatabaseBackup(reason = '手動') {
+function createDatabaseBackup(reason = "手動") {
   const backup = store.createBackup({
     backupDir: BACKUP_DIR,
     maxFiles: BACKUP_MAX_FILES,
@@ -307,10 +307,10 @@ function createDatabaseBackup(reason = '手動') {
   const logs = createUpdatedLogs(
     LOG_TYPES.SYSTEM,
     `${reason}DBバックアップを作成しました: ${backup.fileName}`,
-    store.readCollection('logs'),
-    store.readCollection('logSettings')?.maxSize || DEFAULT_MAX_SIZE,
+    store.readCollection("logs"),
+    store.readCollection("logSettings")?.maxSize || DEFAULT_MAX_SIZE,
   );
-  store.writeCollection('logs', logs);
+  store.writeCollection("logs", logs);
 
   return {
     backup,
@@ -361,7 +361,7 @@ if (AUTO_BACKUP_ENABLED) {
   if (AUTO_BACKUP_ON_START) {
     const startupBackupTimer = setTimeout(() => {
       try {
-        createDatabaseBackup('起動時自動');
+        createDatabaseBackup("起動時自動");
       } catch (error) {
         console.error("起動時DBバックアップ作成失敗:", error);
       }
@@ -372,7 +372,7 @@ if (AUTO_BACKUP_ENABLED) {
 
   const autoBackupTimer = setInterval(() => {
     try {
-      createDatabaseBackup('定期自動');
+      createDatabaseBackup("定期自動");
     } catch (error) {
       console.error("定期DBバックアップ作成失敗:", error);
     }
@@ -398,121 +398,121 @@ function shutdown(signal) {
   closeStoreAndExit();
 }
 
-process.once('SIGINT', () => shutdown('SIGINT'));
-process.once('SIGTERM', () => shutdown('SIGTERM'));
+process.once("SIGINT", () => shutdown("SIGINT"));
+process.once("SIGTERM", () => shutdown("SIGTERM"));
 
 // ==========================================
 // 2. API エンドポイントの定義
 // ==========================================
 
 /** 設備マスタ＆ステータスデータの取得 (GET) */
-app.get('/api/mccb', (req, res) => {
+app.get("/api/mccb", (req, res) => {
   try {
-    const data = req.query.core === '1' ? store.readCoreData() : store.readAll();
+    const data = req.query.core === "1" ? store.readCoreData() : store.readAll();
     res.json({ ...data, logs: normalizeLogs(data.logs) });
   } catch (error) {
     console.error("SQLiteデータ読み込み失敗:", error);
-    res.status(500).json({ error: 'サーバーデータの読み込みに失敗しました。' });
+    res.status(500).json({ error: "サーバーデータの読み込みに失敗しました。" });
   }
 });
 
 /** データ変更有無だけを確認する軽量エンドポイント */
-app.get('/api/mccb/version', (req, res) => {
+app.get("/api/mccb/version", (req, res) => {
   try {
     res.json({ version: store.getVersion() });
   } catch (error) {
     console.error("SQLiteバージョン読み込み失敗:", error);
-    res.status(500).json({ error: 'サーバーデータの更新番号取得に失敗しました。' });
+    res.status(500).json({ error: "サーバーデータの更新番号取得に失敗しました。" });
   }
 });
 
 /** システムログのページ取得 */
-app.get('/api/logs', (req, res) => {
+app.get("/api/logs", (req, res) => {
   try {
     res.json(
       createPage(
-        normalizeLogs(store.readCollection('logs')),
+        normalizeLogs(store.readCollection("logs")),
         Number(req.query.page || 1),
         Number(req.query.pageSize || 50),
       ),
     );
   } catch (error) {
     console.error("ログページ読み込み失敗:", error);
-    res.status(500).json({ error: 'ログ履歴の読み込みに失敗しました。' });
+    res.status(500).json({ error: "ログ履歴の読み込みに失敗しました。" });
   }
 });
 
 /** 完了済み依頼履歴のページ取得 */
-app.get('/api/request-history', (req, res) => {
+app.get("/api/request-history", (req, res) => {
   try {
     res.json(
       store.readCollectionPage(
-        'requestHistory',
+        "requestHistory",
         Number(req.query.page || 1),
         Number(req.query.pageSize || 20),
       ),
     );
   } catch (error) {
     console.error("依頼履歴ページ読み込み失敗:", error);
-    res.status(500).json({ error: '依頼履歴の読み込みに失敗しました。' });
+    res.status(500).json({ error: "依頼履歴の読み込みに失敗しました。" });
   }
 });
 
 /** SQLite DBの手動バックアップ */
-app.post('/api/admin/backups', (req, res) => {
+app.post("/api/admin/backups", (req, res) => {
   try {
-    const { backup, logs, version } = createDatabaseBackup('手動');
+    const { backup, logs, version } = createDatabaseBackup("手動");
 
     res.json({
-      status: 'success',
+      status: "success",
       backup,
       logs,
       version,
     });
   } catch (error) {
     console.error("DBバックアップ作成失敗:", error);
-    res.status(500).json({ error: 'DBバックアップの作成に失敗しました' });
+    res.status(500).json({ error: "DBバックアップの作成に失敗しました" });
   }
 });
 
 /** SQLite DBバックアップ一覧 */
-app.get('/api/admin/backups', (req, res) => {
+app.get("/api/admin/backups", (req, res) => {
   try {
     res.json({
-      status: 'success',
+      status: "success",
       backups: listDatabaseBackups(),
       version: store.getVersion(),
     });
   } catch (error) {
     console.error("DBバックアップ一覧取得失敗:", error);
-    res.status(500).json({ error: 'DBバックアップ一覧の取得に失敗しました' });
+    res.status(500).json({ error: "DBバックアップ一覧の取得に失敗しました" });
   }
 });
 
 /** SQLite DBをバックアップから復旧 */
-app.post('/api/admin/backups/restore', (req, res) => {
+app.post("/api/admin/backups/restore", (req, res) => {
   try {
     const fileName = req.body?.fileName;
     const result = restoreDatabaseBackup(fileName);
 
     res.json({
-      status: 'success',
+      status: "success",
       ...result,
     });
   } catch (error) {
     console.error("DBバックアップ復旧失敗:", error);
     res.status(500).json({
-      error: error.message || 'DBバックアップからの復旧に失敗しました',
+      error: error.message || "DBバックアップからの復旧に失敗しました",
     });
   }
 });
 
 /** CSV取込による設備マスタ一括上書き */
-app.post('/api/admin/mccb-import', (req, res) => {
+app.post("/api/admin/mccb-import", (req, res) => {
   try {
     const entries = Array.isArray(req.body?.entries) ? req.body.entries : null;
     if (!entries) {
-      return res.status(400).json({ error: 'CSV取込データが不正です。' });
+      return res.status(400).json({ error: "CSV取込データが不正です。" });
     }
 
     const current = store.readAll();
@@ -526,13 +526,13 @@ app.post('/api/admin/mccb-import', (req, res) => {
     const logs = createUpdatedLogs(
       LOG_TYPES.MASTER_CREATE,
       `CSVから ${mccbList.length} 件の設備データが一括上書きインポートされ、設備グループの紐づけが初期化されました。`,
-      store.readCollection('logs'),
-      store.readCollection('logSettings')?.maxSize || DEFAULT_MAX_SIZE,
+      store.readCollection("logs"),
+      store.readCollection("logSettings")?.maxSize || DEFAULT_MAX_SIZE,
     );
-    store.writeCollection('logs', logs);
+    store.writeCollection("logs", logs);
 
     res.json({
-      status: 'success',
+      status: "success",
       mccbList: saved.mccbList,
       deviceGroups: saved.deviceGroups,
       logs,
@@ -540,201 +540,201 @@ app.post('/api/admin/mccb-import', (req, res) => {
     });
   } catch (error) {
     console.error("CSV設備取込失敗:", error);
-    res.status(500).json({ error: 'CSV設備データの取り込みに失敗しました' });
+    res.status(500).json({ error: "CSV設備データの取り込みに失敗しました" });
   }
 });
 
 /** 設備1件のみの軽量更新 (PATCH) */
-app.patch('/api/mccb/:id', (req, res) => {
+app.patch("/api/mccb/:id", (req, res) => {
   try {
     const updatedMccb = req.body?.mccb;
 
     if (!updatedMccb || updatedMccb.id !== req.params.id) {
-      return res.status(400).json({ error: '更新対象の設備IDが不正です。' });
+      return res.status(400).json({ error: "更新対象の設備IDが不正です。" });
     }
 
     const result = store.updateMccb(updatedMccb);
     if (!result) {
-      return res.status(404).json({ error: '更新対象の設備が見つかりません。' });
+      return res.status(404).json({ error: "更新対象の設備が見つかりません。" });
     }
 
     const changeLog = createMccbChangeLog(result.before, result.after);
-    let logs = store.readCollection('logs');
+    let logs = store.readCollection("logs");
 
     if (changeLog) {
-      const logSettings = store.readCollection('logSettings');
+      const logSettings = store.readCollection("logSettings");
       logs = createUpdatedLogs(
         changeLog.type,
         changeLog.message,
         logs,
         logSettings?.maxSize || DEFAULT_MAX_SIZE,
       );
-      store.writeCollection('logs', logs);
+      store.writeCollection("logs", logs);
     }
 
     res.json({
-      status: 'success',
+      status: "success",
       mccb: result.after,
       logs,
       version: store.getVersion(),
     });
   } catch (error) {
     console.error("SQLite設備更新失敗:", error);
-    res.status(500).json({ error: '設備データの更新に失敗しました' });
+    res.status(500).json({ error: "設備データの更新に失敗しました" });
   }
 });
 
 /** 設備の停電・送電状態のみを更新する専用API */
-app.patch('/api/mccb/:id/power', (req, res) => {
+app.patch("/api/mccb/:id/power", (req, res) => {
   try {
     const nextIsPowerOff = req.body?.isPowerOff;
-    if (typeof nextIsPowerOff !== 'boolean') {
-      return res.status(400).json({ error: '停電・送電状態が不正です。' });
+    if (typeof nextIsPowerOff !== "boolean") {
+      return res.status(400).json({ error: "停電・送電状態が不正です。" });
     }
 
     const target = store.readMccb(req.params.id);
     if (!target) {
-      return res.status(404).json({ error: '更新対象の設備が見つかりません。' });
+      return res.status(404).json({ error: "更新対象の設備が見つかりません。" });
     }
 
     if (!nextIsPowerOff && hasBorrowedChildCard(target)) {
-      return res.status(409).json({ error: '未返却の子札があるため送電できません。' });
+      return res.status(409).json({ error: "未返却の子札があるため送電できません。" });
     }
 
     if (target.isPowerOff === nextIsPowerOff) {
       return res.json({
-        status: 'success',
+        status: "success",
         mccb: target,
-        logs: normalizeLogs(store.readCollection('logs')),
+        logs: normalizeLogs(store.readCollection("logs")),
         version: store.getVersion(),
       });
     }
 
     const result = store.updateMccb({ ...target, isPowerOff: nextIsPowerOff });
     if (!result) {
-      return res.status(404).json({ error: '更新対象の設備が見つかりません。' });
+      return res.status(404).json({ error: "更新対象の設備が見つかりません。" });
     }
 
     const changeLog = createMccbChangeLog(result.before, result.after);
-    let logs = store.readCollection('logs');
+    let logs = store.readCollection("logs");
     if (changeLog) {
-      const logSettings = store.readCollection('logSettings');
+      const logSettings = store.readCollection("logSettings");
       logs = createUpdatedLogs(
         changeLog.type,
         changeLog.message,
         logs,
         logSettings?.maxSize || DEFAULT_MAX_SIZE,
       );
-      store.writeCollection('logs', logs);
+      store.writeCollection("logs", logs);
     }
 
     res.json({
-      status: 'success',
+      status: "success",
       mccb: result.after,
       logs,
       version: store.getVersion(),
     });
   } catch (error) {
     console.error("SQLite設備停電・送電更新失敗:", error);
-    res.status(500).json({ error: '停電・送電状態の更新に失敗しました' });
+    res.status(500).json({ error: "停電・送電状態の更新に失敗しました" });
   }
 });
 
 /** 設備マスタ1件の新規登録 */
-app.post('/api/mccbs', (req, res) => {
+app.post("/api/mccbs", (req, res) => {
   try {
     const mccb = normalizeMccbForCreate(req.body?.mccb);
     if (!mccb.name) {
-      return res.status(400).json({ error: '設備データが不正です。' });
+      return res.status(400).json({ error: "設備データが不正です。" });
     }
 
     const result = store.createMccb(mccb);
     const logs = createUpdatedLogs(
       LOG_TYPES.MASTER_CREATE,
       `設備「${mccb.name}」が登録されました。`,
-      store.readCollection('logs'),
-      store.readCollection('logSettings')?.maxSize || DEFAULT_MAX_SIZE,
+      store.readCollection("logs"),
+      store.readCollection("logSettings")?.maxSize || DEFAULT_MAX_SIZE,
     );
-    store.writeCollection('logs', logs);
+    store.writeCollection("logs", logs);
 
     res.json({
-      status: 'success',
+      status: "success",
       mccb: result.mccb,
       logs,
       version: store.getVersion(),
     });
   } catch (error) {
     console.error("設備登録失敗:", error);
-    res.status(500).json({ error: '設備データの登録に失敗しました' });
+    res.status(500).json({ error: "設備データの登録に失敗しました" });
   }
 });
 
 /** 設備マスタ1件の削除 */
-app.delete('/api/mccbs/:id', (req, res) => {
+app.delete("/api/mccbs/:id", (req, res) => {
   try {
     const result = store.deleteMccb(req.params.id);
     if (!result) {
-      return res.status(404).json({ error: '削除対象の設備が見つかりません。' });
+      return res.status(404).json({ error: "削除対象の設備が見つかりません。" });
     }
 
     const logs = createUpdatedLogs(
       LOG_TYPES.MASTER_DELETE,
       `設備「${result.deleted.name}」が削除されました。`,
-      store.readCollection('logs'),
-      store.readCollection('logSettings')?.maxSize || DEFAULT_MAX_SIZE,
+      store.readCollection("logs"),
+      store.readCollection("logSettings")?.maxSize || DEFAULT_MAX_SIZE,
     );
-    store.writeCollection('logs', logs);
+    store.writeCollection("logs", logs);
 
     res.json({
-      status: 'success',
+      status: "success",
       deletedId: result.deleted.id,
       logs,
       version: store.getVersion(),
     });
   } catch (error) {
     console.error("設備削除失敗:", error);
-    res.status(500).json({ error: '設備データの削除に失敗しました' });
+    res.status(500).json({ error: "設備データの削除に失敗しました" });
   }
 });
 
 /** 電気室マスター更新 */
-app.patch('/api/admin/rooms', (req, res) => {
+app.patch("/api/admin/rooms", (req, res) => {
   try {
     const rooms = Array.isArray(req.body?.rooms) ? req.body.rooms : null;
     const mccbList = Array.isArray(req.body?.mccbList) ? req.body.mccbList : null;
     if (!rooms || !mccbList) {
-      return res.status(400).json({ error: '電気室マスター更新データが不正です。' });
+      return res.status(400).json({ error: "電気室マスター更新データが不正です。" });
     }
 
-    const mergedMccbList = mergeMccbMasterFields(mccbList, ['room']);
+    const mergedMccbList = mergeMccbMasterFields(mccbList, ["room"]);
     store.writeMccbs(mergedMccbList);
-    store.writeCollection('rooms', rooms);
-    res.json({ status: 'success', rooms, mccbList: mergedMccbList, version: store.getVersion() });
+    store.writeCollection("rooms", rooms);
+    res.json({ status: "success", rooms, mccbList: mergedMccbList, version: store.getVersion() });
   } catch (error) {
     console.error("電気室マスター更新失敗:", error);
-    res.status(500).json({ error: '電気室マスターの更新に失敗しました' });
+    res.status(500).json({ error: "電気室マスターの更新に失敗しました" });
   }
 });
 
 /** 区分マスター更新 */
-app.patch('/api/admin/categories', (req, res) => {
+app.patch("/api/admin/categories", (req, res) => {
   try {
     const categories = Array.isArray(req.body?.categories) ? req.body.categories : null;
     const mccbList = Array.isArray(req.body?.mccbList) ? req.body.mccbList : null;
     const incomingCategoryColors =
-      req.body?.categoryColors && typeof req.body.categoryColors === 'object'
+      req.body?.categoryColors && typeof req.body.categoryColors === "object"
         ? req.body.categoryColors
-        : store.readCollection('categoryColors');
+        : store.readCollection("categoryColors");
     if (!categories || !mccbList) {
-      return res.status(400).json({ error: '区分マスター更新データが不正です。' });
+      return res.status(400).json({ error: "区分マスター更新データが不正です。" });
     }
 
     const categoryColors = normalizeCategoryColors(categories, incomingCategoryColors);
-    const mergedMccbList = mergeMccbMasterFields(mccbList, ['category']);
+    const mergedMccbList = mergeMccbMasterFields(mccbList, ["category"]);
     store.writeMccbs(mergedMccbList);
     store.writeCollections({ categories, categoryColors });
     res.json({
-      status: 'success',
+      status: "success",
       categories,
       categoryColors,
       mccbList: mergedMccbList,
@@ -742,83 +742,83 @@ app.patch('/api/admin/categories', (req, res) => {
     });
   } catch (error) {
     console.error("区分マスター更新失敗:", error);
-    res.status(500).json({ error: '区分マスターの更新に失敗しました' });
+    res.status(500).json({ error: "区分マスターの更新に失敗しました" });
   }
 });
 
 /** 区分色マスター更新 */
-app.patch('/api/admin/category-colors', (req, res) => {
+app.patch("/api/admin/category-colors", (req, res) => {
   try {
     const categoryColors =
-      req.body?.categoryColors && typeof req.body.categoryColors === 'object'
+      req.body?.categoryColors && typeof req.body.categoryColors === "object"
         ? req.body.categoryColors
         : null;
     if (!categoryColors) {
-      return res.status(400).json({ error: '区分色マスター更新データが不正です。' });
+      return res.status(400).json({ error: "区分色マスター更新データが不正です。" });
     }
 
-    const categories = store.readCollection('categories');
+    const categories = store.readCollection("categories");
     const normalizedCategoryColors = normalizeCategoryColors(categories, categoryColors);
-    store.writeCollection('categoryColors', normalizedCategoryColors);
+    store.writeCollection("categoryColors", normalizedCategoryColors);
 
     const logs = createUpdatedLogs(
       LOG_TYPES.MASTER_UPDATE,
-      '区分マスターの表示色を更新しました。',
-      store.readCollection('logs'),
-      store.readCollection('logSettings')?.maxSize || DEFAULT_MAX_SIZE,
+      "区分マスターの表示色を更新しました。",
+      store.readCollection("logs"),
+      store.readCollection("logSettings")?.maxSize || DEFAULT_MAX_SIZE,
     );
-    store.writeCollection('logs', logs);
+    store.writeCollection("logs", logs);
 
     res.json({
-      status: 'success',
+      status: "success",
       categoryColors: normalizedCategoryColors,
       logs,
       version: store.getVersion(),
     });
   } catch (error) {
     console.error("区分色マスター更新失敗:", error);
-    res.status(500).json({ error: '区分色マスターの更新に失敗しました' });
+    res.status(500).json({ error: "区分色マスターの更新に失敗しました" });
   }
 });
 
 /** 設備グループマスター更新 */
-app.patch('/api/admin/device-groups', (req, res) => {
+app.patch("/api/admin/device-groups", (req, res) => {
   try {
     const deviceGroups = Array.isArray(req.body?.deviceGroups)
       ? req.body.deviceGroups
       : null;
     if (!deviceGroups) {
-      return res.status(400).json({ error: '設備グループ更新データが不正です。' });
+      return res.status(400).json({ error: "設備グループ更新データが不正です。" });
     }
 
-    store.writeCollection('deviceGroups', deviceGroups);
+    store.writeCollection("deviceGroups", deviceGroups);
     let logs = null;
     if (req.body?.logMessage) {
       logs = createUpdatedLogs(
         req.body.logType || LOG_TYPES.MASTER_UPDATE,
         req.body.logMessage,
-        store.readCollection('logs'),
-        store.readCollection('logSettings')?.maxSize || DEFAULT_MAX_SIZE,
+        store.readCollection("logs"),
+        store.readCollection("logSettings")?.maxSize || DEFAULT_MAX_SIZE,
       );
-      store.writeCollection('logs', logs);
+      store.writeCollection("logs", logs);
     }
-    res.json({ status: 'success', deviceGroups, logs, version: store.getVersion() });
+    res.json({ status: "success", deviceGroups, logs, version: store.getVersion() });
   } catch (error) {
     console.error("設備グループ更新失敗:", error);
-    res.status(500).json({ error: '設備グループの更新に失敗しました' });
+    res.status(500).json({ error: "設備グループの更新に失敗しました" });
   }
 });
 
 /** ログ保持設定・ログクリア */
-app.patch('/api/admin/logs', (req, res) => {
+app.patch("/api/admin/logs", (req, res) => {
   try {
     const action = req.body?.action;
-    const currentLogs = store.readCollection('logs');
-    const currentSettings = store.readCollection('logSettings');
+    const currentLogs = store.readCollection("logs");
+    const currentSettings = store.readCollection("logSettings");
     let logs = currentLogs;
     let logSettings = currentSettings;
 
-    if (action === 'clear') {
+    if (action === "clear") {
       logs = [
         {
           id: `LOG-${Date.now()}`,
@@ -827,57 +827,57 @@ app.patch('/api/admin/logs', (req, res) => {
           message: "ログ履歴がクリアされました。",
         },
       ];
-    } else if (action === 'setMaxSize') {
+    } else if (action === "setMaxSize") {
       const maxSize = Number(req.body?.maxSize);
       if (!maxSize) {
-        return res.status(400).json({ error: 'ログ保持件数が不正です。' });
+        return res.status(400).json({ error: "ログ保持件数が不正です。" });
       }
       logSettings = { ...currentSettings, maxSize };
       logs = createUpdatedLogs(
         LOG_TYPES.SYSTEM,
-        `ログ保持件数変更`,
+        "ログ保持件数変更",
         currentLogs.slice(0, maxSize),
         maxSize,
       );
     } else {
-      return res.status(400).json({ error: 'ログ管理操作が不正です。' });
+      return res.status(400).json({ error: "ログ管理操作が不正です。" });
     }
 
     store.writeCollections({ logs, logSettings });
-    res.json({ status: 'success', logs, logSettings, version: store.getVersion() });
+    res.json({ status: "success", logs, logSettings, version: store.getVersion() });
   } catch (error) {
     console.error("ログ管理更新失敗:", error);
-    res.status(500).json({ error: 'ログ管理の更新に失敗しました' });
+    res.status(500).json({ error: "ログ管理の更新に失敗しました" });
   }
 });
 
 /** 依頼履歴保持設定・履歴クリア */
-app.patch('/api/admin/request-history', (req, res) => {
+app.patch("/api/admin/request-history", (req, res) => {
   try {
     const action = req.body?.action;
-    const currentHistory = store.readCollection('requestHistory');
-    const currentSettings = store.readCollection('historySettings');
-    const currentLogs = store.readCollection('logs');
-    const logSettings = store.readCollection('logSettings');
+    const currentHistory = store.readCollection("requestHistory");
+    const currentSettings = store.readCollection("historySettings");
+    const currentLogs = store.readCollection("logs");
+    const logSettings = store.readCollection("logSettings");
     let requestHistory = currentHistory;
     let historySettings = currentSettings;
 
-    if (action === 'clear') {
+    if (action === "clear") {
       requestHistory = [];
-    } else if (action === 'setMaxSize') {
+    } else if (action === "setMaxSize") {
       const maxSize = Number(req.body?.maxSize);
       if (!maxSize) {
-        return res.status(400).json({ error: '依頼履歴保持件数が不正です。' });
+        return res.status(400).json({ error: "依頼履歴保持件数が不正です。" });
       }
       historySettings = { maxSize };
       requestHistory = currentHistory.slice(0, maxSize);
     } else {
-      return res.status(400).json({ error: '依頼履歴管理操作が不正です。' });
+      return res.status(400).json({ error: "依頼履歴管理操作が不正です。" });
     }
 
     const logs = createUpdatedLogs(
       LOG_TYPES.SYSTEM,
-      action === 'clear'
+      action === "clear"
         ? "停電作業の依頼履歴がすべてクリアされました。"
         : `最大依頼履歴数が ${historySettings.maxSize} 件に変更されました。`,
       currentLogs,
@@ -886,7 +886,7 @@ app.patch('/api/admin/request-history', (req, res) => {
 
     store.writeCollections({ requestHistory, historySettings, logs });
     res.json({
-      status: 'success',
+      status: "success",
       requestHistory,
       historySettings,
       logs,
@@ -894,41 +894,41 @@ app.patch('/api/admin/request-history', (req, res) => {
     });
   } catch (error) {
     console.error("依頼履歴管理更新失敗:", error);
-    res.status(500).json({ error: '依頼履歴管理の更新に失敗しました' });
+    res.status(500).json({ error: "依頼履歴管理の更新に失敗しました" });
   }
 });
 
 /** 停電作業依頼の発行と子札予約 */
-app.post('/api/requests/preview', (req, res) => {
+app.post("/api/requests/preview", (req, res) => {
   try {
     const previewRequest = req.body?.request;
     if (!previewRequest || !Array.isArray(previewRequest.targetMccbIds)) {
-      return res.status(400).json({ error: '依頼プレビューデータが不正です。' });
+      return res.status(400).json({ error: "依頼プレビューデータが不正です。" });
     }
 
     const { finalRequest, currentMccbList } = requestAssignmentService.buildRequestAssignment(previewRequest);
 
     res.json({
-      status: 'success',
+      status: "success",
       request: finalRequest,
       previewItems: requestAssignmentService.buildRequestPreviewItems(finalRequest, currentMccbList),
       version: store.getVersion(),
     });
   } catch (error) {
     console.error("停電作業依頼プレビュー作成失敗", error);
-    res.status(500).json({ error: '停電作業依頼プレビューの作成に失敗しました' });
+    res.status(500).json({ error: "停電作業依頼プレビューの作成に失敗しました" });
   }
 });
 
-app.post('/api/requests', (req, res) => {
+app.post("/api/requests", (req, res) => {
   try {
     const newRequest = req.body?.request;
     if (!newRequest || !Array.isArray(newRequest.targetMccbIds)) {
-      return res.status(400).json({ error: '依頼データが不正です。' });
+      return res.status(400).json({ error: "依頼データが不正です。" });
     }
 
-    const logsBefore = store.readCollection('logs');
-    const logSettings = store.readCollection('logSettings');
+    const logsBefore = store.readCollection("logs");
+    const logSettings = store.readCollection("logSettings");
     const {
       currentRequests,
       beforeMccbList,
@@ -950,11 +950,11 @@ app.post('/api/requests', (req, res) => {
     );
 
     store.writeMccbs(changedMccbs);
-    store.writeCollection('requests', requests);
-    store.writeCollection('logs', logs);
+    store.writeCollection("requests", requests);
+    store.writeCollection("logs", logs);
 
     res.json({
-      status: 'success',
+      status: "success",
       request: finalRequest,
       requests,
       logs,
@@ -963,21 +963,21 @@ app.post('/api/requests', (req, res) => {
     });
   } catch (error) {
     console.error("停電作業依頼発行失敗:", error);
-    res.status(500).json({ error: '停電作業依頼の発行に失敗しました' });
+    res.status(500).json({ error: "停電作業依頼の発行に失敗しました" });
   }
 });
 
 /** 停電作業依頼の仮発行（子札は確保しない） */
-app.post('/api/draft-requests', (req, res) => {
+app.post("/api/draft-requests", (req, res) => {
   try {
     const draftRequest = req.body?.request;
     if (!draftRequest || !Array.isArray(draftRequest.targetMccbIds)) {
-      return res.status(400).json({ error: '仮発行依頼データが不正です。' });
+      return res.status(400).json({ error: "仮発行依頼データが不正です。" });
     }
 
-    const currentDrafts = store.readCollection('draftRequests') || [];
-    const logsBefore = store.readCollection('logs');
-    const logSettings = store.readCollection('logSettings');
+    const currentDrafts = store.readCollection("draftRequests") || [];
+    const logsBefore = store.readCollection("logs");
+    const logSettings = store.readCollection("logSettings");
     const finalDraft = {
       ...draftRequest,
       id: `DRAFT-${Date.now()}`,
@@ -996,7 +996,7 @@ app.post('/api/draft-requests', (req, res) => {
     store.writeCollections({ draftRequests, logs });
 
     res.json({
-      status: 'success',
+      status: "success",
       draftRequest: finalDraft,
       draftRequests,
       logs,
@@ -1004,23 +1004,23 @@ app.post('/api/draft-requests', (req, res) => {
     });
   } catch (error) {
     console.error("停電作業依頼仮発行失敗:", error);
-    res.status(500).json({ error: '停電作業依頼の仮発行に失敗しました' });
+    res.status(500).json({ error: "停電作業依頼の仮発行に失敗しました" });
   }
 });
 
 /** 仮発行依頼を本発行し、現在の空き子札で割当する */
-app.post('/api/draft-requests/:id/issue', (req, res) => {
+app.post("/api/draft-requests/:id/issue", (req, res) => {
   try {
-    const currentDrafts = store.readCollection('draftRequests') || [];
+    const currentDrafts = store.readCollection("draftRequests") || [];
     const draftToIssue = currentDrafts.find((request) => request.id === req.params.id);
 
     if (!draftToIssue) {
-      return res.status(404).json({ error: '対象の仮発行依頼が見つかりません。' });
+      return res.status(404).json({ error: "対象の仮発行依頼が見つかりません。" });
     }
 
     const newRequest = createIssueRequestFromDraft(draftToIssue);
-    const logsBefore = store.readCollection('logs');
-    const logSettings = store.readCollection('logSettings');
+    const logsBefore = store.readCollection("logs");
+    const logSettings = store.readCollection("logSettings");
     const {
       currentRequests,
       beforeMccbList,
@@ -1045,7 +1045,7 @@ app.post('/api/draft-requests/:id/issue', (req, res) => {
     store.writeCollections({ requests, draftRequests, logs });
 
     res.json({
-      status: 'success',
+      status: "success",
       request: finalRequest,
       requests,
       draftRequests,
@@ -1055,22 +1055,22 @@ app.post('/api/draft-requests/:id/issue', (req, res) => {
     });
   } catch (error) {
     console.error("仮発行依頼の本発行失敗:", error);
-    res.status(500).json({ error: '仮発行依頼の本発行に失敗しました' });
+    res.status(500).json({ error: "仮発行依頼の本発行に失敗しました" });
   }
 });
 
 /** 仮発行依頼の削除 */
-app.delete('/api/draft-requests/:id', (req, res) => {
+app.delete("/api/draft-requests/:id", (req, res) => {
   try {
-    const currentDrafts = store.readCollection('draftRequests') || [];
+    const currentDrafts = store.readCollection("draftRequests") || [];
     const draftToDelete = currentDrafts.find((request) => request.id === req.params.id);
 
     if (!draftToDelete) {
-      return res.status(404).json({ error: '対象の仮発行依頼が見つかりません。' });
+      return res.status(404).json({ error: "対象の仮発行依頼が見つかりません。" });
     }
 
-    const logsBefore = store.readCollection('logs');
-    const logSettings = store.readCollection('logSettings');
+    const logsBefore = store.readCollection("logs");
+    const logSettings = store.readCollection("logSettings");
     const draftRequests = currentDrafts.filter((request) => request.id !== req.params.id);
     const logs = createUpdatedLogs(
       LOG_TYPES.OPERATION,
@@ -1082,39 +1082,39 @@ app.delete('/api/draft-requests/:id', (req, res) => {
     store.writeCollections({ draftRequests, logs });
 
     res.json({
-      status: 'success',
+      status: "success",
       draftRequests,
       logs,
       version: store.getVersion(),
     });
   } catch (error) {
     console.error("仮発行依頼削除失敗:", error);
-    res.status(500).json({ error: '仮発行依頼の削除に失敗しました' });
+    res.status(500).json({ error: "仮発行依頼の削除に失敗しました" });
   }
 });
 
 /** 発行済み停電作業依頼への対象設備追加 */
-app.patch('/api/requests/:id/targets', (req, res) => {
+app.patch("/api/requests/:id/targets", (req, res) => {
   try {
     const targetMccbIds = Array.isArray(req.body?.targetMccbIds)
       ? req.body.targetMccbIds
       : null;
     const dummyNames =
-      req.body?.dummyNames && typeof req.body.dummyNames === 'object'
+      req.body?.dummyNames && typeof req.body.dummyNames === "object"
         ? req.body.dummyNames
         : {};
 
     if (!targetMccbIds) {
-      return res.status(400).json({ error: '追加する設備データが不正です。' });
+      return res.status(400).json({ error: "追加する設備データが不正です。" });
     }
 
-    const currentRequests = store.readCollection('requests') || [];
+    const currentRequests = store.readCollection("requests") || [];
     const targetRequest = currentRequests.find(
       (request) => request.id === req.params.id,
     );
 
     if (!targetRequest) {
-      return res.status(404).json({ error: '対象の依頼が見つかりません。' });
+      return res.status(404).json({ error: "対象の依頼が見つかりません。" });
     }
 
     const addition = requestAssignmentService.buildRequestTargetAddition(
@@ -1124,11 +1124,11 @@ app.patch('/api/requests/:id/targets', (req, res) => {
     );
 
     if (!addition) {
-      return res.status(400).json({ error: '追加可能な設備が選択されていません。' });
+      return res.status(400).json({ error: "追加可能な設備が選択されていません。" });
     }
 
-    const logsBefore = store.readCollection('logs');
-    const logSettings = store.readCollection('logSettings');
+    const logsBefore = store.readCollection("logs");
+    const logSettings = store.readCollection("logSettings");
     const requests = currentRequests.map((request) =>
       request.id === targetRequest.id ? addition.updatedRequest : request,
     );
@@ -1144,11 +1144,11 @@ app.patch('/api/requests/:id/targets', (req, res) => {
     );
 
     store.writeMccbs(changedMccbs);
-    store.writeCollection('requests', requests);
-    store.writeCollection('logs', logs);
+    store.writeCollection("requests", requests);
+    store.writeCollection("logs", logs);
 
     res.json({
-      status: 'success',
+      status: "success",
       request: addition.updatedRequest,
       requests,
       logs,
@@ -1157,27 +1157,27 @@ app.patch('/api/requests/:id/targets', (req, res) => {
     });
   } catch (error) {
     console.error("停電作業依頼への設備追加失敗:", error);
-    res.status(500).json({ error: '停電作業依頼への設備追加に失敗しました' });
+    res.status(500).json({ error: "停電作業依頼への設備追加に失敗しました" });
   }
 });
 
 /** 発行中依頼の対象設備ごとの子札を一時返却・再貸出 */
-app.patch('/api/requests/:id/targets/:targetId/card', (req, res) => {
+app.patch("/api/requests/:id/targets/:targetId/card", (req, res) => {
   try {
     const action = req.body?.action;
     if (!["return", "borrow"].includes(action)) {
-      return res.status(400).json({ error: '子札操作が不正です。' });
+      return res.status(400).json({ error: "子札操作が不正です。" });
     }
 
-    const currentRequests = store.readCollection('requests') || [];
+    const currentRequests = store.readCollection("requests") || [];
     const targetRequest = currentRequests.find((request) => request.id === req.params.id);
     if (!targetRequest) {
-      return res.status(404).json({ error: '対象の依頼が見つかりません。' });
+      return res.status(404).json({ error: "対象の依頼が見つかりません。" });
     }
 
     const reserveInfo = targetRequest.reservedCards?.[req.params.targetId];
     if (!reserveInfo?.actualMccbId || !reserveInfo?.cardNo) {
-      return res.status(400).json({ error: '操作できる確保札がありません。' });
+      return res.status(400).json({ error: "操作できる確保札がありません。" });
     }
 
     const beforeMccbList = store.readMccbsByIds([reserveInfo.actualMccbId]);
@@ -1219,11 +1219,11 @@ app.patch('/api/requests/:id/targets/:targetId/card', (req, res) => {
     });
 
     if (blockedByOtherWorker) {
-      return res.status(409).json({ error: '別作業者が使用中の子札は操作できません。' });
+      return res.status(409).json({ error: "別作業者が使用中の子札は操作できません。" });
     }
 
-    const logsBefore = store.readCollection('logs');
-    const logSettings = store.readCollection('logSettings');
+    const logsBefore = store.readCollection("logs");
+    const logSettings = store.readCollection("logSettings");
     const changedMccbs = preservePowerStateForRequestChanges(
       beforeMccbList,
       getChangedMccbs(beforeMccbList, currentMccbList),
@@ -1238,10 +1238,10 @@ app.patch('/api/requests/:id/targets/:targetId/card', (req, res) => {
       : logsBefore;
 
     store.writeMccbs(changedMccbs);
-    if (operated) store.writeCollection('logs', logs);
+    if (operated) store.writeCollection("logs", logs);
 
     res.json({
-      status: 'success',
+      status: "success",
       requests: currentRequests,
       logs,
       changedMccbs,
@@ -1249,22 +1249,22 @@ app.patch('/api/requests/:id/targets/:targetId/card', (req, res) => {
     });
   } catch (error) {
     console.error("停電作業依頼の子札操作失敗:", error);
-    res.status(500).json({ error: '停電作業依頼の子札操作に失敗しました' });
+    res.status(500).json({ error: "停電作業依頼の子札操作に失敗しました" });
   }
 });
 
 /** 停電作業依頼の完了・解約と子札返却 */
-app.delete('/api/requests/:id', (req, res) => {
+app.delete("/api/requests/:id", (req, res) => {
   try {
-    const currentRequests = store.readCollection('requests') || [];
-    const currentHistory = store.readCollection('requestHistory') || [];
-    const historySettings = store.readCollection('historySettings');
-    const logsBefore = store.readCollection('logs');
-    const logSettings = store.readCollection('logSettings');
+    const currentRequests = store.readCollection("requests") || [];
+    const currentHistory = store.readCollection("requestHistory") || [];
+    const historySettings = store.readCollection("historySettings");
+    const logsBefore = store.readCollection("logs");
+    const logSettings = store.readCollection("logSettings");
     const reqToDelete = currentRequests.find((request) => request.id === req.params.id);
 
     if (!reqToDelete) {
-      return res.status(404).json({ error: '対象の依頼が見つかりません。' });
+      return res.status(404).json({ error: "対象の依頼が見つかりません。" });
     }
 
     const affectedMccbIds = Object.values(reqToDelete.reservedCards || {})
@@ -1321,12 +1321,12 @@ app.delete('/api/requests/:id', (req, res) => {
     );
 
     store.writeMccbs(changedMccbs);
-    store.writeCollection('requests', requests);
-    store.writeCollection('requestHistory', requestHistory);
-    store.writeCollection('logs', logs);
+    store.writeCollection("requests", requests);
+    store.writeCollection("requestHistory", requestHistory);
+    store.writeCollection("logs", logs);
 
     res.json({
-      status: 'success',
+      status: "success",
       requests,
       requestHistory,
       logs,
@@ -1335,7 +1335,7 @@ app.delete('/api/requests/:id', (req, res) => {
     });
   } catch (error) {
     console.error("停電作業依頼完了失敗:", error);
-    res.status(500).json({ error: '停電作業依頼の完了処理に失敗しました' });
+    res.status(500).json({ error: "停電作業依頼の完了処理に失敗しました" });
   }
 });
 
@@ -1344,11 +1344,11 @@ app.delete('/api/requests/:id', (req, res) => {
 // ==========================================
 
 // ビルドされた React アプリ (Vite等) の dist ディレクトリを静的ファイルとして配信
-app.use(express.static(path.join(__dirname, 'dist')));
+app.use(express.static(path.join(__dirname, "dist")));
 
 // Express v5 仕様: API以外のURLリクエストをすべてフロントエンドの index.html へ流す (SPA用)
-app.get('/{*splat}', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+app.get("/{*splat}", (req, res) => {
+  res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
 
 // ==========================================
@@ -1356,15 +1356,15 @@ app.get('/{*splat}', (req, res) => {
 // ==========================================
 httpServer = app.listen(PORT, HOST, () => {
   const localIp = getLocalIpAddress();
-  console.log(`==================================================`);
-  console.log(` 🚀 禁止札データ(SQLite) ＆ Webサーバーが一体型で正常稼働しました`);
+  console.log("==================================================");
+  console.log(" 🚀 禁止札データ(SQLite) ＆ Webサーバーが一体型で正常稼働しました");
   console.log(` 🌐 待受: http://${HOST}:${PORT}`);
   console.log(` 🌐 LAN接続URL目安: http://${localIp}:${PORT}`);
   console.log(` 💾 DB: ${DB_PATH}`);
-  console.log(`==================================================`);
+  console.log("==================================================");
 });
 
-httpServer.on('error', (error) => {
+httpServer.on("error", (error) => {
   console.error("Webサーバー起動失敗:", error);
   process.exit(1);
 });

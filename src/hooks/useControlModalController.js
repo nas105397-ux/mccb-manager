@@ -1,9 +1,9 @@
 // 個別 MCCB モーダルの入力状態と停電/送電・子札操作の安全確認を管理する。
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from "react";
 import {
   createStatusMessage,
   STATUS_MESSAGE_KEYS,
-} from '../shared/statusMessages';
+} from "../shared/statusMessages";
 
 const createMasterDraft = (mccb) => ({
   room: mccb.room,
@@ -36,15 +36,15 @@ export function useControlModalController({ mccb, onUpdate, onUpdatePower }) {
   }, [mccb]);
 
   const setRoom = useCallback((value) => {
-    updateMasterDraft('room', value);
+    updateMasterDraft("room", value);
   }, [updateMasterDraft]);
 
   const setCategory = useCallback((value) => {
-    updateMasterDraft('category', value);
+    updateMasterDraft("category", value);
   }, [updateMasterDraft]);
 
   const setName = useCallback((value) => {
-    updateMasterDraft('name', value);
+    updateMasterDraft("name", value);
   }, [updateMasterDraft]);
 
   const hasBorrowedCards = useMemo(() => {
@@ -71,7 +71,7 @@ export function useControlModalController({ mccb, onUpdate, onUpdatePower }) {
     const updatedCards = updateChildCard(mccb.childCards, cardId, (card) => ({
       ...card,
       isBorrowed: false,
-      workerName: '',
+      workerName: "",
     }));
 
     onUpdate({ ...mccb, childCards: updatedCards });
@@ -80,7 +80,7 @@ export function useControlModalController({ mccb, onUpdate, onUpdatePower }) {
   const handleBorrowCard = useCallback((cardId, workerName) => {
     const worker = workerName.trim();
     if (!worker) {
-      alert('作業者名を入力してください。');
+      alert("作業者名を入力してください。");
       return;
     }
 
@@ -96,7 +96,7 @@ export function useControlModalController({ mccb, onUpdate, onUpdatePower }) {
   const handleSaveMaster = useCallback(() => {
     const trimmedName = name.trim();
     if (!trimmedName) {
-      alert('設備名称を入力してください。');
+      alert("設備名称を入力してください。");
       return;
     }
 

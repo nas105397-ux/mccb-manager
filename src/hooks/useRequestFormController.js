@@ -1,10 +1,10 @@
 // 停電依頼作成フォームの入力、設備選択、印刷方式ごとの発行処理を管理する。
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { REQUEST_PRINT_MODES } from '../shared/printSettings';
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { REQUEST_PRINT_MODES } from "../shared/printSettings";
 import {
   createStatusMessage,
   STATUS_MESSAGE_KEYS,
-} from '../shared/statusMessages';
+} from "../shared/statusMessages";
 
 const SEARCH_DEBOUNCE_MS = 200;
 
@@ -29,7 +29,7 @@ const createRequestPayload = ({
   dummyNames,
 }) => ({
   id: `REQ-${Date.now()}`,
-  timestamp: new Date().toLocaleString('ja-JP'),
+  timestamp: new Date().toLocaleString("ja-JP"),
   workerName,
   workContent,
   targetMccbIds: selectedMccbIds,
@@ -45,11 +45,11 @@ export function useRequestFormController({
   requestPrintMode = REQUEST_PRINT_MODES.STAR_RECEIPT,
 }) {
   // 入力フォーム状態
-  const [workerName, setWorkerName] = useState('');
-  const [workContent, setWorkContent] = useState('');
+  const [workerName, setWorkerName] = useState("");
+  const [workContent, setWorkContent] = useState("");
   const [selectedMccbIds, setSelectedMccbIds] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [dummyNames, setDummyNames] = useState({});
   const [isIssuingRequest, setIsIssuingRequest] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
@@ -103,13 +103,13 @@ export function useRequestFormController({
       previewStatus?.isLoading ||
       previewStatus?.previewKey !== expectedPreviewKey
     ) {
-      return 'プレビュー作成中です。現在の停電対象設備一覧が表示されてから印刷してください。';
+      return "プレビュー作成中です。現在の停電対象設備一覧が表示されてから印刷してください。";
     }
     if (previewStatus?.error) return previewStatus.error;
     if (!previewStatus?.isReady) {
-      return '印刷できる停電対象設備のプレビューがありません。';
+      return "印刷できる停電対象設備のプレビューがありません。";
     }
-    return '';
+    return "";
   }, [dummyNames, getPrintPreviewStatus, selectedMccbIds]);
 
   const printByBrowser = useCallback(async () => {
@@ -123,14 +123,14 @@ export function useRequestFormController({
     async (createdRequest) => {
       if (!createdRequest) {
         alert(
-          '停電依頼を発行しましたが、印刷用データを取得できませんでした。依頼一覧から再印刷してください。',
+          "停電依頼を発行しましたが、印刷用データを取得できませんでした。依頼一覧から再印刷してください。",
         );
         return;
       }
 
       try {
         const { printRequestReceipt } = await import(
-          '../shared/starReceiptPrinter'
+          "../shared/starReceiptPrinter"
         );
         await printRequestReceipt(createdRequest, mccbList);
         setFormMessage(
@@ -150,11 +150,11 @@ export function useRequestFormController({
     if (isIssuingRequest) return;
     setFormMessage(null);
     if (!workerName.trim()) {
-      alert('作業者名を入力してください。');
+      alert("作業者名を入力してください。");
       return;
     }
     if (selectedMccbIds.length === 0) {
-      alert('設備が選択されていません。');
+      alert("設備が選択されていません。");
       return;
     }
 
@@ -186,7 +186,7 @@ export function useRequestFormController({
       }
     } catch (error) {
       console.error(error);
-      alert(error?.message || '停電依頼の発行に失敗しました。');
+      alert(error?.message || "停電依頼の発行に失敗しました。");
     } finally {
       setIsIssuingRequest(false);
     }
@@ -207,11 +207,11 @@ export function useRequestFormController({
     if (isSavingDraft || isIssuingRequest) return;
     setFormMessage(null);
     if (!workerName.trim()) {
-      alert('作業者名を入力してください。');
+      alert("作業者名を入力してください。");
       return;
     }
     if (selectedMccbIds.length === 0) {
-      alert('設備が選択されていません。');
+      alert("設備が選択されていません。");
       return;
     }
 
@@ -230,7 +230,7 @@ export function useRequestFormController({
       );
     } catch (error) {
       console.error(error);
-      alert(error?.message || '停電依頼の仮発行に失敗しました。');
+      alert(error?.message || "停電依頼の仮発行に失敗しました。");
     } finally {
       setIsSavingDraft(false);
     }

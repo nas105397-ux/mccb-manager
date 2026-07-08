@@ -1,29 +1,29 @@
-import fs from 'fs';
-import { DatabaseSync } from 'node:sqlite';
+import fs from "fs";
+import { DatabaseSync } from "node:sqlite";
 
 // SQLite 永続化層。MCCB/子札は正規化テーブル、その他の画面設定や履歴は JSON collection として保存する。
 const COLLECTION_KEYS = [
-  'rooms',
-  'categories',
-  'categoryColors',
-  'logs',
-  'logSettings',
-  'requests',
-  'draftRequests',
-  'deviceGroups',
-  'requestHistory',
-  'historySettings',
+  "rooms",
+  "categories",
+  "categoryColors",
+  "logs",
+  "logSettings",
+  "requests",
+  "draftRequests",
+  "deviceGroups",
+  "requestHistory",
+  "historySettings",
 ];
 
 const CORE_COLLECTION_KEYS = [
-  'rooms',
-  'categories',
-  'categoryColors',
-  'logSettings',
-  'requests',
-  'draftRequests',
-  'deviceGroups',
-  'historySettings',
+  "rooms",
+  "categories",
+  "categoryColors",
+  "logSettings",
+  "requests",
+  "draftRequests",
+  "deviceGroups",
+  "historySettings",
 ];
 
 const UPSERT_COLLECTION_SQL = `
@@ -36,7 +36,7 @@ const boolToInt = (value) => (value ? 1 : 0);
 const intToBool = (value) => value === 1;
 
 const parseJson = (value, fallback) => {
-  if (value == null || value === '') return fallback;
+  if (value == null || value === "") return fallback;
   try {
     return JSON.parse(value);
   } catch {
@@ -45,7 +45,7 @@ const parseJson = (value, fallback) => {
 };
 
 const normalizeData = (data, defaults) => {
-  const source = data && typeof data === 'object' ? data : {};
+  const source = data && typeof data === "object" ? data : {};
   const isArrayPayload = Array.isArray(data);
 
   return {
@@ -77,12 +77,12 @@ const toMccbObject = (row, childCards = []) => ({
 
 const createBackupFileName = () => {
   const now = new Date();
-  const pad = (value) => String(value).padStart(2, '0');
+  const pad = (value) => String(value).padStart(2, "0");
   return [
-    'mccb_data',
+    "mccb_data",
     `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`,
     `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`,
-  ].join('_') + '.sqlite';
+  ].join("_") + ".sqlite";
 };
 
 export function createMccbStore({ dbPath, defaults }) {
@@ -128,14 +128,14 @@ export function createMccbStore({ dbPath, defaults }) {
   `);
 
   const hasRows = () => {
-    const row = db.prepare('SELECT COUNT(*) AS count FROM mccbs').get();
+    const row = db.prepare("SELECT COUNT(*) AS count FROM mccbs").get();
     return row.count > 0;
   };
 
   const getVersion = () => {
     const row = db
-      .prepare('SELECT value FROM app_meta WHERE key = ?')
-      .get('data_version');
+      .prepare("SELECT value FROM app_meta WHERE key = ?")
+      .get("data_version");
     return Number(row?.value || 0);
   };
 
@@ -144,7 +144,7 @@ export function createMccbStore({ dbPath, defaults }) {
       `INSERT INTO app_meta (key, value)
        VALUES (?, ?)
        ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-    ).run('data_version', String(version));
+    ).run("data_version", String(version));
   };
 
   const bumpVersion = () => {
@@ -155,23 +155,23 @@ export function createMccbStore({ dbPath, defaults }) {
 
   // 書き込み系処理は必ず即時トランザクションに乗せ、途中失敗時はDB状態を戻す。
   const runImmediateTransaction = (operation) => {
-    db.exec('BEGIN IMMEDIATE');
+    db.exec("BEGIN IMMEDIATE");
     try {
       const result = operation();
-      db.exec('COMMIT');
+      db.exec("COMMIT");
       return result;
     } catch (error) {
-      db.exec('ROLLBACK');
+      db.exec("ROLLBACK");
       throw error;
     }
   };
 
   // WAL 運用中のファイル肥大対策。バックアップ/終了時は TRUNCATE で確実に反映する。
-  const checkpointWal = ({ force = false, mode = 'PASSIVE' } = {}) => {
+  const checkpointWal = ({ force = false, mode = "PASSIVE" } = {}) => {
     const now = Date.now();
     if (!force && now - lastCheckpointAt < 60_000) return null;
 
-    const checkpointMode = mode === 'TRUNCATE' ? 'TRUNCATE' : 'PASSIVE';
+    const checkpointMode = mode === "TRUNCATE" ? "TRUNCATE" : "PASSIVE";
     try {
       const result = db
         .prepare(`PRAGMA wal_checkpoint(${checkpointMode})`)
@@ -179,23 +179,23 @@ export function createMccbStore({ dbPath, defaults }) {
       lastCheckpointAt = now;
       return result?.[0] || null;
     } catch (error) {
-      console.warn('SQLite WAL checkpoint skipped:', error.message);
+      console.warn("SQLite WAL checkpoint skipped:", error.message);
       return null;
     }
   };
 
   const close = () => {
-    checkpointWal({ force: true, mode: 'TRUNCATE' });
+    checkpointWal({ force: true, mode: "TRUNCATE" });
     db.close();
   };
 
   const createBackup = ({ backupDir, maxFiles = 10 } = {}) => {
     if (!backupDir) {
-      throw new Error('backupDir is required');
+      throw new Error("backupDir is required");
     }
 
     // コピー前に WAL を本体へ取り込み、単体の .sqlite だけで復旧できるバックアップにする。
-    checkpointWal({ force: true, mode: 'TRUNCATE' });
+    checkpointWal({ force: true, mode: "TRUNCATE" });
     fs.mkdirSync(backupDir, { recursive: true });
 
     const fileName = createBackupFileName();
@@ -235,7 +235,7 @@ export function createMccbStore({ dbPath, defaults }) {
 
   const readCollection = (key) => {
     const row = db
-      .prepare('SELECT value_json FROM app_collections WHERE key = ?')
+      .prepare("SELECT value_json FROM app_collections WHERE key = ?")
       .get(key);
     return parseJson(row?.value_json, defaults[key]);
   };
@@ -350,9 +350,9 @@ export function createMccbStore({ dbPath, defaults }) {
         updated_at = excluded.updated_at`,
     ).run(
       id,
-      room || '',
-      category || '',
-      name || '',
+      room || "",
+      category || "",
+      name || "",
       boolToInt(isPowerOff),
       boolToInt(isFavorite),
       boolToInt(isDummy),
@@ -360,7 +360,7 @@ export function createMccbStore({ dbPath, defaults }) {
       now,
     );
 
-    db.prepare('DELETE FROM child_cards WHERE mccb_id = ?').run(id);
+    db.prepare("DELETE FROM child_cards WHERE mccb_id = ?").run(id);
 
     const insertChildCard = db.prepare(`
       INSERT INTO child_cards (
@@ -375,7 +375,7 @@ export function createMccbStore({ dbPath, defaults }) {
         id,
         Number(cardId),
         boolToInt(isBorrowed),
-        workerName || '',
+        workerName || "",
         JSON.stringify(cardExtra),
       );
     }
@@ -387,8 +387,8 @@ export function createMccbStore({ dbPath, defaults }) {
 
     // CSV 取込やバックアップ復旧は全体置換なので、MCCB と collection を同一 transaction で入れ替える。
     runImmediateTransaction(() => {
-      db.exec('DELETE FROM child_cards');
-      db.exec('DELETE FROM mccbs');
+      db.exec("DELETE FROM child_cards");
+      db.exec("DELETE FROM mccbs");
 
       const upsertCollection = db.prepare(UPSERT_COLLECTION_SQL);
 
@@ -446,7 +446,7 @@ export function createMccbStore({ dbPath, defaults }) {
         .prepare(
           `SELECT key, value_json
            FROM app_collections
-           WHERE key IN (${keys.map(() => '?').join(',')})`,
+           WHERE key IN (${keys.map(() => "?").join(",")})`,
         )
         .all(...keys)
         .map((row) => [row.key, row.value_json]),
@@ -511,8 +511,8 @@ export function createMccbStore({ dbPath, defaults }) {
     if (!existing) return null;
 
     runImmediateTransaction(() => {
-      db.prepare('DELETE FROM child_cards WHERE mccb_id = ?').run(id);
-      db.prepare('DELETE FROM mccbs WHERE id = ?').run(id);
+      db.prepare("DELETE FROM child_cards WHERE mccb_id = ?").run(id);
+      db.prepare("DELETE FROM mccbs WHERE id = ?").run(id);
     });
 
     return {

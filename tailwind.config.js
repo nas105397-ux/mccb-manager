@@ -7,10 +7,10 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Noto Sans JP', 'Noto Sans CJK JP', 'system-ui', 'Segoe UI', 'Roboto', 'sans-serif'],
-        mono: ['Noto Sans JP', 'Noto Sans CJK JP', 'system-ui', 'Segoe UI', 'Roboto', 'sans-serif'],
+        sans: ["Noto Sans JP", "Noto Sans CJK JP", "system-ui", "Segoe UI", "Roboto", "sans-serif"],
+        mono: ["Noto Sans JP", "Noto Sans CJK JP", "system-ui", "Segoe UI", "Roboto", "sans-serif"],
       },
     },
   },
   plugins: [],
-}
+};

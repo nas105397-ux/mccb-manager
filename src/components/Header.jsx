@@ -11,11 +11,11 @@ export default function Header({
   totalCount,
   offCount,
   onCount,
-  rooms = []
+  rooms = [],
 }) {
   return (
     <div className="bg-white p-4 rounded-xl mb-4 border border-gray-200">
-      
+
       {/* 🔝 SECTION 1: システムタイトル & ステータスカウンター */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-3 border-b border-gray-100">
         <div className="flex items-center gap-3">
@@ -38,7 +38,7 @@ export default function Header({
 
       {/* 🔍 SECTION 2: 検索 & 絞り込みフィルターコントロール */}
       <div className="flex flex-wrap items-center gap-4 mt-3">
-        
+
         {/* 設備名称検索インプット */}
         <div className="flex-1 min-w-[200px]">
           <input
@@ -87,11 +87,11 @@ export default function Header({
             onClick={() => setFilterFavorite(!filterFavorite)}
             className={`flex items-center gap-1 text-sm font-bold p-1.5 rounded-lg border cursor-pointer ${
               filterFavorite
-                ? 'bg-amber-400 text-gray-900 border-amber-400 font-black'
-                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                ? "bg-amber-400 text-gray-900 border-amber-400 font-black"
+                : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
             }`}
           >
-            {filterFavorite ? '★ お気に入りのみ抽出中' : '☆ お気に入りで絞り込み'}
+            {filterFavorite ? "★ お気に入りのみ抽出中" : "☆ お気に入りで絞り込み"}
           </button>
         </div>
 

@@ -1,17 +1,17 @@
 // 電気室モニター画面の定期同期、表示設定、停電中設備の集計を管理する。
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   countBorrowedCards,
   createRequestNameOverlayMap,
-} from '../shared/mccbViewUtils';
+} from "../shared/mccbViewUtils";
 
-const API_URL = '/api/mccb';
+const API_URL = "/api/mccb";
 const CORE_API_URL = `${API_URL}?core=1`;
 const VERSION_URL = `${API_URL}/version`;
 const ACTIVITY_LOG_LIMIT = 20;
 const STORAGE_KEYS = {
-  DARK_MODE: 'dashboard_is_dark_mode',
-  COL_LAYOUT: 'dashboard_col_layout',
+  DARK_MODE: "dashboard_is_dark_mode",
+  COL_LAYOUT: "dashboard_col_layout",
 };
 const LOGS_PAGE_URL = `/api/logs?page=1&pageSize=${ACTIVITY_LOG_LIMIT}`;
 export const POLL_INTERVAL = 15000;
@@ -19,10 +19,10 @@ const INITIAL_DATA = { mccbList: [], logs: [], requests: [], categoryColors: {} 
 
 const getInitialDarkMode = () => {
   const savedMode = localStorage.getItem(STORAGE_KEYS.DARK_MODE);
-  return savedMode !== null ? savedMode === 'true' : true;
+  return savedMode !== null ? savedMode === "true" : true;
 };
 
-const getInitialColLayout = () => localStorage.getItem(STORAGE_KEYS.COL_LAYOUT) || 'auto';
+const getInitialColLayout = () => localStorage.getItem(STORAGE_KEYS.COL_LAYOUT) || "auto";
 
 export function useDashboardController() {
   const [data, setData] = useState(INITIAL_DATA);
@@ -63,7 +63,7 @@ export function useDashboardController() {
         });
       } catch (err) {
         if (!disposed) {
-          console.error('監視データ同期エラー:', err);
+          console.error("監視データ同期エラー:", err);
         }
       } finally {
         if (!disposed) {
@@ -89,7 +89,7 @@ export function useDashboardController() {
         }
       } catch (err) {
         if (!disposed) {
-          console.error('監視データ同期エラー:', err);
+          console.error("監視データ同期エラー:", err);
         }
       }
     };

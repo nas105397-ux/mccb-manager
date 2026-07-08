@@ -1,6 +1,6 @@
-const DUMMY_LABEL = 'ダミー';
-const DUMMY_ID_FRAGMENT = 'DUMMY';
-const NO_AVAILABLE_CARD_LABEL = '空きなし';
+const DUMMY_LABEL = "ダミー";
+const DUMMY_ID_FRAGMENT = "DUMMY";
+const NO_AVAILABLE_CARD_LABEL = "空きなし";
 
 // 依頼発行時の子札割当ルールを API ルートから分離した純粋寄りのサービス。
 // 通常MCCBの空き札を優先し、不足時だけ同室 -> 他室のダミー札へ退避する。
@@ -16,10 +16,10 @@ const findFirstFreeChildCardIndex = (mccb) =>
   mccb?.childCards?.findIndex((card) => !card.isBorrowed) ?? -1;
 
 const compareMccbNameNumeric = (a, b) =>
-  (a.name || '').localeCompare(b.name || '', 'ja', { numeric: true });
+  (a.name || "").localeCompare(b.name || "", "ja", { numeric: true });
 
 const getDateCode = (date = new Date()) =>
-  `${date.getFullYear().toString().slice(-2)}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
+  `${date.getFullYear().toString().slice(-2)}${String(date.getMonth() + 1).padStart(2, "0")}${String(date.getDate()).padStart(2, "0")}`;
 
 export const cloneMccbListForMutation = (mccbList) =>
   mccbList.map((mccb) => ({
@@ -82,13 +82,13 @@ const applyExistingReservationsToMccbs = (mccbList, actualReservations) =>
         return {
           ...card,
           isBorrowed: true,
-          workerName: cardMap.get(card.id) || '',
+          workerName: cardMap.get(card.id) || "",
         };
       }
       return {
         ...card,
         isBorrowed: !!card.isBorrowed,
-        workerName: card.workerName || '',
+        workerName: card.workerName || "",
       };
     });
     return { ...mccb, childCards: updatedCards };
@@ -118,8 +118,8 @@ function getAvailableDummyCandidates(targetMccb, currentMccbList) {
   const otherRooms = availableDummies
     .filter((mccb) => mccb.room !== targetMccb.room)
     .sort((a, b) => {
-      if (a.name === 'ダミー0' && b.name !== 'ダミー0') return -1;
-      if (a.name !== 'ダミー0' && b.name === 'ダミー0') return 1;
+      if (a.name === "ダミー0" && b.name !== "ダミー0") return -1;
+      if (a.name !== "ダミー0" && b.name === "ダミー0") return 1;
       return compareMccbNameNumeric(a, b);
     });
 
@@ -184,7 +184,7 @@ function findAvailableCard(targetId, targetMccb, currentMccbList, currentRequest
 
 export function createRequestAssignmentService({ store }) {
   function buildRequestAssignment(newRequest) {
-    const currentRequests = store.readCollection('requests') || [];
+    const currentRequests = store.readCollection("requests") || [];
     const targetMccbs = store.readMccbsByIds(newRequest.targetMccbIds);
     const dummyMccbs = store.readDummyMccbs();
     const beforeMccbList = dedupeMccbs([...targetMccbs, ...dummyMccbs]);
@@ -318,7 +318,7 @@ export function createRequestAssignmentService({ store }) {
         return {
           ...(originalMccb || {}),
           id: targetId,
-          room: originalMccb?.room || finalMccb?.room || '',
+          room: originalMccb?.room || finalMccb?.room || "",
           name,
           cardLabel,
           generatedCardNo,
