@@ -100,7 +100,6 @@ export function useAppController() {
       if (password === "admin") {
         setIsAdmin(true);
         navigate("/admin");
-        alert("🔓 管理者認証に成功しました。");
       } else if (password !== null) {
         alert("❌ パスワードが正しくありません。認証に失敗しました。");
       }

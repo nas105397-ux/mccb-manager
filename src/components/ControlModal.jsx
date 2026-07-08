@@ -1,5 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useControlModalController } from '../hooks/useControlModalController';
+import {
+  createStatusMessage,
+  STATUS_MESSAGE_KEYS,
+} from '../shared/statusMessages';
+import StatusMessageRail from './StatusMessageRail';
 
 // ==========================================
 // 1. メインコンポーネント (ControlModal)
@@ -14,6 +19,8 @@ export default function ControlModal({ mccb, requests = [], onClose, onUpdate, o
     name,
     setName,
     isSendingBlocked,
+    modalMessage,
+    setModalMessage,
     handleTogglePower,
     handleReturnCard,
     handleBorrowCard,
@@ -69,6 +76,11 @@ export default function ControlModal({ mccb, requests = [], onClose, onUpdate, o
           </button>
         </div>
 
+        <StatusMessageRail
+          message={modalMessage}
+          onClose={() => setModalMessage(null)}
+        />
+
         {/* 📜 モーダルボディ */}
         <div className="p-6 overflow-y-auto space-y-6 flex-1 text-sm text-gray-700">
           
@@ -118,7 +130,15 @@ export default function ControlModal({ mccb, requests = [], onClose, onUpdate, o
                       temporaryReturnInfo.targetId,
                       "borrow",
                     );
-                    alert(`${temporaryReturnInfo.workerName}氏へ子札 No.${card.id} を再貸出しました。`);
+                    setModalMessage(
+                      createStatusMessage(
+                        STATUS_MESSAGE_KEYS.TEMPORARY_RETURN_CARD_BORROWED,
+                        {
+                          workerName: temporaryReturnInfo.workerName,
+                          cardId: card.id,
+                        },
+                      ),
+                    );
                   }}
                   onReturn={() => handleReturnCard(card.id)} 
                 />

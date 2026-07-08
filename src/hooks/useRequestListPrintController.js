@@ -1,9 +1,17 @@
 import { useEffect, useState } from "react";
 import { REQUEST_PRINT_MODES } from "../shared/printSettings";
+import {
+  createStatusMessage,
+  STATUS_MESSAGE_KEYS,
+} from "../shared/statusMessages";
 
 const BROWSER_PRINT_DELAY_MS = 50;
 
-export function useRequestListPrintController({ requestPrintMode, mccbList }) {
+export function useRequestListPrintController({
+  requestPrintMode,
+  mccbList,
+  onStatusMessage,
+}) {
   const [printRequest, setPrintRequest] = useState(null);
   const [starPrintRequestId, setStarPrintRequestId] = useState(null);
   const isPrintDisabledBySetting = requestPrintMode === REQUEST_PRINT_MODES.NONE;
@@ -40,7 +48,9 @@ export function useRequestListPrintController({ requestPrintMode, mccbList }) {
     try {
       const { printRequestReceipt } = await import("../shared/starReceiptPrinter");
       await printRequestReceipt(request, mccbList);
-      alert("スター精密プリンターへ依頼表を送信しました。");
+      onStatusMessage?.(
+        createStatusMessage(STATUS_MESSAGE_KEYS.REQUEST_LIST_RECEIPT_SENT),
+      );
     } catch (error) {
       console.error(error);
       alert(

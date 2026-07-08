@@ -1,4 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
+import {
+  createStatusMessage,
+  STATUS_MESSAGE_KEYS,
+} from '../shared/statusMessages';
 
 const createMasterDraft = (mccb) => ({
   room: mccb.room,
@@ -11,6 +15,7 @@ const updateChildCard = (childCards, cardId, updater) =>
 
 export function useControlModalController({ mccb, onUpdate, onUpdatePower }) {
   const [masterDrafts, setMasterDrafts] = useState({});
+  const [modalMessage, setModalMessage] = useState(null);
 
   const currentDraft = masterDrafts[mccb.id] ?? createMasterDraft(mccb);
 
@@ -95,7 +100,7 @@ export function useControlModalController({ mccb, onUpdate, onUpdatePower }) {
     }
 
     onUpdate({ ...mccb, room, category, name: trimmedName });
-    alert('設備情報を更新しました。');
+    setModalMessage(createStatusMessage(STATUS_MESSAGE_KEYS.MASTER_UPDATED));
   }, [name, mccb, room, category, onUpdate]);
 
   return {
@@ -107,6 +112,8 @@ export function useControlModalController({ mccb, onUpdate, onUpdatePower }) {
     name,
     setName,
     isSendingBlocked,
+    modalMessage,
+    setModalMessage,
     handleTogglePower,
     handleReturnCard,
     handleBorrowCard,

@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { REQUEST_PRINT_MODES } from '../shared/printSettings';
+import {
+  createStatusMessage,
+  STATUS_MESSAGE_KEYS,
+} from '../shared/statusMessages';
 
 const SEARCH_DEBOUNCE_MS = 200;
 
@@ -48,6 +52,7 @@ export function useRequestFormController({
   const [dummyNames, setDummyNames] = useState({});
   const [isIssuingRequest, setIsIssuingRequest] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [formMessage, setFormMessage] = useState(null);
 
   // 検索入力のたびに大量の設備一覧を再フィルタしないよう、短時間だけ遅延させる。
   useEffect(() => {
@@ -64,18 +69,21 @@ export function useRequestFormController({
   );
 
   const handleToggleMccb = useCallback((id) => {
+    setFormMessage(null);
     setSelectedMccbIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
     );
   }, []);
 
   const handleDummyNameChange = useCallback((id, value) => {
+    setFormMessage(null);
     setDummyNames((prev) => ({ ...prev, [id]: value }));
   }, []);
 
   const handleSelectGroup = useCallback((groupMccbIds) => {
     if (!groupMccbIds?.length) return;
 
+    setFormMessage(null);
     setSelectedMccbIds((prev) => {
       const prevSet = new Set(prev);
       const groupSet = new Set(groupMccbIds);
@@ -104,7 +112,7 @@ export function useRequestFormController({
   }, [dummyNames, getPrintPreviewStatus, selectedMccbIds]);
 
   const printByBrowser = useCallback(async () => {
-    alert('停電依頼を発行し、一覧へ登録しました。');
+    setFormMessage(createStatusMessage(STATUS_MESSAGE_KEYS.REQUEST_ISSUED));
     await waitForNextPaint();
     window.print();
     onAfterPrint?.();
@@ -124,7 +132,9 @@ export function useRequestFormController({
           '../shared/starReceiptPrinter'
         );
         await printRequestReceipt(createdRequest, mccbList);
-        alert('停電依頼を発行し、スター精密プリンターへ依頼表を送信しました。');
+        setFormMessage(
+          createStatusMessage(STATUS_MESSAGE_KEYS.REQUEST_RECEIPT_SENT),
+        );
       } catch (error) {
         console.error(error);
         alert(
@@ -137,6 +147,7 @@ export function useRequestFormController({
 
   const handlePrint = useCallback(async () => {
     if (isIssuingRequest) return;
+    setFormMessage(null);
     if (!workerName.trim()) {
       alert('作業者名を入力してください。');
       return;
@@ -170,7 +181,7 @@ export function useRequestFormController({
       } else if (requestPrintMode === REQUEST_PRINT_MODES.STAR_RECEIPT) {
         await printByStarReceipt(createdRequest);
       } else {
-        alert('停電依頼を発行し、一覧へ登録しました。');
+        setFormMessage(createStatusMessage(STATUS_MESSAGE_KEYS.REQUEST_ISSUED));
       }
     } catch (error) {
       console.error(error);
@@ -193,6 +204,7 @@ export function useRequestFormController({
 
   const handleSaveDraft = useCallback(async () => {
     if (isSavingDraft || isIssuingRequest) return;
+    setFormMessage(null);
     if (!workerName.trim()) {
       alert('作業者名を入力してください。');
       return;
@@ -212,7 +224,9 @@ export function useRequestFormController({
           dummyNames,
         }),
       );
-      alert('停電依頼を仮発行し、仮発行一覧へ登録しました。');
+      setFormMessage(
+        createStatusMessage(STATUS_MESSAGE_KEYS.REQUEST_DRAFT_SAVED),
+      );
     } catch (error) {
       console.error(error);
       alert(error?.message || '停電依頼の仮発行に失敗しました。');
@@ -246,6 +260,8 @@ export function useRequestFormController({
     dummyNames,
     selectedMccbIdSet,
     filteredMccbList,
+    formMessage,
+    setFormMessage,
     handleToggleMccb,
     handleDummyNameChange,
     handleSelectGroup,

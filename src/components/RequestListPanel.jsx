@@ -3,7 +3,12 @@ import { useRequestBarcodeScanner } from "../hooks/useRequestBarcodeScanner";
 import { useRequestListController } from "../hooks/useRequestListController";
 import { useRequestListPrintController } from "../hooks/useRequestListPrintController";
 import { REQUEST_PRINT_MODES } from "../shared/printSettings";
+import {
+  createStatusMessage,
+  STATUS_MESSAGE_KEYS,
+} from "../shared/statusMessages";
 import PrintableRequestForm from "./PrintableRequestForm";
+import StatusMessageRail from "./StatusMessageRail";
 
 const UI = {
   panel:
@@ -131,6 +136,7 @@ export default function RequestListPanel({
   const [addPanelRequestId, setAddPanelRequestId] = useState(null);
   const [addSearchTerm, setAddSearchTerm] = useState("");
   const [selectedAddIds, setSelectedAddIds] = useState([]);
+  const [listMessage, setListMessage] = useState(null);
   const { activeRequestViews, draftRequestViews, historyRequestViews, toggleExpand } =
     useRequestListController({
       requests,
@@ -144,7 +150,11 @@ export default function RequestListPanel({
     starPrintRequestId,
     isPrintDisabledBySetting,
     handlePrintRequest,
-  } = useRequestListPrintController({ requestPrintMode, mccbList });
+  } = useRequestListPrintController({
+    requestPrintMode,
+    mccbList,
+    onStatusMessage: setListMessage,
+  });
 
   useRequestBarcodeScanner({
     activeRequestViews,
@@ -153,6 +163,7 @@ export default function RequestListPanel({
   });
 
   const openAddPanel = (requestId) => {
+    setListMessage(null);
     setAddPanelRequestId((currentId) => (currentId === requestId ? null : requestId));
     setAddSearchTerm("");
     setSelectedAddIds([]);
@@ -176,19 +187,28 @@ export default function RequestListPanel({
     setAddPanelRequestId(null);
     setAddSearchTerm("");
     setSelectedAddIds([]);
-    alert("選択した設備を依頼に追加しました。");
+    setListMessage(
+      createStatusMessage(STATUS_MESSAGE_KEYS.REQUEST_TARGETS_ADDED),
+    );
   };
 
   const handleRequestTargetCardAction = (requestId, target, action) => {
     const label = action === "return" ? "一時返却" : "再貸出";
     onUpdateRequestTargetCard(requestId, target.id, action);
-    alert(`${target.name} の子札を${label}しました。`);
+    setListMessage(
+      createStatusMessage(STATUS_MESSAGE_KEYS.REQUEST_TARGET_CARD_UPDATED, {
+        targetName: target.name,
+        actionLabel: label,
+      }),
+    );
   };
 
   const handleIssueDraft = async (draftId) => {
     try {
       await onIssueDraftRequest(draftId);
-      alert("仮発行依頼を発行しました。");
+      setListMessage(
+        createStatusMessage(STATUS_MESSAGE_KEYS.DRAFT_REQUEST_ISSUED),
+      );
     } catch (error) {
       console.error(error);
       alert(error?.message || "仮発行依頼の発行に失敗しました。");
@@ -198,6 +218,11 @@ export default function RequestListPanel({
   return (
     <>
     <div className={`${UI.panel} print:hidden`}>
+      <StatusMessageRail
+        message={listMessage}
+        onClose={() => setListMessage(null)}
+      />
+
       <div className={UI.tabWrap} role="tablist" aria-label="依頼一覧表示切替">
         <button
           type="button"

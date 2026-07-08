@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import PrintPreviewForm from "./PrintPreviewForm";
+import StatusMessageRail from "./StatusMessageRail";
 import { useRequestFormController } from "../hooks/useRequestFormController";
 import { usePrintPreviewController } from "../hooks/usePrintPreviewController";
 import { VariableSizeList as List } from "react-window";
@@ -137,6 +138,8 @@ export default function RequestFormPanel({
     dummyNames,
     selectedMccbIdSet,
     filteredMccbList,
+    formMessage,
+    setFormMessage,
     handleToggleMccb,
     handleDummyNameChange,
     handleSelectGroup,
@@ -381,6 +384,11 @@ export default function RequestFormPanel({
             {isSavingDraft ? "仮発行中..." : "仮発行として保存"}
           </button>
         </div>
+
+        <StatusMessageRail
+          message={formMessage}
+          onClose={() => setFormMessage(null)}
+        />
       </div>
 
       {/* 右側：印刷プレビューコンポーネント */}

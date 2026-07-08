@@ -27,7 +27,7 @@ const buildCompletionConfirmMessage = (request) => {
     (target) => !target.isPowerOff,
   ).length;
   const warningLine =
-    incompleteTargetCount > 0 ? `\n未対応設備: ${incompleteTargetCount} 面` : "";
+    incompleteTargetCount > 0 ? `\n送電済み設備: ${incompleteTargetCount} 面` : "";
 
   return [
     `依頼番号 ${request.id} を作業完了・札返却しますか？`,
