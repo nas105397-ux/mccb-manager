@@ -345,6 +345,30 @@ pgrep -a chromium | head
 sudo systemctl restart mccb-xsession.service
 ```
 
+kioskを操作画面のみに切り替え:
+
+```bash
+mkdir -p ~/.config/mccb-kiosk
+printf 'KIOSK_MODE=main\nMAIN_GEOMETRY=1920x1080+0+0\nMAIN_SCALE=1\n' > ~/.config/mccb-kiosk/kiosk.env
+systemctl --user restart mccb-kiosk.service
+```
+
+kioskを操作画面 + ダッシュボードの2画面に切り替え:
+
+```bash
+mkdir -p ~/.config/mccb-kiosk
+cat > ~/.config/mccb-kiosk/kiosk.env <<'EOF'
+KIOSK_MODE=dual
+MAIN_GEOMETRY=1920x1080+0+0
+DASHBOARD_GEOMETRY=3840x2160+1920+0
+MAIN_SCALE=1
+DASHBOARD_SCALE=1.5
+EOF
+systemctl --user restart mccb-kiosk.service
+```
+
+画面サイズと配置は `幅x高さ+X位置+Y位置` で指定します。たとえば `1920x1080+1920+0` は、1枚目のフルHD画面の右にある2枚目のフルHD画面です。
+
 kiosk停止:
 
 ```bash

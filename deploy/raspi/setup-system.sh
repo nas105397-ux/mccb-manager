@@ -5,6 +5,11 @@ APP_DIR="${APP_DIR:-$HOME/mccb-manager}"
 NODE_MAJOR_MIN="${NODE_MAJOR_MIN:-24}"
 ENABLE_KIOSK="${ENABLE_KIOSK:-1}"
 MCCB_SERVER_HOST="${MCCB_SERVER_HOST:-192.168.40.111}"
+KIOSK_MODE="${KIOSK_MODE:-dual}"
+MAIN_GEOMETRY="${MAIN_GEOMETRY:-1920x1080+0+0}"
+DASHBOARD_GEOMETRY="${DASHBOARD_GEOMETRY:-3840x2160+1920+0}"
+MAIN_SCALE="${MAIN_SCALE:-1}"
+DASHBOARD_SCALE="${DASHBOARD_SCALE:-1.5}"
 
 if [ ! -d "$APP_DIR" ]; then
   echo "APP_DIR does not exist: $APP_DIR" >&2
@@ -217,7 +222,7 @@ if [ "$ENABLE_KIOSK" = "1" ]; then
   if command -v chromium-browser >/dev/null 2>&1 || command -v chromium >/dev/null 2>&1; then
     if command -v xset >/dev/null 2>&1; then
       loginctl enable-linger "$USER" || true
-      mkdir -p "$HOME/.config/systemd/user"
+      mkdir -p "$HOME/.config/systemd/user" "$HOME/.config/mccb-kiosk"
       cat > "$HOME/.config/systemd/user/mccb-kiosk.service" <<SERVICE
 [Unit]
 Description=MCCB Manager Chromium kiosk
@@ -232,11 +237,14 @@ Environment=QT_IM_MODULE=fcitx
 Environment=XMODIFIERS=@im=fcitx
 Environment=XCURSOR_SIZE=24
 Environment=APP_URL=https://$MCCB_SERVER_HOST
-Environment=MAIN_GEOMETRY=1920x1080+0+0
-Environment=DASHBOARD_GEOMETRY=3840x2160+1920+0
-Environment=DASHBOARD_SCALE=1.5
+Environment=KIOSK_MODE=$KIOSK_MODE
+Environment=MAIN_GEOMETRY=$MAIN_GEOMETRY
+Environment=DASHBOARD_GEOMETRY=$DASHBOARD_GEOMETRY
+Environment=MAIN_SCALE=$MAIN_SCALE
+Environment=DASHBOARD_SCALE=$DASHBOARD_SCALE
 Environment=ENABLE_GPU_TUNING=0
 Environment="CHROMIUM_FLAGS=--disable-gpu-vsync --ignore-certificate-errors --unsafely-treat-insecure-origin-as-secure=https://$MCCB_SERVER_HOST"
+EnvironmentFile=-%h/.config/mccb-kiosk/kiosk.env
 ExecStartPre=/bin/sleep 8
 ExecStartPre=-/usr/bin/xset s off
 ExecStartPre=-/usr/bin/xset -dpms

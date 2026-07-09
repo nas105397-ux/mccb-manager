@@ -16,7 +16,18 @@ param(
 
   [switch]$NoInstallNode,
 
-  [string]$KeyPath = ''
+  [string]$KeyPath = '',
+
+  [ValidateSet('main', 'dual')]
+  [string]$KioskMode = 'dual',
+
+  [string]$MainGeometry = '1920x1080+0+0',
+
+  [string]$DashboardGeometry = '3840x2160+1920+0',
+
+  [string]$MainScale = '1',
+
+  [string]$DashboardScale = '1.5'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -260,6 +271,11 @@ START_KIOSK="$2"
 BOOTSTRAP_LITE="$3"
 INSTALL_JAPANESE_INPUT="$4"
 INSTALL_NODE="$5"
+KIOSK_MODE="$6"
+MAIN_GEOMETRY="$7"
+DASHBOARD_GEOMETRY="$8"
+MAIN_SCALE="$9"
+DASHBOARD_SCALE="${10}"
 REMOTE_ZIP="/tmp/mccb-manager-deploy.zip"
 STAGE_DIR="/tmp/mccb-manager-deploy-$(id -u)-$$"
 
@@ -318,7 +334,14 @@ if [ "$BOOTSTRAP_LITE" = "1" ]; then
     bash deploy/raspi/setup-lite-os.sh
 fi
 
-APP_DIR="$APP_DIR" ENABLE_KIOSK="$START_KIOSK" bash deploy/raspi/setup-system.sh
+APP_DIR="$APP_DIR" \
+  ENABLE_KIOSK="$START_KIOSK" \
+  KIOSK_MODE="$KIOSK_MODE" \
+  MAIN_GEOMETRY="$MAIN_GEOMETRY" \
+  DASHBOARD_GEOMETRY="$DASHBOARD_GEOMETRY" \
+  MAIN_SCALE="$MAIN_SCALE" \
+  DASHBOARD_SCALE="$DASHBOARD_SCALE" \
+  bash deploy/raspi/setup-system.sh
 
 if [ "$START_KIOSK" = "1" ]; then
   if ! systemctl --user restart mccb-kiosk.service; then
@@ -350,6 +373,19 @@ systemctl status mccb-star-webusb.service --no-pager -n 8 || true
 if command -v nginx >/dev/null 2>&1; then
   systemctl status nginx --no-pager -n 5 || true
 fi
+echo
+echo "Kiosk status:"
+if systemctl list-unit-files mccb-xsession.service >/dev/null 2>&1; then
+  systemctl status mccb-xsession.service --no-pager -n 8 || true
+else
+  echo "mccb-xsession.service is not registered. Run with -BootstrapLite, or run setup-lite-os.sh on the Raspberry Pi."
+fi
+if [ "$START_KIOSK" = "1" ]; then
+  systemctl --user status mccb-kiosk.service --no-pager -n 12 || true
+  echo
+  echo "Recent kiosk log:"
+  journalctl --user -u mccb-kiosk.service --no-pager -n 30 || true
+fi
 '@
 
   $RemoteScript = $RemoteScript -replace "`r`n", "`n"
@@ -368,7 +404,7 @@ fi
   Invoke-NativeCommandWithRetry `
     -Action 'remote deploy' `
     -Command 'ssh' `
-    -Arguments (@('-tt', '-p', "$Port") + $SshIdentityOptions + $SshOptions + @($Target, "bash '$RemoteScriptFile' '$AppDir' '$StartKioskValue' '$BootstrapLiteValue' '$InstallJapaneseInputValue' '$InstallNodeValue'")) `
+    -Arguments (@('-tt', '-p', "$Port") + $SshIdentityOptions + $SshOptions + @($Target, "bash '$RemoteScriptFile' '$AppDir' '$StartKioskValue' '$BootstrapLiteValue' '$InstallJapaneseInputValue' '$InstallNodeValue' '$KioskMode' '$MainGeometry' '$DashboardGeometry' '$MainScale' '$DashboardScale'")) `
     -MaxAttempts 2
 }
 finally {

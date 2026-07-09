@@ -2,6 +2,7 @@
 set -euo pipefail
 
 APP_URL="${APP_URL:-https://192.168.40.111}"
+KIOSK_MODE="${KIOSK_MODE:-dual}"
 MAIN_GEOMETRY="${MAIN_GEOMETRY:-1920x1080+0+0}"
 DASHBOARD_GEOMETRY="${DASHBOARD_GEOMETRY:-3840x2160+1920+0}"
 CHROMIUM_BIN="${CHROMIUM_BIN:-}"
@@ -43,6 +44,15 @@ parse_geometry() {
 read -r MAIN_SIZE MAIN_POSITION < <(parse_geometry "$MAIN_GEOMETRY")
 read -r DASHBOARD_SIZE DASHBOARD_POSITION < <(parse_geometry "$DASHBOARD_GEOMETRY")
 read -r -a EXTRA_CHROMIUM_FLAGS <<< "$CHROMIUM_FLAGS"
+
+case "$KIOSK_MODE" in
+  main|dual)
+    ;;
+  *)
+    echo "Invalid KIOSK_MODE: $KIOSK_MODE. Use 'main' or 'dual'." >&2
+    exit 1
+    ;;
+esac
 
 CHROMIUM_PIDS=()
 
@@ -142,20 +152,22 @@ fi
   "${APP_URL}/#/" &
 CHROMIUM_PIDS+=("$!")
 
-"$CHROMIUM_BIN" \
-  "${BASE_CHROMIUM_FLAGS[@]}" \
-  "${GPU_CHROMIUM_FLAGS[@]}" \
-  "${EXTRA_CHROMIUM_FLAGS[@]}" \
-  --user-data-dir="$DASHBOARD_PROFILE_DIR" \
-  --force-device-scale-factor="$DASHBOARD_SCALE" \
-  --new-window \
-  --kiosk \
-  --noerrdialogs \
-  --disable-infobars \
-  --disable-session-crashed-bubble \
-  --window-position="$DASHBOARD_POSITION" \
-  --window-size="$DASHBOARD_SIZE" \
-  "${APP_URL}/#/monitor" &
-CHROMIUM_PIDS+=("$!")
+if [ "$KIOSK_MODE" = "dual" ]; then
+  "$CHROMIUM_BIN" \
+    "${BASE_CHROMIUM_FLAGS[@]}" \
+    "${GPU_CHROMIUM_FLAGS[@]}" \
+    "${EXTRA_CHROMIUM_FLAGS[@]}" \
+    --user-data-dir="$DASHBOARD_PROFILE_DIR" \
+    --force-device-scale-factor="$DASHBOARD_SCALE" \
+    --new-window \
+    --kiosk \
+    --noerrdialogs \
+    --disable-infobars \
+    --disable-session-crashed-bubble \
+    --window-position="$DASHBOARD_POSITION" \
+    --window-size="$DASHBOARD_SIZE" \
+    "${APP_URL}/#/monitor" &
+  CHROMIUM_PIDS+=("$!")
+fi
 
 wait "${CHROMIUM_PIDS[@]}"

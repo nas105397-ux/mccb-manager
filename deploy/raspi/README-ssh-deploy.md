@@ -128,6 +128,68 @@ kiosk で日本語入力も使う場合:
 
 `-BootstrapLite` は Raspberry Pi がインターネットへ接続できる初回セットアップ向けです。既定で Lite 用パッケージと Node.js 24 以上をインストールします。すでに Node.js を用意済みで、NodeSource へ接続したくない場合は `-NoInstallNode` を付けます。
 
+## kiosk 画面構成を選ぶ
+
+kiosk 表示は、操作画面のみの `main` と、操作画面 + ダッシュボードの `dual` を選べます。
+
+操作画面のみ:
+
+```powershell
+.\deploy\raspi\deploy-over-ssh.ps1 -Target pi@192.168.1.50 -StartKiosk -KioskMode main
+```
+
+操作画面 + ダッシュボード:
+
+```powershell
+.\deploy\raspi\deploy-over-ssh.ps1 -Target pi@192.168.1.50 -StartKiosk -KioskMode dual
+```
+
+画面サイズと配置も変更できます。形式は `幅x高さ+X位置+Y位置` です。
+
+```powershell
+.\deploy\raspi\deploy-over-ssh.ps1 -Target pi@192.168.1.50 -StartKiosk -KioskMode dual -MainGeometry '1920x1080+0+0' -DashboardGeometry '1920x1080+1920+0'
+```
+
+例:
+
+```text
+1920x1080+0+0       1枚目のフルHD画面
+1920x1080+1920+0    1枚目の右にある2枚目のフルHD画面
+3840x2160+1920+0    1枚目の右にある4K画面
+1080x1920+0+0       縦向きフルHD画面
+```
+
+再デプロイせずに Raspberry Pi 側で切り替える場合は、`~/.config/mccb-kiosk/kiosk.env` を作成または編集します。
+
+```bash
+mkdir -p ~/.config/mccb-kiosk
+nano ~/.config/mccb-kiosk/kiosk.env
+```
+
+操作画面のみ:
+
+```ini
+KIOSK_MODE=main
+MAIN_GEOMETRY=1920x1080+0+0
+MAIN_SCALE=1
+```
+
+2画面:
+
+```ini
+KIOSK_MODE=dual
+MAIN_GEOMETRY=1920x1080+0+0
+DASHBOARD_GEOMETRY=3840x2160+1920+0
+MAIN_SCALE=1
+DASHBOARD_SCALE=1.5
+```
+
+反映:
+
+```bash
+systemctl --user restart mccb-kiosk.service
+```
+
 ## デプロイ処理の内容
 
 1. PC 側で `node_modules` が無ければ `npm ci` を実行します。
@@ -182,7 +244,34 @@ http://<Raspberry Pi IP>:5000/#/monitor
 systemctl status mccb-manager.service
 journalctl -u mccb-manager.service --no-pager -n 80
 systemctl status nginx
+systemctl status mccb-xsession.service
 systemctl --user status mccb-kiosk.service
+```
+
+## kiosk 画面が出ない場合
+
+アプリサーバーが起動していて画面だけ出ない場合は、最小XまたはChromium kioskを確認します。
+
+```bash
+systemctl status mccb-xsession.service --no-pager -n 30
+systemctl --user status mccb-kiosk.service --no-pager -n 30
+journalctl -u mccb-xsession.service --no-pager -n 80
+journalctl --user -u mccb-kiosk.service --no-pager -n 80
+```
+
+`mccb-xsession.service is not registered` または `Unit mccb-xsession.service could not be found` の場合は、初回Liteセットアップが未実行です。
+
+```bash
+cd /home/pi/mccb-manager
+sudo TARGET_USER=pi SKIP_APT=1 bash deploy/raspi/setup-lite-os.sh
+sudo systemctl restart mccb-xsession.service
+systemctl --user restart mccb-kiosk.service
+```
+
+HDMIを後から挿した場合や画面が黒い場合は、Raspberry Piを再起動するとXorgが表示デバイスを掴み直します。
+
+```bash
+sudo reboot
 ```
 
 ## 関連ドキュメント
