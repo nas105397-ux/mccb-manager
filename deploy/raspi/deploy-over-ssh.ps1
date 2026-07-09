@@ -8,7 +8,15 @@ param(
 
   [switch]$SkipBuild,
 
-  [switch]$StartKiosk
+  [switch]$StartKiosk,
+
+  [switch]$BootstrapLite,
+
+  [switch]$InstallJapaneseInput,
+
+  [switch]$NoInstallNode,
+
+  [string]$KeyPath = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -21,6 +29,20 @@ $RemoteScriptPath = Join-Path $TempRoot 'mccb-manager-remote-deploy.sh'
 $RemoteZip = '/tmp/mccb-manager-deploy.zip'
 $RemoteScriptFile = '/tmp/mccb-manager-remote-deploy.sh'
 $StartKioskValue = if ($StartKiosk.IsPresent) { '1' } else { '0' }
+$BootstrapLiteValue = if ($BootstrapLite.IsPresent) { '1' } else { '0' }
+$InstallJapaneseInputValue = if ($InstallJapaneseInput.IsPresent) { '1' } else { '0' }
+$InstallNodeValue = if ($NoInstallNode.IsPresent) { '0' } else { '1' }
+$DefaultKeyPath = "$HOME\.ssh\mccb_manager_ed25519"
+if ([string]::IsNullOrWhiteSpace($KeyPath) -and (Test-Path $DefaultKeyPath)) {
+  $KeyPath = $DefaultKeyPath
+}
+$SshIdentityOptions = @()
+if (-not [string]::IsNullOrWhiteSpace($KeyPath)) {
+  if (-not (Test-Path $KeyPath)) {
+    throw "SSH key was not found: $KeyPath"
+  }
+  $SshIdentityOptions = @('-i', $KeyPath)
+}
 $SshOptions = @(
   '-o', 'ConnectTimeout=20',
   '-o', 'ServerAliveInterval=10',
@@ -77,54 +99,46 @@ function Copy-RepoItem {
   Copy-Item -Path $Source -Destination $Destination -Recurse -Force
 }
 
-function Get-LockfilePackage {
-  param(
-    [Parameter(Mandatory = $true)]
-    [object]$PackageLock,
-
-    [Parameter(Mandatory = $true)]
-    [string]$PackageName
-  )
-
-  $PackagePath = "node_modules/$PackageName"
-  if (-not $PackageLock['packages'].ContainsKey($PackagePath)) {
-    return $null
-  }
-
-  return $PackageLock['packages'][$PackagePath]
-}
-
 function Get-RuntimePackageNames {
   param([string[]]$RootPackageNames)
 
   $PackageLockPath = Join-Path $RepoRoot 'package-lock.json'
-  $PackageLock = Get-Content -Raw -Path $PackageLockPath | ConvertFrom-Json -AsHashtable
-  $Queue = [System.Collections.Generic.Queue[string]]::new()
-  $Seen = [System.Collections.Generic.HashSet[string]]::new()
+  $NodeScript = @'
+const fs = require('node:fs');
 
-  foreach ($PackageName in $RootPackageNames) {
-    $Queue.Enqueue($PackageName)
+const lockPath = process.argv[1];
+const roots = process.argv.slice(2);
+const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
+const queue = [...roots];
+const seen = new Set();
+
+while (queue.length > 0) {
+  const packageName = queue.shift();
+  if (seen.has(packageName)) {
+    continue;
+  }
+  seen.add(packageName);
+
+  const packageInfo = lock.packages['node_modules/' + packageName];
+  if (!packageInfo) {
+    console.error(`Runtime dependency '${packageName}' was not found in package-lock.json.`);
+    process.exit(1);
   }
 
-  while ($Queue.Count -gt 0) {
-    $PackageName = $Queue.Dequeue()
-    if (-not $Seen.Add($PackageName)) {
-      continue
-    }
+  for (const dependency of Object.keys(packageInfo.dependencies || {})) {
+    queue.push(dependency);
+  }
+}
 
-    $Package = Get-LockfilePackage -PackageLock $PackageLock -PackageName $PackageName
-    if ($null -eq $Package) {
-      throw "Runtime dependency '$PackageName' was not found in package-lock.json."
-    }
+console.log(JSON.stringify([...seen]));
+'@
 
-    if ($Package.ContainsKey('dependencies')) {
-      foreach ($Dependency in $Package['dependencies'].Keys) {
-        $Queue.Enqueue($Dependency)
-      }
-    }
+  $RuntimePackageJson = & node -e $NodeScript $PackageLockPath @RootPackageNames
+  if ($LASTEXITCODE -ne 0) {
+    throw "Failed to resolve runtime dependencies from package-lock.json."
   }
 
-  return $Seen
+  return $RuntimePackageJson | ConvertFrom-Json
 }
 
 function Copy-NodeModulePackage {
@@ -236,13 +250,16 @@ try {
   Invoke-NativeCommandWithRetry `
     -Action 'scp upload' `
     -Command 'scp' `
-    -Arguments (@('-P', "$Port") + $SshOptions + @($ZipPath, "${Target}:$RemoteZip"))
+    -Arguments (@('-P', "$Port") + $SshIdentityOptions + $SshOptions + @($ZipPath, "${Target}:$RemoteZip"))
 
   $RemoteScript = @'
 set -euo pipefail
 
 APP_DIR="$1"
 START_KIOSK="$2"
+BOOTSTRAP_LITE="$3"
+INSTALL_JAPANESE_INPUT="$4"
+INSTALL_NODE="$5"
 REMOTE_ZIP="/tmp/mccb-manager-deploy.zip"
 STAGE_DIR="/tmp/mccb-manager-deploy-$(id -u)-$$"
 
@@ -290,6 +307,17 @@ fi
 cp -a "$STAGE_DIR"/. "$APP_DIR"/
 mkdir -p "$APP_DIR/data/backups"
 cd "$APP_DIR"
+
+if [ "$BOOTSTRAP_LITE" = "1" ]; then
+  TARGET_USER="$(id -un)"
+  echo "Running Raspberry Pi OS Lite bootstrap for $TARGET_USER..."
+  sudo TARGET_USER="$TARGET_USER" \
+    INSTALL_KIOSK="$START_KIOSK" \
+    INSTALL_JAPANESE_INPUT="$INSTALL_JAPANESE_INPUT" \
+    INSTALL_NODE="$INSTALL_NODE" \
+    bash deploy/raspi/setup-lite-os.sh
+fi
+
 APP_DIR="$APP_DIR" ENABLE_KIOSK="$START_KIOSK" bash deploy/raspi/setup-system.sh
 
 if [ "$START_KIOSK" = "1" ]; then
@@ -335,12 +363,12 @@ fi
   Invoke-NativeCommandWithRetry `
     -Action 'remote script upload' `
     -Command 'scp' `
-    -Arguments (@('-P', "$Port") + $SshOptions + @($RemoteScriptPath, "${Target}:$RemoteScriptFile"))
+    -Arguments (@('-P', "$Port") + $SshIdentityOptions + $SshOptions + @($RemoteScriptPath, "${Target}:$RemoteScriptFile"))
 
   Invoke-NativeCommandWithRetry `
     -Action 'remote deploy' `
     -Command 'ssh' `
-    -Arguments (@('-tt', '-p', "$Port") + $SshOptions + @($Target, "bash '$RemoteScriptFile' '$AppDir' '$StartKioskValue'")) `
+    -Arguments (@('-tt', '-p', "$Port") + $SshIdentityOptions + $SshOptions + @($Target, "bash '$RemoteScriptFile' '$AppDir' '$StartKioskValue' '$BootstrapLiteValue' '$InstallJapaneseInputValue' '$InstallNodeValue'")) `
     -MaxAttempts 2
 }
 finally {

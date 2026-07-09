@@ -6,6 +6,8 @@ INSTALL_KIOSK="${INSTALL_KIOSK:-1}"
 INSTALL_JAPANESE_INPUT="${INSTALL_JAPANESE_INPUT:-0}"
 ENABLE_AUTOLOGIN="${ENABLE_AUTOLOGIN:-1}"
 SKIP_APT="${SKIP_APT:-0}"
+INSTALL_NODE="${INSTALL_NODE:-1}"
+NODE_MAJOR_MIN="${NODE_MAJOR_MIN:-24}"
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "Run with sudo: sudo TARGET_USER=pi bash deploy/raspi/setup-lite-os.sh" >&2
@@ -59,6 +61,34 @@ if [ "$SKIP_APT" != "1" ]; then
       fcitx5 \
       fcitx5-frontend-gtk3 \
       fcitx5-mozc
+  fi
+fi
+
+node_sqlite_ready() {
+  command -v node >/dev/null 2>&1 &&
+    [ "$(node -p "Number(process.versions.node.split('.')[0])" 2>/dev/null || echo 0)" -ge "$NODE_MAJOR_MIN" ] &&
+    node -e "require('node:sqlite').DatabaseSync" >/dev/null 2>&1
+}
+
+if [ "$INSTALL_NODE" = "1" ] && ! node_sqlite_ready; then
+  if [ "$SKIP_APT" = "1" ]; then
+    echo "Node.js ${NODE_MAJOR_MIN}+ with node:sqlite is required, but SKIP_APT=1 prevents installation." >&2
+    echo "Install Node.js ${NODE_MAJOR_MIN}+ manually, or rerun without SKIP_APT=1." >&2
+    exit 1
+  fi
+
+  if ! command -v curl >/dev/null 2>&1; then
+    echo "curl is required to install Node.js from NodeSource." >&2
+    exit 1
+  fi
+
+  curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR_MIN}.x" | bash -
+  apt-get install -y nodejs
+
+  if ! node_sqlite_ready; then
+    echo "Node.js ${NODE_MAJOR_MIN}+ was installed, but node:sqlite is still unavailable." >&2
+    echo "Current node: $(command -v node >/dev/null 2>&1 && node -v || echo missing)" >&2
+    exit 1
   fi
 fi
 
@@ -175,9 +205,8 @@ cat <<MSG
 Raspberry Pi OS Lite base setup finished.
 
 Next:
-  1. Install Node.js 24+.
-  2. Deploy the app with deploy/raspi/deploy-over-ssh.ps1 -StartKiosk.
-  3. Reboot the Raspberry Pi, or restart mccb-xsession.service and mccb-kiosk.service.
+  1. Deploy the app with deploy/raspi/deploy-over-ssh.ps1 -StartKiosk.
+  2. Reboot the Raspberry Pi, or restart mccb-xsession.service and mccb-kiosk.service.
 
 Services:
   sudo systemctl status mccb-xsession.service

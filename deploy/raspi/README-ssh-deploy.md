@@ -56,12 +56,42 @@ sudo apt install -y --no-install-recommends fontconfig fonts-noto-cjk fonts-noto
 
 `deploy\raspi\deploy-over-ssh.cmd` をダブルクリックしてください。接続先、SSH ポート、配置先を順番に入力できます。
 
+## SSH パスワード入力を省略する
+
+パスワード認証のままデプロイすると、`scp` と `ssh` の接続ごとにパスワードを聞かれます。初回だけ SSH 鍵を Raspberry Pi に登録しておくと、以後はパスワード入力なしでデプロイできます。
+
+クリックして設定する場合:
+
+```text
+deploy\raspi\setup-ssh-key.cmd
+```
+
+PowerShell から設定する場合:
+
+```powershell
+.\deploy\raspi\setup-ssh-key.ps1 -Target pi@192.168.1.50
+```
+
+この設定では、既定で Windows 側に `%USERPROFILE%\.ssh\mccb_manager_ed25519` を作成し、公開鍵を Raspberry Pi の `~/.ssh/authorized_keys` に追加します。登録時だけ Raspberry Pi の SSH パスワードを入力します。
+
+通常のデプロイでは、この既定鍵があれば自動で使われます。別の鍵を使う場合:
+
+```powershell
+.\deploy\raspi\deploy-over-ssh.ps1 -Target pi@192.168.1.50 -KeyPath "$HOME\.ssh\id_ed25519"
+```
+
 ### PowerShell から直接実行する場合
 
 リポジトリのルートで PowerShell を開いて、次を実行します。
 
 ```powershell
 .\deploy\raspi\deploy-over-ssh.ps1 -Target pi@192.168.1.50
+```
+
+初回セットアップもまとめて行う場合:
+
+```powershell
+.\deploy\raspi\deploy-over-ssh.ps1 -Target pi@192.168.1.50 -BootstrapLite
 ```
 
 SSH ポートが 22 以外の場合:
@@ -84,6 +114,20 @@ SSH ポートが 22 以外の場合:
 
 Pi本体に画面を出さないサーバー専用運用では、`-StartKiosk` は付けません。
 
+初回セットアップと kiosk 表示をまとめて行う場合:
+
+```powershell
+.\deploy\raspi\deploy-over-ssh.ps1 -Target pi@192.168.1.50 -BootstrapLite -StartKiosk
+```
+
+kiosk で日本語入力も使う場合:
+
+```powershell
+.\deploy\raspi\deploy-over-ssh.ps1 -Target pi@192.168.1.50 -BootstrapLite -StartKiosk -InstallJapaneseInput
+```
+
+`-BootstrapLite` は Raspberry Pi がインターネットへ接続できる初回セットアップ向けです。既定で Lite 用パッケージと Node.js 24 以上をインストールします。すでに Node.js を用意済みで、NodeSource へ接続したくない場合は `-NoInstallNode` を付けます。
+
 ## デプロイ処理の内容
 
 1. PC 側で `node_modules` が無ければ `npm ci` を実行します。
@@ -91,10 +135,11 @@ Pi本体に画面を出さないサーバー専用運用では、`-StartKiosk` �
 3. アプリ本体、`src/shared/`、サーバ実行に必要な `node_modules` だけを zip 化します。
 4. Raspberry Pi の `/tmp/mccb-manager-deploy.zip` へ転送します。
 5. 既定では Raspberry Pi の `$HOME/mccb-manager` へ展開します。
-6. `mccb-manager.service` を systemd のシステムサービスとして登録します。
-7. Raspberry Pi OS with Desktop（通常OS）が検出された場合は停止します。Lite 64-bit を使用してください。
-8. `nginx` が入っている場合だけ、自己署名証明書を作成し、443 番 HTTPS 公開と 80 番からのリダイレクトを設定します。
-9. Chromium と `xset` が入っている場合だけ、Lite kiosk サービスを登録します。
+6. `-BootstrapLite` 指定時は、Lite 用パッケージ、Node.js 24 以上、最小Xサービスをセットアップします。
+7. `mccb-manager.service` を systemd のシステムサービスとして登録します。
+8. Raspberry Pi OS with Desktop（通常OS）が検出された場合は停止します。Lite 64-bit を使用してください。
+9. `nginx` が入っている場合だけ、自己署名証明書を作成し、443 番 HTTPS 公開と 80 番からのリダイレクトを設定します。
+10. Chromium と `xset` が入っている場合だけ、Lite kiosk サービスを登録します。
 
 PC 側の `data/` ディレクトリはアップロードしません。Raspberry Pi 側にある `data/mccb_data.sqlite` と `data/backups/` は保持されます。
 

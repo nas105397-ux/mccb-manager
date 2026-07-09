@@ -6,6 +6,38 @@ Liteではデスクトップ環境を入れず、最小のX + Openbox + Chromium
 
 この文書では、Raspberry Pi OS Lite の初期セットアップと kiosk 関連パッケージの導入を扱います。Windows PC からのデプロイは [Raspberry Pi オフライン SSH デプロイ](README-ssh-deploy.md)、日常操作やバックアップは [取扱説明・運用ガイド](../../docs/operation-guide.md) を参照してください。
 
+## 最短手順（初回オンライン導入）
+
+Raspberry Pi がインターネットへ接続できる初回セットアップでは、Windows PC から次を実行すると、Lite 用パッケージ、Node.js 24+、アプリ配置、systemd 登録までまとめて行えます。
+
+kiosk表示あり:
+
+```powershell
+.\deploy\raspi\deploy-over-ssh.ps1 -Target pi@<Raspberry Pi IP> -BootstrapLite -StartKiosk
+```
+
+Pi本体に画面を出さず、別PCやタブレットから見るだけの場合:
+
+```powershell
+.\deploy\raspi\deploy-over-ssh.ps1 -Target pi@<Raspberry Pi IP> -BootstrapLite
+```
+
+日本語入力も入れる場合:
+
+```powershell
+.\deploy\raspi\deploy-over-ssh.ps1 -Target pi@<Raspberry Pi IP> -BootstrapLite -StartKiosk -InstallJapaneseInput
+```
+
+クリック実行する場合は `deploy\raspi\deploy-over-ssh.cmd` を開き、`Run first-time Lite setup on Raspberry Pi?` に `y` と答えます。
+
+完了後、Raspberry Pi を再起動します。
+
+```bash
+sudo reboot
+```
+
+2回目以降の更新では `-BootstrapLite` は不要です。
+
 ## 推奨構成
 
 ```text
@@ -57,7 +89,9 @@ sudo reboot
 
 ## 3. Lite用パッケージを入れる
 
-先に必要パッケージだけ手動で入れる場合は、以下を実行します。
+通常は Windows PC から `-BootstrapLite` 付きでデプロイすれば、この手順は自動で実行されます。
+
+Raspberry Pi 側で先に必要パッケージだけ手動で入れる場合は、以下を実行します。
 
 kiosk表示あり:
 
@@ -85,7 +119,7 @@ sudo apt install -y --no-install-recommends ca-certificates curl openssl unzip n
 command -v unzip || command -v python3
 ```
 
-アプリをPiへ配置した後でも実行できますが、先にこのスクリプトを置ける場合は以下を実行します。上のパッケージ導入と最小Xサービス作成をまとめて行います。
+アプリをPiへ配置した後でも実行できます。上のパッケージ導入、Node.js 24+ 導入、最小Xサービス作成をまとめて行います。
 
 ```bash
 cd /home/pi/mccb-manager
@@ -115,9 +149,10 @@ sudo TARGET_USER=pi INSTALL_KIOSK=0 bash deploy/raspi/setup-lite-os.sh
 
 ## 4. Node.js 24+を入れる
 
-既存のデプロイスクリプトはPi上にNode.js 24以上が入っている前提です。
+`setup-lite-os.sh` または `deploy-over-ssh.ps1 -BootstrapLite` は、既定で Node.js 24+ をインストールします。
 
-オンライン環境で入れる場合:
+Raspberry Pi をオフライン運用に移す前に手動で入れる場合:
+
 
 ```bash
 curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
@@ -134,22 +169,28 @@ node -e "require('node:sqlite').DatabaseSync"
 
 `v24.x.x` 以上で、`node:sqlite` の確認がエラーにならなければOKです。
 
-入っていない場合は、オンライン環境でNode.js 24以上を入れてからオフライン運用へ移してください。
+オフライン環境で `setup-lite-os.sh` だけ再実行する場合は、Node.js を事前に入れたうえで `INSTALL_NODE=0` を指定できます。
+
+```bash
+sudo TARGET_USER=pi INSTALL_NODE=0 bash deploy/raspi/setup-lite-os.sh
+```
 
 ## 5. PCからアプリをデプロイする
 
 Windows PC側で実行します。
 
+初回セットアップも同時に行う場合は `-BootstrapLite` を付けます。
+
 kiosk表示あり:
 
 ```powershell
-.\deploy\raspi\deploy-over-ssh.ps1 -Target pi@<Raspberry Pi IP> -StartKiosk
+.\deploy\raspi\deploy-over-ssh.ps1 -Target pi@<Raspberry Pi IP> -BootstrapLite -StartKiosk
 ```
 
 kiosk表示なし:
 
 ```powershell
-.\deploy\raspi\deploy-over-ssh.ps1 -Target pi@<Raspberry Pi IP>
+.\deploy\raspi\deploy-over-ssh.ps1 -Target pi@<Raspberry Pi IP> -BootstrapLite
 ```
 
 クリック実行する場合:
