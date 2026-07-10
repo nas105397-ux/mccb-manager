@@ -1,3 +1,4 @@
+// API通信、定期同期、楽観的更新をまとめ、画面間で共有するMCCBデータを管理する。
 import { startTransition, useState, useEffect, useRef, useCallback } from "react";
 import {
   DEFAULT_CATEGORIES,
@@ -13,7 +14,8 @@ const VERSION_URL = `${API_URL}/version`;
 const LOGS_PAGE_URL = "/api/logs";
 const HISTORY_PAGE_URL = "/api/request-history";
 const BACKUPS_URL = "/api/admin/backups";
-const POLL_INTERVAL = 5000; // 3s -> 5s に緩和
+// 常時稼働端末の負荷を抑えつつ他端末の変更を追従する同期間隔。
+const POLL_INTERVAL = 5000;
 const LOG_PAGE_SIZE = 50;
 const HISTORY_PAGE_SIZE = 20;
 
@@ -146,6 +148,7 @@ export function useMccbData() {
   }, []);
 
   const applyVersion = useCallback((version) => {
+    // 0 は未初期化を表すため、サーバーから有効値が来た時だけ更新する。
     if (version) {
       lastVersion.current = Number(version);
     }
@@ -176,6 +179,7 @@ export function useMccbData() {
   );
 
   const fetchDatabaseBackups = useCallback(async () => {
+    // バックアップ本体ではなく、管理画面表示用のメタデータだけを取得する。
     const res = await fetch(BACKUPS_URL);
     if (!res.ok) throw new Error(`DBバックアップ一覧の取得に失敗しました (${res.status})`);
     const result = await res.json();
@@ -242,6 +246,7 @@ export function useMccbData() {
         });
 
     const fetchData = () => {
+      // 手動更新の応答をポーリング結果が上書きしないよう、競合中は巡回を見送る。
       if (Date.now() < pauseTimer.current || syncInProgress.current) return;
 
       if (lastVersion.current === 0) {
@@ -364,6 +369,7 @@ export function useMccbData() {
   const updateMccbPower = useCallback(
     (id, isPowerOff) => {
       let previousMccb = null;
+      // 操作直後に表示へ反映し、通信失敗時にだけ直前の状態へ戻す。
       setMccbList((prev) =>
         prev.map((item) => {
           if (item.id !== id) return item;
@@ -395,6 +401,7 @@ export function useMccbData() {
           if (Array.isArray(result.logs)) applyLogsInTransition(result.logs);
           applyVersion(result.version);
         } catch (error) {
+          // その後に別操作が行われていれば、新しい状態を誤って巻き戻さない。
           if (previousMccb) {
             setMccbList((prev) =>
               prev.map((item) =>

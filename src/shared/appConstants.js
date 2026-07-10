@@ -32,11 +32,13 @@ export const LOG_TYPES = Object.freeze({
 
 const LOG_TYPE_VALUES = new Set(Object.values(LOG_TYPES));
 
+// 旧データなどの未定義種別は、表示不能にせずシステムログとして扱う。
 export const normalizeLogType = (type) => {
   return LOG_TYPE_VALUES.has(type) ? type : LOG_TYPES.SYSTEM;
 };
 
 export const normalizeLogs = (logs) => {
+  // 永続化データの形が壊れている場合も、呼び出し側には常に配列を返す。
   if (!Array.isArray(logs)) return [];
   return logs.map((log) => ({
     ...log,

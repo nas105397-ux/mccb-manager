@@ -5,6 +5,7 @@ const SCAN_IDLE_MS = 180;
 const REQUEST_ID_PATTERN = /REQ-\d+/i;
 
 const normalizeScannedRequestId = (value) => {
+  // 前後に制御文字や任意文字が付くスキャナー出力から依頼番号だけを抜き出す。
   const matched = String(value || "").trim().match(REQUEST_ID_PATTERN);
   return matched ? matched[0].toUpperCase() : "";
 };
@@ -88,6 +89,7 @@ export function useRequestBarcodeScanner({
     };
 
     const flushScanBuffer = () => {
+      // Enter入力または無入力時間をスキャン終端とみなし、一括で判定する。
       const bufferedValue = scanBufferRef.current;
       scanBufferRef.current = "";
       clearScanTimer();
@@ -100,6 +102,7 @@ export function useRequestBarcodeScanner({
     };
 
     const handleGlobalKeyDown = (event) => {
+      // フォーム入力中のキー操作をバーコードとして横取りしない。
       if (
         event.defaultPrevented ||
         event.ctrlKey ||

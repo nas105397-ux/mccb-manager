@@ -64,15 +64,18 @@ export const DEFAULT_CATEGORY_COLOR_KEYS = {
 
 export const DEFAULT_CATEGORY_COLOR_KEY = "gray";
 
+// 未知のキーが保存されていても、必ず定義済みの色へフォールバックする。
 export const getValidCategoryColorKey = (colorKey) =>
   CATEGORY_COLOR_PRESETS[colorKey] ? colorKey : DEFAULT_CATEGORY_COLOR_KEY;
 
+// 管理画面で指定した色を優先し、未指定なら区分ごとの初期色を返す。
 export const getCategoryColorKey = (category, categoryColors = {}) =>
   getValidCategoryColorKey(
     categoryColors?.[category] || DEFAULT_CATEGORY_COLOR_KEYS[category],
   );
 
 export const normalizeCategoryColors = (categories = [], categoryColors = {}) => {
+  // 削除済み区分の設定は持ち越さず、現在存在する区分だけを再構成する。
   const nextColors = {};
   categories.forEach((category) => {
     nextColors[category] = getCategoryColorKey(category, categoryColors);
@@ -85,6 +88,7 @@ export const getCategoryBadgeClass = (
   categoryColors = {},
   isDarkMode = false,
 ) => {
+  // 空の区分や不正な設定値には、テーマに合う中立色を使用する。
   const colorKey = category
     ? categoryColors?.[category] || DEFAULT_CATEGORY_COLOR_KEYS[category]
     : null;

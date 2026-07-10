@@ -82,6 +82,7 @@ export function useAppController() {
   const activeTab = location.pathname;
 
   useEffect(() => {
+    // 入力中の再計算回数を抑えるため、検索語だけを短時間遅延させる。
     const timerId = window.setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
     }, 200);
@@ -127,6 +128,7 @@ export function useAppController() {
   }, [requests]);
 
   const processedMccbList = useMemo(() => {
+    // 依頼中の代替名は表示用コピーにだけ合成し、マスタ名称は保持する。
     const nameOverlayMap = createRequestNameOverlayMap(requests, mccbList);
     return applyNameOverlaysToMccbs(mccbList, nameOverlayMap);
   }, [mccbList, requests]);
@@ -137,6 +139,7 @@ export function useAppController() {
   );
 
   const filteredMccbList = useMemo(() => {
+    // 検索・部屋・状態・お気に入りの全条件を一度の走査で適用する。
     const lowerSearch = debouncedSearchTerm.trim().toLowerCase();
 
     return processedMccbList.filter((mccb) => {
@@ -300,7 +303,7 @@ export function useAppController() {
     deleteDeviceGroup,
     createDatabaseBackup,
     restoreDatabaseBackup,
-    // 新規追加: アクティブな MCCB ID の集合（MCCB カード再描画最適化に利用）
+    // MCCB カードの依頼中表示と再描画判定に利用するID集合。
     activeMccbIds,
   };
 }

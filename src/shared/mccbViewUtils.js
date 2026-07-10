@@ -6,6 +6,7 @@ export const countBorrowedCards = (mccb) =>
   ) || 0;
 
 export const createBorrowedCountMap = (mccbList = []) => {
+  // 一覧の各カードが同じ配列を繰り返し走査しないよう、ID単位で集計する。
   const map = {};
   mccbList.forEach((mccb) => {
     map[mccb.id] = countBorrowedCards(mccb);
@@ -14,6 +15,7 @@ export const createBorrowedCountMap = (mccbList = []) => {
 };
 
 export const createRequestNameOverlayMap = (requests = [], mccbList = []) => {
+  // 依頼中だけ必要な代替設備名をマスター自体を書き換えずに保持する。
   const nameOverlayMap = new Map();
   const mccbById = new Map(mccbList.map((mccb) => [mccb.id, mccb]));
 
@@ -24,6 +26,7 @@ export const createRequestNameOverlayMap = (requests = [], mccbList = []) => {
       if (!reserveInfo || !reserveInfo.actualMccbId) return;
 
       if (originalId !== reserveInfo.actualMccbId) {
+        // ダミーへ振り替えた場合は、実札側に元設備名を補足する。
         const originalMccb = mccbById.get(originalId);
         if (originalMccb) {
           nameOverlayMap.set(
@@ -35,6 +38,7 @@ export const createRequestNameOverlayMap = (requests = [], mccbList = []) => {
       }
 
       if (reserveInfo.customDummyName) {
+        // ダミーを直接選択した場合は、依頼時に入力した用途名を補足する。
         nameOverlayMap.set(
           reserveInfo.actualMccbId,
           ` (${reserveInfo.customDummyName})`,
@@ -48,6 +52,7 @@ export const createRequestNameOverlayMap = (requests = [], mccbList = []) => {
 
 export const applyNameOverlaysToMccbs = (mccbList = [], nameOverlayMap) =>
   mccbList.map((mccb) => {
+    // 補足がない要素は同じ参照を返し、React の不要な再描画を避ける。
     const suffix = nameOverlayMap.get(mccb.id);
     return suffix ? { ...mccb, name: `${mccb.name}${suffix}` } : mccb;
   });

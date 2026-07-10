@@ -4,6 +4,7 @@ import { VariableSizeGrid as Grid } from "react-window";
 import { getCategoryBadgeClass } from "../shared/categoryColorUtils";
 
 const getColumnCountFromLayout = (colLayout, width) => {
+  // 指定列数を上限にしつつ、狭い画面ではカード幅を守るため列数を減らす。
   if (colLayout === "auto") return Math.max(1, Math.floor(width / 330));
 
   if (colLayout === "3") {
@@ -154,6 +155,7 @@ const MeasuredOffMccbCard = memo(function MeasuredOffMccbCard({
   useEffect(() => {
     if (!wrapperRef.current) return;
 
+    // 貸出者バッジの折返しで高さが変わるため、実DOMを監視して行高へ反映する。
     const measure = () => {
       if (!wrapperRef.current) return;
       const nextHeight = Math.ceil(wrapperRef.current.getBoundingClientRect().height);
@@ -240,6 +242,7 @@ export default function VirtualizedOffMccbGrid({
 
   const estimatedBadgesPerRow = Math.max(1, Math.floor((columnWidth - 40) / 145));
   const itemMetas = useMemo(() => {
+    // 初回描画用の推定値と、測定済みキャッシュをカード単位でまとめる。
     return items.map((item) => {
       const workers = item.childCards?.filter((c) => c.isBorrowed) || [];
       const isAlternative = item.name.includes("(");
@@ -276,6 +279,7 @@ export default function VirtualizedOffMccbGrid({
       return { ...prev, [cacheKey]: nextHeight };
     });
 
+    // react-windowに対象行以降の位置を再計算させる。
     if (gridRef.current) {
       gridRef.current.resetAfterIndices({
         columnIndex: 0,
@@ -286,6 +290,7 @@ export default function VirtualizedOffMccbGrid({
   }, [items, columnWidth]);
 
   const rowHeights = useMemo(() => {
+    // 同じ行のカードで最大の高さを採用し、カード同士の重なりを防ぐ。
     return Array.from({ length: rowCount }, (_, rowIndex) => {
       const from = rowIndex * columnCount;
       let maxHeight = baseCardHeight;

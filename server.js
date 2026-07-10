@@ -1,3 +1,4 @@
+// MCCB ManagerのHTTPサーバー。SQLite永続化、依頼割当、SPA配信を担当する。
 import express from "express";
 import cors from "cors";
 import fs from "fs";
@@ -135,6 +136,7 @@ function getLocalIpAddress() {
 }
 
 function createUpdatedLogs(type, message, currentLogs, maxSize) {
+  // 新しいログを先頭へ積み、管理設定の上限を超えた古い項目を切り捨てる。
   const newLog = {
     id: `LOG-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
     timestamp: getTimestamp(),
@@ -153,6 +155,7 @@ function createIssueRequestFromDraft(draftRequest) {
 }
 
 function createPage(items, page = 1, pageSize = 50) {
+  // APIへ不正なページ値が来ても、有効範囲へ補正したページ情報を返す。
   const normalizedItems = Array.isArray(items) ? items : [];
   const safePageSize = Math.max(1, Number(pageSize) || 50);
   const total = normalizedItems.length;
@@ -171,6 +174,7 @@ function createPage(items, page = 1, pageSize = 50) {
 }
 
 function createMccbChangeLog(before, after) {
+  // 1回の保存で変わった項目だけを列挙し、操作履歴を読みやすくする。
   const changeDetails = [];
   let logType = LOG_TYPES.MASTER_UPDATE;
 
@@ -217,6 +221,7 @@ function createMccbChangeLog(before, after) {
 }
 
 function mergeMccbMasterFields(incomingList, allowedFields) {
+  // CSV取込では許可したマスター項目だけを更新し、稼働状態や子札状態を保持する。
   const currentById = new Map(store.readAll().mccbList.map((mccb) => [mccb.id, mccb]));
   return incomingList.map((incoming) => {
     const current = currentById.get(incoming.id);
@@ -406,6 +411,7 @@ process.once("SIGTERM", () => shutdown("SIGTERM"));
 // ==========================================
 
 /** 設備マスタ＆ステータスデータの取得 (GET) */
+// 初期表示・定期同期用の読取API。core指定時は大きな履歴データを省略する。
 app.get("/api/mccb", (req, res) => {
   try {
     const data = req.query.core === "1" ? store.readCoreData() : store.readAll();
@@ -459,6 +465,7 @@ app.get("/api/request-history", (req, res) => {
 });
 
 /** SQLite DBの手動バックアップ */
+// DBバックアップの作成・一覧・復旧は管理画面専用のAPIとしてまとめる。
 app.post("/api/admin/backups", (req, res) => {
   try {
     const { backup, logs, version } = createDatabaseBackup("手動");
@@ -508,6 +515,7 @@ app.post("/api/admin/backups/restore", (req, res) => {
 });
 
 /** CSV取込による設備マスタ一括上書き */
+// CSV解析後のマスター一覧を受け取り、許可フィールドだけを一括反映する。
 app.post("/api/admin/mccb-import", (req, res) => {
   try {
     const entries = Array.isArray(req.body?.entries) ? req.body.entries : null;
@@ -545,6 +553,7 @@ app.post("/api/admin/mccb-import", (req, res) => {
 });
 
 /** 設備1件のみの軽量更新 (PATCH) */
+// MCCBの通常更新と停送電専用更新を分け、頻出操作の送受信量を抑える。
 app.patch("/api/mccb/:id", (req, res) => {
   try {
     const updatedMccb = req.body?.mccb;
@@ -698,6 +707,7 @@ app.delete("/api/mccbs/:id", (req, res) => {
 });
 
 /** 電気室マスター更新 */
+// 管理マスターの変更は、関連するMCCB項目も同じリクエスト内で追従させる。
 app.patch("/api/admin/rooms", (req, res) => {
   try {
     const rooms = Array.isArray(req.body?.rooms) ? req.body.rooms : null;
@@ -899,6 +909,7 @@ app.patch("/api/admin/request-history", (req, res) => {
 });
 
 /** 停電作業依頼の発行と子札予約 */
+// プレビューは割当をシミュレーションするだけで、DBの札状態は変更しない。
 app.post("/api/requests/preview", (req, res) => {
   try {
     const previewRequest = req.body?.request;
@@ -920,6 +931,7 @@ app.post("/api/requests/preview", (req, res) => {
   }
 });
 
+// 本発行時に初めて子札を確保し、依頼と変更MCCBを永続化する。
 app.post("/api/requests", (req, res) => {
   try {
     const newRequest = req.body?.request;
@@ -968,6 +980,7 @@ app.post("/api/requests", (req, res) => {
 });
 
 /** 停電作業依頼の仮発行（子札は確保しない） */
+// 仮発行は入力内容のみ保存し、issue時点の最新空き状況で割当をやり直す。
 app.post("/api/draft-requests", (req, res) => {
   try {
     const draftRequest = req.body?.request;
@@ -1094,6 +1107,7 @@ app.delete("/api/draft-requests/:id", (req, res) => {
 });
 
 /** 発行済み停電作業依頼への対象設備追加 */
+// 発行済み依頼への設備追加は、既存割当を維持したまま追加分だけ確保する。
 app.patch("/api/requests/:id/targets", (req, res) => {
   try {
     const targetMccbIds = Array.isArray(req.body?.targetMccbIds)
@@ -1254,6 +1268,7 @@ app.patch("/api/requests/:id/targets/:targetId/card", (req, res) => {
 });
 
 /** 停電作業依頼の完了・解約と子札返却 */
+// 依頼完了時は予約札を返却し、完了内容を履歴へ移して進行中一覧から除く。
 app.delete("/api/requests/:id", (req, res) => {
   try {
     const currentRequests = store.readCollection("requests") || [];

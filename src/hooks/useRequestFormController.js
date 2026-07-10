@@ -9,6 +9,7 @@ import {
 const SEARCH_DEBOUNCE_MS = 200;
 
 const waitForNextPaint = () =>
+  // 通知メッセージをDOMへ反映してからブラウザの印刷ダイアログを開く。
   new Promise((resolve) => {
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(resolve);
@@ -86,6 +87,7 @@ export function useRequestFormController({
 
     setFormMessage(null);
     setSelectedMccbIds((prev) => {
+      // 全件選択済みなら解除し、それ以外は既存選択を残したまま不足分を追加する。
       const prevSet = new Set(prev);
       const groupSet = new Set(groupMccbIds);
       const isAllSelected = groupMccbIds.every((id) => prevSet.has(id));
@@ -96,6 +98,7 @@ export function useRequestFormController({
   }, []);
 
   const assertBrowserPrintPreviewReady = useCallback(() => {
+    // 選択内容とプレビュー生成時のキーが一致する場合だけ印刷を許可する。
     const expectedPreviewKey = createPreviewKey(selectedMccbIds, dummyNames);
     const previewStatus = getPrintPreviewStatus?.();
 
@@ -129,6 +132,7 @@ export function useRequestFormController({
       }
 
       try {
+        // Star SDK はこの印刷方式を選んだ時だけ読み込み、初期表示を軽くする。
         const { printRequestReceipt } = await import(
           "../shared/starReceiptPrinter"
         );
@@ -168,6 +172,7 @@ export function useRequestFormController({
 
     setIsIssuingRequest(true);
     try {
+      // 先に依頼を確定し、サーバーが決めた実札割当を使って印刷する。
       const createdRequest = await onAddRequest?.(
         createRequestPayload({
           workerName,
@@ -217,6 +222,7 @@ export function useRequestFormController({
 
     setIsSavingDraft(true);
     try {
+      // 仮発行では札を確保せず、入力内容だけを本発行用に保存する。
       await onAddDraftRequest?.(
         createRequestPayload({
           workerName,

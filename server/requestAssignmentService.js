@@ -1,9 +1,9 @@
+// 依頼発行時の子札割当ルールを API ルートから分離した純粋寄りのサービス。
+// 通常MCCBの空き札を優先し、不足時だけ同室 -> 他室のダミー札へ退避する。
 const DUMMY_LABEL = "ダミー";
 const DUMMY_ID_FRAGMENT = "DUMMY";
 const NO_AVAILABLE_CARD_LABEL = "空きなし";
 
-// 依頼発行時の子札割当ルールを API ルートから分離した純粋寄りのサービス。
-// 通常MCCBの空き札を優先し、不足時だけ同室 -> 他室のダミー札へ退避する。
 const isDummyMccb = (mccb) =>
   mccb?.isDummy ||
   mccb?.name?.includes(DUMMY_LABEL) ||
@@ -22,6 +22,7 @@ const getDateCode = (date = new Date()) =>
   `${date.getFullYear().toString().slice(-2)}${String(date.getMonth() + 1).padStart(2, "0")}${String(date.getDate()).padStart(2, "0")}`;
 
 export const cloneMccbListForMutation = (mccbList) =>
+  // 割当シミュレーションがストア由来オブジェクトを直接変更しないよう深い部分も複製する。
   mccbList.map((mccb) => ({
     ...mccb,
     childCards: Array.isArray(mccb.childCards)
@@ -33,6 +34,7 @@ const dedupeMccbs = (mccbList) =>
   [...new Map(mccbList.map((mccb) => [mccb.id, mccb])).values()];
 
 export const getChangedMccbs = (beforeList, afterList) => {
+  // API応答とDB保存を小さくするため、子札が変化した設備だけを抽出する。
   const beforeById = new Map(beforeList.map((mccb) => [mccb.id, mccb]));
   return afterList.filter((mccb) => {
     const before = beforeById.get(mccb.id);
@@ -41,6 +43,7 @@ export const getChangedMccbs = (beforeList, afterList) => {
 };
 
 export const preservePowerStateForRequestChanges = (beforeList, changedMccbs) => {
+  // 依頼処理は子札だけの責務なので、並行して変わり得る停送電状態を上書きしない。
   const beforeById = new Map(beforeList.map((mccb) => [mccb.id, mccb]));
   return changedMccbs.map((mccb) => ({
     ...mccb,
@@ -184,6 +187,7 @@ function findAvailableCard(targetId, targetMccb, currentMccbList, currentRequest
 
 export function createRequestAssignmentService({ store }) {
   function buildRequestAssignment(newRequest) {
+    // 既存予約を反映した作業用コピー上で順番に札を確保し、割当結果を確定する。
     const currentRequests = store.readCollection("requests") || [];
     const targetMccbs = store.readMccbsByIds(newRequest.targetMccbIds);
     const dummyMccbs = store.readDummyMccbs();
@@ -210,6 +214,7 @@ export function createRequestAssignmentService({ store }) {
       );
 
       if (finalMccb && availableIdx !== -1) {
+        // ここで作業用コピーも貸出済みにし、同じ依頼内での二重割当を防止する。
         currentMccbList = markCardAsBorrowed(
           currentMccbList,
           finalMccb,

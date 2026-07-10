@@ -45,6 +45,7 @@ const parseJson = (value, fallback) => {
 };
 
 const normalizeData = (data, defaults) => {
+  // 旧版の「MCCB配列だけ」の保存形式も受け入れ、現行のオブジェクト形式へ揃える。
   const source = data && typeof data === "object" ? data : {};
   const isArrayPayload = Array.isArray(data);
 
@@ -86,6 +87,7 @@ const createBackupFileName = () => {
 };
 
 export function createMccbStore({ dbPath, defaults }) {
+  // DB接続とスキーマ初期化をここで完結させ、API層には操作関数だけを公開する。
   const db = new DatabaseSync(dbPath);
   let lastCheckpointAt = 0;
 
@@ -148,6 +150,7 @@ export function createMccbStore({ dbPath, defaults }) {
   };
 
   const bumpVersion = () => {
+    // 同一ミリ秒内の連続更新でも必ず単調増加させ、他端末が変更を検出できるようにする。
     const nextVersion = Math.max(Date.now(), getVersion() + 1);
     setVersion(nextVersion);
     return nextVersion;
@@ -241,6 +244,7 @@ export function createMccbStore({ dbPath, defaults }) {
   };
 
   const readCollectionPage = (key, page = 1, pageSize = 50) => {
+    // 範囲外のページ指定を補正し、空配列でも1ページ目として返す。
     const items = readCollection(key);
     const normalizedItems = Array.isArray(items) ? items : [];
     const safePageSize = Math.max(1, Number(pageSize) || 50);
@@ -265,6 +269,7 @@ export function createMccbStore({ dbPath, defaults }) {
   };
 
   const writeCollections = (entries) => {
+    // 関連する複数設定は一括コミットし、途中状態を他の読み取りへ見せない。
     const upsert = db.prepare(UPSERT_COLLECTION_SQL);
 
     runImmediateTransaction(() => {
@@ -306,6 +311,7 @@ export function createMccbStore({ dbPath, defaults }) {
   };
 
   const readMccbsByIds = (ids) => {
+    // 重複IDを除去しつつ、呼び出し側が指定した順序で結果を返す。
     const uniqueIds = [...new Set(ids.filter(Boolean))];
     return uniqueIds.map((id) => readMccb(id)).filter(Boolean);
   };
@@ -323,6 +329,7 @@ export function createMccbStore({ dbPath, defaults }) {
   };
 
   const writeMccb = (mccb, now = Date.now()) => {
+    // 定義済み列以外はextra_jsonへ退避し、項目追加時の後方互換性を保つ。
     const {
       id,
       room,
@@ -360,6 +367,7 @@ export function createMccbStore({ dbPath, defaults }) {
       now,
     );
 
+    // 子札は差分更新せず全置換し、削除された札がDBに残ることを防ぐ。
     db.prepare("DELETE FROM child_cards WHERE mccb_id = ?").run(id);
 
     const insertChildCard = db.prepare(`
@@ -421,6 +429,7 @@ export function createMccbStore({ dbPath, defaults }) {
       )
       .all();
 
+    // 子札を一括取得して親IDごとに束ね、MCCBごとのN+1問い合わせを避ける。
     const childCardsByMccb = new Map();
     for (const row of childRows) {
       const cards = childCardsByMccb.get(row.mccb_id) || [];
@@ -535,6 +544,7 @@ export function createMccbStore({ dbPath, defaults }) {
   };
 
   if (!hasRows()) {
+    // 初回起動時だけ既定値を投入し、既存DBは変更しない。
     saveAll(defaults);
   }
 

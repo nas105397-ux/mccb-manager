@@ -12,6 +12,7 @@ export const DEFAULT_STAR_PRINTER_CONNECTION = {
 };
 
 export const normalizeStarPrinterConnection = (connection) => {
+  // localStorage由来の値を検証し、SDKへ渡せる最小限の接続情報に揃える。
   if (!connection || typeof connection !== "object") {
     return null;
   }
@@ -85,6 +86,7 @@ const assertWebUsbAvailable = () => {
 };
 
 const withTimeout = (promise, timeoutMs) =>
+  // 機種情報の取得が応答しなくてもUSB探索全体を停止させない。
   Promise.race([
     promise,
     new Promise((resolve) => {
@@ -103,6 +105,7 @@ export const discoverStarPrinterConnection = async () => {
   const discoveryManager = new StarDeviceDiscoveryManager(InterfaceType.Usb);
 
   discoveryManager.onPrinterFound = (printer) => {
+    // 発見順を保持しつつ、機種名は非同期で補完する。
     const discoveredPrinter = {
       interfaceType: printer.connectionSettings.interfaceType,
       identifier: printer.connectionSettings.identifier,
@@ -125,6 +128,7 @@ export const discoverStarPrinterConnection = async () => {
   };
 
   await discoveryManager.discover();
+  // 発見コールバック内で開始した情報取得が終わってから接続情報を保存する。
   await Promise.allSettled(informationRequests);
 
   const firstPrinter = discoveredPrinters[0];

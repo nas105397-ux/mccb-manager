@@ -22,6 +22,7 @@ export function usePrintPreviewController({
     [selectedMccbIds, dummyNames],
   );
   const previewKey = useMemo(
+    // 同じ選択内容でも明示更新時は再取得できるようnonceを含める。
     () => JSON.stringify({ previewRequest, previewRefreshNonce }),
     [previewRequest, previewRefreshNonce],
   );
@@ -36,6 +37,7 @@ export function usePrintPreviewController({
   });
 
   useEffect(() => {
+    // 選択変更を短くまとめ、古いリクエストはAbortControllerで破棄する。
     const abortController = new AbortController();
 
     if (selectedMccbIds.length === 0) {
@@ -58,6 +60,7 @@ export function usePrintPreviewController({
           return res.json();
         })
         .then((result) => {
+          // 選択変更後に古い応答が到着しても、現在のプレビューを上書きしない。
           if (!abortController.signal.aborted) {
             setPreviewState({
               key: previewKey,
@@ -85,6 +88,7 @@ export function usePrintPreviewController({
 
   const hasSelection = selectedMccbIds.length > 0;
   const isCurrentPreview = previewState.key === previewKey;
+  // 現在の選択キーと一致しない結果は、印刷可能データとして公開しない。
   const selectedMccbsWithAssignedCards =
     hasSelection && isCurrentPreview ? previewState.items : [];
 
