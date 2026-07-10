@@ -9,7 +9,8 @@ OA LAN と現場 LAN を切り離し、メイン Raspberry Pi 上の MCCB Manage
 - メイン Raspberry Pi は 2 LAN 構成にします。
 - OA LAN と現場 LAN は別 IP セグメントにします。
 - Raspberry Pi はルーター、NAT、ブリッジとして使いません。
-- 両 LAN から公開するサービスは Nginx の HTTPS `443/tcp` を基本にします。
+- OA LAN 側から公開するサービスは Nginx の HTTPS `443/tcp` を基本にし、接続元は許可した固定 IP だけに限定します。
+- 現場 LAN 側から公開するサービスは Nginx の HTTPS `443/tcp` を基本にします。
 - Express は `127.0.0.1:5000` だけで待ち受け、LAN へ直接公開しません。
 - SSH は保守端末の固定 IP からだけ許可します。
 
@@ -18,8 +19,9 @@ OA LAN と現場 LAN を切り離し、メイン Raspberry Pi 上の MCCB Manage
 | 項目 | 決める内容 |
 | --- | --- |
 | OA LAN IP | 情シスまたはネットワーク管理者から払い出し |
+| OA LAN 許可端末 | MCCB Manager へ接続を許可する PC、タブレットの固定 IP |
 | 現場 LAN IP | MCCB Manager 専用セグメントとして固定 |
-| 保守 SSH | 許可する端末 IP、鍵認証、パスワードログイン可否 |
+| 保守 SSH | 現場 LAN 側で許可する保守端末 IP、鍵認証、パスワードログイン可否 |
 | 証明書 | 自己署名、社内 CA、端末への配布方法 |
 | 更新経路 | OA LAN 経由で更新するか、オフライン媒体で更新するか |
 | 予備機 | 同じ IP と証明書で復旧するか、切替手順を別途用意するか |
@@ -30,15 +32,36 @@ OA LAN と現場 LAN を切り離し、メイン Raspberry Pi 上の MCCB Manage
 OA LAN:        192.168.10.0/24
 Main Pi OA:    192.168.10.50
 OA gateway:    192.168.10.1
-保守端末:      192.168.10.20
+事務所 PC:     192.168.10.21
+管理タブレット: 192.168.10.22
 
 現場 LAN:      192.168.40.0/24
 Main Pi 現場:  192.168.40.111
+保守端末:      192.168.40.120
 現場 Pi A:     192.168.40.121
 現場 Pi B:     192.168.40.122
 ```
 
-事務所 PC は `https://192.168.10.50/#/`、現場 Raspberry Pi は `https://192.168.40.111/#/` を開きます。
+許可した事務所 PC は `https://192.168.10.50/#/`、現場 Raspberry Pi は `https://192.168.40.111/#/` を開きます。
+
+## OA LAN 側の接続元制限
+
+OA LAN 側から MCCB Manager へ接続できる機器は、固定 IP を払い出した端末だけにします。DHCP でアドレスが変わる端末を許可対象にすると、意図しない端末へ許可が移る可能性があるため、OA LAN 側の PC、タブレットは DHCP 予約または固定 IP にします。
+
+保守端末は OA LAN 側ではなく、現場 LAN 側へ接続します。SSH は現場 LAN 側の保守端末 IP だけに許可します。
+
+例:
+
+```text
+HTTPS 許可:
+  192.168.10.21  事務所 PC
+  192.168.10.22  管理タブレット
+
+SSH 許可:
+  192.168.40.120 保守端末
+```
+
+OA LAN のセグメント全体、例えば `192.168.10.0/24` を HTTPS 許可に入れないようにします。
 
 ## NIC の確認
 
@@ -138,7 +161,7 @@ sudo ss -lntp
 
 ## ファイアウォール例
 
-以下は nftables の例です。保守端末 IP、OA LAN、現場 LAN の値を必ず現場の値に合わせてから使います。
+以下は nftables の例です。保守端末 IP、OA LAN 許可端末、現場 LAN の値を必ず現場の値に合わせてから使います。
 
 ```bash
 sudo apt install -y nftables
@@ -152,6 +175,16 @@ sudo tee /etc/nftables.conf >/dev/null <<'EOF'
 flush ruleset
 
 table inet filter {
+  set oa_https_clients {
+    type ipv4_addr
+    elements = { 192.168.10.21, 192.168.10.22 }
+  }
+
+  set ssh_clients {
+    type ipv4_addr
+    elements = { 192.168.40.120 }
+  }
+
   chain input {
     type filter hook input priority 0;
     policy drop;
@@ -161,8 +194,9 @@ table inet filter {
     ip protocol icmp accept
     ip6 nexthdr icmpv6 accept
 
-    ip saddr { 192.168.10.0/24, 192.168.40.0/24 } tcp dport 443 accept
-    ip saddr 192.168.10.20 tcp dport 22 accept
+    ip saddr @oa_https_clients tcp dport 443 accept
+    ip saddr 192.168.40.0/24 tcp dport 443 accept
+    ip saddr @ssh_clients tcp dport 22 accept
   }
 
   chain forward {
@@ -182,6 +216,12 @@ sudo systemctl restart nftables
 ```
 
 80 番から 443 番へリダイレクトしたい場合は、`tcp dport 80 accept` も追加します。HTTPS URL を直接配布する運用なら 80 番を開けない方がシンプルです。
+
+OA LAN 側でも 80 番を使う場合は、HTTPS と同じ接続元だけに限定します。
+
+```nft
+ip saddr @oa_https_clients tcp dport 80 accept
+```
 
 ## HTTPS 証明書
 
@@ -219,17 +259,27 @@ sudo ss -lntp
 sudo nft list ruleset
 ```
 
-OA LAN 側 PC:
+OA LAN 側の許可端末:
 
 ```text
 https://192.168.10.50/#/
 ```
+
+OA LAN 側の未許可端末からは、同じ URL が開けないことを確認します。
 
 現場 Raspberry Pi:
 
 ```text
 https://192.168.40.111/#/
 ```
+
+現場 LAN 側の保守端末:
+
+```bash
+ssh pi@192.168.40.111
+```
+
+OA LAN 側の端末からは SSH 接続できないことを確認します。
 
 分離確認:
 
