@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>送電・依頼解約 手順書</title>
+  <style>
+    @page { size: A4; margin: 12mm 13mm 14mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #1f2937; font-family: -apple-system, BlinkMacSystemFont, "Noto Sans JP", "Yu Gothic", Meiryo, sans-serif; font-size: 12px; line-height: 1.6; }
+    h1 { margin: 0 0 8px; padding-bottom: 8px; border-bottom: 4px solid #2563eb; font-size: 24px; }
+    h2 { margin: 24px 0 10px; padding-left: 10px; border-left: 6px solid #2563eb; font-size: 18px; break-after: avoid; }
+    p { margin: 5px 0; }
+    .step { padding-left: 12px; }
+    .bullet { padding-left: 12px; }
+    blockquote { margin: 10px 0; padding: 9px 13px; border-left: 5px solid #3b82f6; background: #eff6ff; font-size: 11.5px; }
+    figure { margin: 10px auto 16px; width: 88%; break-inside: avoid; }
+    img { display: block; width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; }
+    figcaption { margin-top: 4px; color: #475569; font-size: 10.5px; font-weight: 600; text-align: center; }
+    table { width: 100%; margin: 9px 0 14px; border-collapse: collapse; font-size: 11.5px; break-inside: avoid; }
+    th, td { padding: 5px 8px; border: 1px solid #d1d5db; }
+    th { background: #f1f5f9; }
+    code { padding: 1px 4px; border-radius: 4px; background: #f1f5f9; }
+    .note { margin: 8px 0; padding: 8px 11px; border: 1px solid #fdba74; border-radius: 7px; background: #fff7ed; }
+    .note strong { color: #9a3412; }
+  </style>
+</head>
+<body>
+  <h1>送電・依頼解約 手順書（一般作業者向け）</h1>
+  <p>対象画面: <code>http://192.168.40.59:5000/#/</code></p>
+  <blockquote>この手順書は、停電作業完了後に依頼表と子札を受け取り、依頼を解約して対象設備を送電状態へ戻すまでの通常手順です。</blockquote>
+
+  <h2>1. 送電手順の全体像</h2>
+  <p class="step">1. 作業者から、印刷した依頼表と返却された子札を受け取ります。</p>
+  <p class="step">2. 依頼一覧で該当の依頼を探し、依頼表の内容を確認します。</p>
+  <p class="step">3. 対象設備一覧と子札の名称・番号が一致することを確認します。</p>
+  <p class="step">4. 一致していれば、依頼を解約・作業完了にします。</p>
+  <p class="step">5. 札操作画面で、状態を <strong>札返却済みのみ</strong> に切り替えます。</p>
+  <p class="step">6. 対象設備が <strong>送電可能</strong> であることを確認し、実際の禁止札掛けに子札5枚がそろっていることを確認します。</p>
+  <p class="step">7. 現地の安全手順に従って、実際の設備を送電します。</p>
+  <p class="step">8. 操作画面で対象設備を送電状態に切り替え、表示が <strong>通常運用（送電中）</strong> に変わったことを確認します。</p>
+
+  <h2>2. 依頼表と子札を受け取る</h2>
+  <p class="step">1. 作業者から、印刷済みの依頼表と子札を受け取ります。</p>
+  <p class="step">2. 依頼表に記載された作業責任者名、作業内容、対象設備を確認します。</p>
+  <p class="step">3. 子札に記載された設備名称と子札番号を確認します。</p>
+  <p>確認ポイント</p>
+  <p class="bullet">• 依頼表、返却された子札、画面上の設備名称がすべて一致していることを確認します。</p>
+  <p class="bullet">• 子札が不足している、または名称・番号が一致しない場合は、解約や送電を行わず責任者へ確認します。</p>
+
+  <h2>3. 依頼一覧で該当依頼を確認する</h2>
+  <p class="step">1. 上部メニューの <strong>依頼一覧</strong> を選択します。</p>
+  <p class="step">2. <strong>進行中</strong> の依頼から、依頼表の作業責任者名・作業内容・設備名が一致する依頼を探します。</p>
+  <p class="step">3. <strong>停電対象設備一覧</strong> を展開します。</p>
+  <p class="step">4. 表示された電気室名、設備名、貸出中の子札番号を、依頼表と子札に照合します。</p>
+  <figure><img src="./images/power-restoration/send-request-list.png" alt="実画面: 依頼一覧で対象設備と子札を照合"><figcaption>実画面 1: 対象設備と貸出中の子札番号を依頼表・子札と照合</figcaption></figure>
+  <p class="note"><strong>確認例:</strong> 対象設備は「33KV受電 VCB」、子札は「33KV受電 VCB No.1」です。</p>
+
+  <h2>4. 依頼を解約・作業完了にする</h2>
+  <p class="step">1. 依頼表、対象設備、子札がすべて一致していることをもう一度確認します。</p>
+  <p class="step">2. 依頼一覧の <strong>解約・作業完了（札解放）</strong> を押します。</p>
+  <p class="step">3. 進行中の依頼一覧から当該依頼がなくなったことを確認します。</p>
+  <p class="note"><strong>注意:</strong> 一致確認前に解約しないでください。未返却の子札がある場合は、先に責任者へ確認します。</p>
+
+  <h2>5. 札返却済みの設備を絞り込む</h2>
+  <p class="step">1. 上部メニューの <strong>禁止札操作画面</strong> を選択します。</p>
+  <p class="step">2. 画面中央の <strong>状態</strong> プルダウンで <strong>✅ 札返却済みのみ</strong> を選択します。</p>
+  <p class="step">3. <strong>✅ 送電可能</strong> と表示された対象設備だけが表示されることを確認します。</p>
+  <p class="step">4. 表示された設備名が、依頼表に記載された設備名と一致することを確認します。</p>
+  <p class="step">5. 画面上で子札が <strong>0枚</strong> と表示され、送電可能であることを確認します。</p>
+  <figure><img src="./images/power-restoration/send-returned-filter.png" alt="実画面: 状態を札返却済みのみにして送電可能な設備を絞り込む"><figcaption>実画面 2: 「札返却済みのみ」で送電可能な設備だけを表示</figcaption></figure>
+
+  <h2>6. 送電操作をする</h2>
+  <p class="step">1. 実際の禁止札掛けに、対象設備の子札を含む子札 <strong>5枚すべて</strong> がそろっていることを確認します。</p>
+  <p class="step">2. 現地の送電条件と安全手順を確認し、実際の設備を送電します。</p>
+  <p class="step">3. 送電後、<strong>✅ 送電可能</strong> と表示された対象設備カードを選択します。</p>
+  <p class="step">4. 設備名、子札が <strong>0枚</strong> であること、状態が <strong>現在：操作禁止（停電中）</strong> であることを確認します。</p>
+  <p class="step">5. 赤い <strong>現在：操作禁止（停電中）</strong> ボタンを押して、操作画面の状態を送電中へ切り替えます。</p>
+  <figure><img src="./images/power-restoration/send-operation-modal.png" alt="実画面: 送電操作の直前に設備名・子札数・停電中状態を確認"><figcaption>実画面 3: 送電直前に設備名・子札数・停電中状態を確認</figcaption></figure>
+  <p class="note"><strong>注意:</strong> 画面上で「送電可能」かつ子札0枚であり、実際の禁止札掛けに子札5枚がそろっていることを確認します。現地の実設備を送電した後に、操作画面の送電操作を実施してください。</p>
+
+  <h2>7. 送電完了を確認する</h2>
+  <p class="step">1. 表示が <strong>現在：通常運用（送電中）</strong> に変わったことを確認します。</p>
+  <p class="step">2. 画面上部の集計で、停電台数が減り、送電台数が増えたことを確認します。</p>
+  <p class="step">3. 必要に応じて、依頼表を所定の場所へ返却・保管します。</p>
+  <figure><img src="./images/power-restoration/send-complete.png" alt="実画面: 通常運用（送電中）に切り替わった状態"><figcaption>実画面 4: 「通常運用（送電中）」に変わったことを確認</figcaption></figure>
+
+  <h2>8. 作業完了前のチェックリスト</h2>
+  <table>
+    <tr><th>確認項目</th><th>チェック</th></tr>
+    <tr><td>依頼表と対象設備名が一致している</td><td>□</td></tr>
+    <tr><td>依頼表と子札の名称・番号が一致している</td><td>□</td></tr>
+    <tr><td>依頼を解約・作業完了にした</td><td>□</td></tr>
+    <tr><td>状態を「札返却済みのみ」に切り替えた</td><td>□</td></tr>
+    <tr><td>対象設備が「送電可能」、子札が0枚であることを確認した</td><td>□</td></tr>
+    <tr><td>実際の禁止札掛けに子札5枚がそろっていることを確認した</td><td>□</td></tr>
+    <tr><td>現地の送電条件と安全手順を確認した</td><td>□</td></tr>
+    <tr><td>現地の実設備を送電した</td><td>□</td></tr>
+    <tr><td>表示が「通常運用（送電中）」になったことを確認した</td><td>□</td></tr>
+  </table>
+</body>
+</html>

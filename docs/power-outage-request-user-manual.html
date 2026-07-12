@@ -1,0 +1,101 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>停電依頼・停電操作 手順書</title><style>@page{size:A4;margin:12mm 13mm 14mm}*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Noto Sans JP","Yu Gothic",Meiryo,sans-serif;color:#1f2937;line-height:1.6;margin:0}h1{font-size:24px;border-bottom:4px solid #2563eb;padding-bottom:8px}h2{font-size:18px;margin-top:24px;border-left:6px solid #2563eb;padding-left:10px;break-after:avoid}p{font-size:12px;margin:5px 0}blockquote{background:#eff6ff;border-left:5px solid #3b82f6;padding:9px 13px;font-size:11.5px;margin:10px 0}figure{margin:10px 0 16px;break-inside:avoid}figure.compact{width:88%;margin-left:auto;margin-right:auto}img{display:block;width:100%;border:1px solid #cbd5e1;border-radius:8px}figcaption{font-size:10.5px;color:#475569;text-align:center;margin-top:4px;font-weight:600}.step{padding-left:12px}.bullet{padding-left:12px}table{width:100%;border-collapse:collapse;margin:9px 0 14px;font-size:11.5px;break-inside:avoid}th,td{border:1px solid #d1d5db;padding:5px 8px}th{background:#f1f5f9}code{background:#f1f5f9;padding:1px 4px;border-radius:4px}.screen-note{background:#fff7ed;border:1px solid #fdba74;border-radius:7px;padding:7px 10px;margin:7px 0 10px}.screen-note strong{color:#9a3412}@media print{a{color:inherit;text-decoration:none}}</style></head><body><h1>停電依頼・停電操作 手順書（一般作業者向け）</h1>
+<p>対象画面: <code>http://192.168.40.59:5000/#/</code></p>
+<blockquote>この手順書は、一般作業者が「停電依頼を受ける」から「依頼発行済み設備を停電状態にする」までの通常手順を、PDF化しやすい構成でまとめたものです。  </blockquote>
+<blockquote>PDFにする場合は、同じ内容を印刷向けに整えた <code>docs/power-outage-request-user-manual.html</code> をブラウザで開き、印刷先を「PDFに保存」にしてください。</blockquote>
+<h2>1. 通常手順の全体像</h2>
+<p class="step">1. 作業者より停電依頼を受けます。</p>
+<p class="step">2. 停電依頼作成画面で、作業者名と作業内容を入力します。</p>
+<p class="step">3. 停電対象の設備を選択します。</p>
+<p class="step">4. 依頼を発行して、依頼表を印刷します。</p>
+<p class="step">5. 印刷された依頼表をもとに、禁止札掛けから該当する札を持ち出します。</p>
+<p class="step">6. 依頼表の設備名称と現地設備の名称を確認し、設備を停電します。</p>
+<p class="step">7. 停電後、札操作画面で、依頼発行されている設備を「停電中」に切り替えます。</p>
+<h2>2. 画面を開く</h2>
+<p class="step">1. ブラウザで <code>http://192.168.40.59:5000/#/</code> を開きます。</p>
+<p class="step">2. 画面上部のメニューが表示されることを確認します。</p>
+<p class="step">3. 停電依頼を作成する場合は、上部メニューの <strong>依頼発行・印刷</strong> を選択します。</p>
+<figure><img src="./images/power-outage-request/actual-main.png" alt="実画面: 禁止札操作画面と上部メニュー"><figcaption>実画面 1: 上部メニューの「依頼発行・印刷」を選択</figcaption></figure>
+<p>確認ポイント</p>
+<p class="bullet">• 通常の操作は <strong>モード: ユーザー</strong> のままで行います。</p>
+<p class="bullet">• 停電依頼作成は、上部メニューの <strong>依頼発行・印刷</strong> から開始します。</p>
+<h2>3. 作業者名・作業内容を入力する</h2>
+<p class="step">1. <strong>作業責任者名</strong> に、停電を依頼した作業者または作業責任者の氏名を入力します。</p>
+<p class="step">2. <strong>作業内容・目的</strong> に、停電が必要な作業内容を入力します。</p>
+<figure><img src="./images/power-outage-request/actual-request-empty.png" alt="実画面: 停電依頼書の作成・印刷用フォーム"><figcaption>実画面 2: 左側が入力・設備選択、右側が依頼表プレビュー</figcaption></figure>
+<p>入力例</p>
+<table>
+<tr><th>項目</th><th>入力例</th></tr>
+<tr><td>作業責任者名</td><td>山田 太郎</td></tr>
+<tr><td>作業内容・目的</td><td>33KV受電 VCB 定期点検作業</td></tr>
+</table>
+<p>注意</p>
+<p class="bullet">• 作業責任者名と作業内容・目的は必須項目です。</p>
+<p class="bullet">• 後で依頼表を確認したときに作業内容が分かるよう、簡潔かつ具体的に入力してください。</p>
+<h2>4. 停電設備を選択する</h2>
+<p class="step">1. <strong>対象設備の選択（複数選択可）</strong> で、停電する設備を探します。</p>
+<p class="step">2. 設備数が多い場合は、検索欄に設備名または電気室名を入力して絞り込みます。</p>
+<p class="step">3. 停電対象設備のチェックボックスをオンにします。</p>
+<p class="step">4. 複数設備を停電する場合は、対象設備をすべて選択します。</p>
+<figure><img src="./images/power-outage-request/actual-request-filled.png" alt="実画面: 入力内容と対象設備が依頼表に反映された状態"><figcaption>実画面 3: チェックした設備と入力内容が右側の依頼表に反映される</figcaption></figure>
+<p>確認ポイント</p>
+<p class="bullet">• 選択した設備は、右側の印刷プレビューに反映されます。</p>
+<p class="bullet">• ダミー札を選択した場合は、代替する実際の設備名称を入力します。</p>
+<p class="bullet">• 設備名称の選択間違いがないか、発行前に必ず確認します。</p>
+<h2>5. 依頼を発行して依頼表を印刷する</h2>
+<p class="step">1. 入力内容と対象設備を確認します。</p>
+<p class="step">2. <strong>停電依頼を発行してレシート印刷</strong> を押します。</p>
+<p class="step">3. 印刷された依頼表を受け取ります。</p>
+<p class="step">4. 依頼表に、作業責任者名、作業内容、停電対象設備が正しく印字されていることを確認します。</p>
+<div class="screen-note"><strong>画面位置:</strong> 実画面 3 の左下にある青いボタンです。押す前に、右側の依頼表で入力内容と対象設備を確認します。</div>
+<p>注意</p>
+<p class="bullet">• 依頼を発行しても、設備の状態は自動で停電中にはなりません。</p>
+<p class="bullet">• 実際に設備を停電した後、札操作画面で対象設備を停電中に切り替える必要があります。</p>
+<h2>6. 禁止札掛けから札を持ち出す</h2>
+<p class="step">1. 印刷された依頼表を持って、禁止札掛けに移動します。</p>
+<p class="step">2. 依頼表に記載された設備名称を確認します。</p>
+<p class="step">3. 設備名称に対応する禁止札を持ち出します。</p>
+<p class="step">4. 持ち出す札が依頼表の設備名称と一致していることを、声出しまたは指差しで確認します。</p>
+<p>確認ポイント</p>
+<p class="bullet">• 似た名称の設備がある場合は、電気室名や設備番号も確認します。</p>
+<p class="bullet">• 不明点がある場合は、依頼者または責任者に確認し、自己判断で札を持ち出さないでください。</p>
+<h2>7. 依頼表の名称を確認して設備を停電する</h2>
+<p class="step">1. 現地設備の名称を確認します。</p>
+<p class="step">2. 依頼表に記載された設備名称と一致していることを確認します。</p>
+<p class="step">3. 現地の安全手順に従って、設備を停電します。</p>
+<p class="step">4. 停電後、必要な安全確認を行います。</p>
+<p>注意</p>
+<p class="bullet">• 画面上の依頼発行は、現地設備の停電操作を代行するものではありません。</p>
+<p class="bullet">• 設備の停電操作は、現場で定められた安全手順に従って実施してください。</p>
+<h2>8. 札操作画面で設備を停電中にする</h2>
+<p class="step">1. ブラウザでメイン操作画面 <code>http://192.168.40.59:5000/#/</code> を開きます。</p>
+<p class="step">2. 状態のプルダウンで <strong>📋 依頼発行中のみ</strong> を選択します。</p>
+<p class="step">3. 依頼発行中の設備だけが表示されたことを確認します。必要に応じて、<strong>設備名称で検索</strong> 欄にも設備名を入力します。</p>
+<p class="step">4. 依頼表の名称と一致する対象設備カードを選択します。</p>
+<p class="step">5. 表示された設備操作画面で <strong>現在：通常運用（送電中）</strong> ボタンを押します。</p>
+<p class="step">6. 表示が <strong>現在：操作禁止（停電中）</strong> に変わったことを確認します。</p>
+<figure><img src="./images/power-outage-request/actual-operation-requested.png" alt="実画面: 状態フィルターを依頼発行中のみにして対象設備を絞り込んだ状態"><figcaption>実画面 4: 状態を「依頼発行中のみ」にすると、対象設備だけを絞り込める</figcaption></figure>
+<figure class="compact"><img src="./images/power-outage-request/actual-operation-requested-modal.png" alt="実画面: 依頼発行中の対象設備を選択した後の設備操作画面"><figcaption>実画面 5: 設備名を再確認して、緑色の状態ボタンを押す</figcaption></figure>
+<figure class="compact"><img src="./images/power-outage-request/actual-operation-powered-off.png" alt="実画面: 状態を切り替え、操作禁止（停電中）と表示された状態"><figcaption>実画面 6: 「操作禁止（停電中）」に変わったことを確認</figcaption></figure>
+<p>確認ポイント</p>
+<p class="bullet">• 停電依頼発行済みの設備だけを停電中にします。</p>
+<p class="bullet">• 設備名称をもう一度確認してから切り替えます。</p>
+<p class="bullet">• 切り替え後、設備カードの状態表示が停電中になっていることを確認します。</p>
+<h2>9. 作業完了前のチェックリスト</h2>
+<table>
+<tr><th>確認項目</th><th>チェック</th></tr>
+<tr><td>依頼表の作業責任者名が正しい</td><td>□</td></tr>
+<tr><td>依頼表の作業内容が正しい</td><td>□</td></tr>
+<tr><td>停電対象設備をすべて選択した</td><td>□</td></tr>
+<tr><td>印刷された依頼表と禁止札の名称が一致している</td><td>□</td></tr>
+<tr><td>現地設備名称と依頼表の名称が一致している</td><td>□</td></tr>
+<tr><td>現地で設備を停電した</td><td>□</td></tr>
+<tr><td>札操作画面で対象設備を停電中に切り替えた</td><td>□</td></tr>
+</table>
+<h2>10. よくある注意事項</h2>
+<p class="bullet">• <strong>依頼を発行しただけでは、設備状態は停電中になりません。</strong></p>
+<p>  現地で停電後、必ず札操作画面で停電中へ切り替えてください。</p>
+<p class="bullet">• <strong>設備名称の確認を省略しないでください。</strong></p>
+<p>  依頼表、禁止札、現地設備、画面上の設備名称を照合してください。</p>
+<p class="bullet">• <strong>対象設備が見つからない場合は、検索条件を変更してください。</strong></p>
+<p>  設備名の一部、電気室名、または名称の表記ゆれを確認してください。</p>
+<p class="bullet">• <strong>判断に迷う場合は、作業を止めて責任者に確認してください。</strong></p></body></html>
