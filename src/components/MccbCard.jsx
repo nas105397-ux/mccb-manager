@@ -53,7 +53,7 @@ function MccbCard({
     <div
       onClick={handleSelect}
       onKeyDown={handleKeyDown}
-      className={`bg-white p-4 rounded-xl border relative flex flex-col justify-between min-h-[140px] cursor-pointer ${cardStatusCls} ${className}`}
+      className={`p-4 rounded-xl border relative flex flex-col justify-between min-h-[140px] cursor-pointer ${cardStatusCls} ${className}`}
       role="button"
       tabIndex={0}
     >
