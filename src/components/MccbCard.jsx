@@ -10,9 +10,9 @@ const CARD_STATUS_CLASS = {
   powerOff:
     "border-red-500   bg-red-50/20",
   activeRequest:
-    "border-amber-500 bg-amber-50/20",
+    "border-violet-500 bg-violet-50/30",
   normal:
-    "border-gray-300  bg-gray-50/20",
+    "border-green-500 bg-green-50/20",
 };
 
 // ==========================================
@@ -101,10 +101,10 @@ function MccbCard({
           </>
         ) : hasActiveRequest ? (
           <>
-            <span className="text-amber-700 flex items-center gap-1 shrink-0">
-              🟠 依頼発行中
+            <span className="text-violet-700 flex items-center gap-1 shrink-0">
+              🟣 依頼発行中
             </span>
-            <span className="text-amber-800 bg-amber-100 px-2 py-0.5 rounded border border-amber-300 font-mono">
+            <span className="text-violet-800 bg-violet-100 px-2 py-0.5 rounded border border-violet-300 font-mono">
               子札: {borrowedCount} 枚
             </span>
           </>
