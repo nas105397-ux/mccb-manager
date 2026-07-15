@@ -13,6 +13,36 @@ import {
   normalizeRequestPrintMode,
 } from "../shared/printSettings";
 
+const DEFAULT_STATUS_SORT_ORDER = [
+  "札返却済み",
+  "依頼発行中",
+  "停電中",
+  "送電中",
+];
+
+const STATUS_SORT_ORDER_STORAGE_KEY = "mccb-manager.statusSortOrder";
+
+const getInitialStatusSortOrder = () => {
+  if (typeof window === "undefined") return DEFAULT_STATUS_SORT_ORDER;
+
+  try {
+    const savedOrder = JSON.parse(
+      window.localStorage.getItem(STATUS_SORT_ORDER_STORAGE_KEY),
+    );
+    if (
+      Array.isArray(savedOrder) &&
+      savedOrder.length === DEFAULT_STATUS_SORT_ORDER.length &&
+      DEFAULT_STATUS_SORT_ORDER.every((status) => savedOrder.includes(status))
+    ) {
+      return savedOrder;
+    }
+  } catch {
+    // 不正な保存値は既定の順序で上書きする。
+  }
+
+  return DEFAULT_STATUS_SORT_ORDER;
+};
+
 export function useAppController() {
   const {
     mccbList,
@@ -65,9 +95,10 @@ export function useAppController() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState("すべて");
-  const [filterRoom, setFilterRoom] = useState("すべて");
-  const [filterFavorite, setFilterFavorite] = useState(false);
+  const [selectedRooms, setSelectedRooms] = useState([]);
+  const [statusSortOrder, setStatusSortOrderState] = useState(
+    getInitialStatusSortOrder,
+  );
   const [isAdmin, setIsAdmin] = useState(false);
   const [selectedMccbId, setSelectedMccbId] = useState(null);
   const [requestPrintMode, setRequestPrintModeState] = useState(() => {
@@ -94,6 +125,22 @@ export function useAppController() {
     const normalizedMode = normalizeRequestPrintMode(mode);
     setRequestPrintModeState(normalizedMode);
     window.localStorage.setItem(REQUEST_PRINT_MODE_STORAGE_KEY, normalizedMode);
+  }, []);
+
+  const setStatusSortOrder = useCallback((nextOrder) => {
+    if (
+      !Array.isArray(nextOrder) ||
+      nextOrder.length !== DEFAULT_STATUS_SORT_ORDER.length ||
+      !DEFAULT_STATUS_SORT_ORDER.every((status) => nextOrder.includes(status))
+    ) {
+      return;
+    }
+
+    setStatusSortOrderState(nextOrder);
+    window.localStorage.setItem(
+      STATUS_SORT_ORDER_STORAGE_KEY,
+      JSON.stringify(nextOrder),
+    );
   }, []);
 
   const handleToggleAdmin = useCallback(() => {
@@ -139,30 +186,58 @@ export function useAppController() {
   );
 
   const filteredMccbList = useMemo(() => {
-    // 検索・部屋・状態・お気に入りの全条件を一度の走査で適用する。
+    // 検索と選択電気室で対象を絞り込み、表示優先順で並び替える。
     const lowerSearch = debouncedSearchTerm.trim().toLowerCase();
 
-    return processedMccbList.filter((mccb) => {
+    const getStatus = (mccb) => {
       const borrowedCount = borrowedCountMap[mccb.id] ?? 0;
+      if (mccb.isPowerOff && borrowedCount === 0) return "札返却済み";
+      if (mccb.isPowerOff) return "停電中";
+      if (activeMccbIds.has(mccb.id)) return "依頼発行中";
+      return "送電中";
+    };
+
+    const statusRank = new Map(
+      statusSortOrder.map((status, index) => [status, index]),
+    );
+    const roomRank = new Map(
+      rooms.map((roomName, index) => [roomName, index]),
+    );
+    const registrationRank = new Map(
+      mccbList.map((mccb, index) => [mccb.id, index]),
+    );
+
+    return processedMccbList.filter((mccb) => {
       const matchesSearch =
         !lowerSearch || mccb.name.toLowerCase().includes(lowerSearch);
-      const matchesRoom = filterRoom === "すべて" || mccb.room === filterRoom;
-      const matchesStatus =
-        filterStatus === "すべて" ||
-        (filterStatus === "送電中" && !mccb.isPowerOff) ||
-        (filterStatus === "停電中" && mccb.isPowerOff) ||
-        (filterStatus === "札返却済み" && mccb.isPowerOff && borrowedCount === 0) ||
-        (filterStatus === "依頼発行中" && activeMccbIds.has(mccb.id));
-      const matchesFavorite = !filterFavorite || mccb.isFavorite;
+      const matchesRoom =
+        selectedRooms.length === 0 || selectedRooms.includes(mccb.room);
 
-      return matchesSearch && matchesRoom && matchesStatus && matchesFavorite;
+      return matchesSearch && matchesRoom;
+    }).sort((a, b) => {
+      const statusDifference =
+        (statusRank.get(getStatus(a)) ?? Number.MAX_SAFE_INTEGER) -
+        (statusRank.get(getStatus(b)) ?? Number.MAX_SAFE_INTEGER);
+      if (statusDifference !== 0) return statusDifference;
+
+      const roomDifference =
+        (roomRank.get(a.room) ?? Number.MAX_SAFE_INTEGER) -
+        (roomRank.get(b.room) ?? Number.MAX_SAFE_INTEGER);
+      if (roomDifference !== 0) return roomDifference;
+
+      if (a.isFavorite !== b.isFavorite) return a.isFavorite ? -1 : 1;
+      return (
+        (registrationRank.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
+        (registrationRank.get(b.id) ?? Number.MAX_SAFE_INTEGER)
+      );
     });
   }, [
     processedMccbList,
     debouncedSearchTerm,
-    filterRoom,
-    filterStatus,
-    filterFavorite,
+    selectedRooms,
+    statusSortOrder,
+    rooms,
+    mccbList,
     activeMccbIds,
     borrowedCountMap,
   ]);
@@ -253,12 +328,10 @@ export function useAppController() {
     currentMccb,
     searchTerm,
     setSearchTerm,
-    filterStatus,
-    setFilterStatus,
-    filterRoom,
-    setFilterRoom,
-    filterFavorite,
-    setFilterFavorite,
+    selectedRooms,
+    setSelectedRooms,
+    statusSortOrder,
+    setStatusSortOrder,
     isAdmin,
     setIsAdmin,
     requestPrintMode,

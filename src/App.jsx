@@ -166,12 +166,10 @@ function AppContent() {
                   <Header
                     searchTerm={controller.searchTerm}
                     setSearchTerm={controller.setSearchTerm}
-                    filterStatus={controller.filterStatus}
-                    setFilterStatus={controller.setFilterStatus}
-                    filterRoom={controller.filterRoom}
-                    setFilterRoom={controller.setFilterRoom}
-                    filterFavorite={controller.filterFavorite}
-                    setFilterFavorite={controller.setFilterFavorite}
+                    selectedRooms={controller.selectedRooms}
+                    setSelectedRooms={controller.setSelectedRooms}
+                    statusSortOrder={controller.statusSortOrder}
+                    setStatusSortOrder={controller.setStatusSortOrder}
                     totalCount={controller.totalCount}
                     offCount={controller.offCount}
                     onCount={controller.onCount}
