@@ -10,16 +10,14 @@ import { getCategoryBadgeClass } from "../shared/categoryColorUtils";
 const CARD_STATUS = {
   returnedPowerOff: {
     label: "送電可能",
-    detail: "子札返却済み",
     icon: "✓",
-    cardClass: "border-sky-300 bg-sky-50/70",
-    stripeClass: "bg-sky-500",
+    cardClass: "border-red-400 bg-red-50/70",
+    stripeClass: "bg-red-600",
     badgeClass: "bg-sky-600 text-white",
     countClass: "text-sky-800 bg-sky-100 border-sky-300",
   },
   powerOff: {
     label: "停電中",
-    detail: "操作禁止",
     icon: "!",
     cardClass: "border-red-400 bg-red-50/70",
     stripeClass: "bg-red-600",
@@ -28,16 +26,14 @@ const CARD_STATUS = {
   },
   activeRequest: {
     label: "依頼発行中",
-    detail: "停電手配中",
     icon: "…",
-    cardClass: "border-amber-300 bg-amber-50/70",
-    stripeClass: "bg-amber-500",
+    cardClass: "border-green-400 bg-green-50/70",
+    stripeClass: "bg-green-600",
     badgeClass: "bg-amber-500 text-white",
     countClass: "text-amber-800 bg-amber-100 border-amber-300",
   },
   normal: {
     label: "送電中",
-    detail: "通常運用",
     icon: "●",
     cardClass: "border-green-400 bg-green-50/70",
     stripeClass: "bg-green-600",
@@ -84,41 +80,43 @@ function MccbCard({
       className={`p-4 pl-5 rounded-xl border relative flex flex-col justify-between min-h-[156px] overflow-hidden cursor-pointer transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${status.cardClass} ${className}`}
       role="button"
       tabIndex={0}
-      aria-label={`${name}：${status.label}（${status.detail}）`}
+      aria-label={`${name}：${status.label}`}
     >
       {/* 一覧を見渡した時に判別できる固定の状態色帯 */}
       <span className={`absolute inset-y-0 left-0 w-1.5 ${status.stripeClass}`} aria-hidden="true" />
 
-      <button
-        onClick={handleToggleFavorite}
-        className={`absolute top-3 right-3 text-lg focus:outline-none cursor-pointer z-10 ${
-          isFavorite
-            ? "text-amber-500 font-bold"
-            : "text-gray-300 hover:text-amber-400"
-        }`}
-        title={isFavorite ? "お気に入り解除" : "お気に入り登録"}
-        aria-label={isFavorite ? "お気に入りを外す" : "お気に入りに追加"}
-      >
-        {isFavorite ? "★" : "☆"}
-      </button>
-
       <div>
-        {/* 状態は常に同じ位置に大きく表示し、色覚に依存しない */}
-        <div className="flex items-center gap-2 mb-2 pr-7">
-          <span className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-black tracking-wide ${status.badgeClass}`}>
-            <span className="grid h-3.5 w-3.5 place-items-center rounded-full border border-white/70 text-[10px] leading-none" aria-hidden="true">{status.icon}</span>
-            {status.label}
-          </span>
+        {/* 状態・電気室・区分を同じ位置に集約し、色覚に依存しない */}
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_1.75rem] items-start gap-1.5 mb-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+            <span className={`inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-black tracking-wide ${status.badgeClass}`}>
+              <span className="grid h-3.5 w-3.5 place-items-center rounded-full border border-white/70 text-[10px] leading-none" aria-hidden="true">{status.icon}</span>
+              {status.label}
+            </span>
+            <span className="shrink-0 text-[10px] text-gray-400 bg-gray-50 border border-gray-200 px-1 py-0 rounded font-bold">
+              {room}
+            </span>
+            <span className={`shrink-0 text-[10px] px-1 py-0 rounded border font-black ${badgeColor}`}>
+              {category}
+            </span>
+          </div>
+          <button
+            onClick={handleToggleFavorite}
+            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-lg leading-none focus:outline-none cursor-pointer ${
+              isFavorite
+                ? "text-amber-500 font-bold"
+                : "text-gray-300 hover:text-amber-400"
+            }`}
+            title={isFavorite ? "お気に入り解除" : "お気に入り登録"}
+            aria-label={isFavorite ? "お気に入りを外す" : "お気に入りに追加"}
+          >
+            {isFavorite ? "★" : "☆"}
+          </button>
         </div>
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-[10px] text-gray-400 bg-gray-50 border border-gray-200 px-1 py-0 rounded font-bold">
-            {room}
-          </span>
-          <span className={`text-[10px] px-1 py-0 rounded border font-black ${badgeColor}`}>
-            {category}
-          </span>
-        </div>
-        <h3 className="text-sm font-black text-gray-800 leading-snug line-clamp-2 mb-2 pr-6">
+        <h3
+          className="text-sm font-black text-gray-800 leading-snug truncate mb-2"
+          title={name}
+        >
           {name}
         </h3>
       </div>

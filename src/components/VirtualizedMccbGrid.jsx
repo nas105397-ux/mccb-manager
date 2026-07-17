@@ -37,7 +37,12 @@ export default function VirtualizedMccbGrid({
 }) {
   const edgeGap = 2;
   const containerRef = useRef(null);
+  const listOuterRef = useRef(null);
   const [containerWidth, setContainerWidth] = useState(
+    typeof window !== "undefined" ? window.innerWidth : 1024,
+  );
+  // List 自身の縦スクロールバーを除いた、カードを並べられる実幅。
+  const [gridWidth, setGridWidth] = useState(
     typeof window !== "undefined" ? window.innerWidth : 1024,
   );
   const [columns, setColumns] = useState(getColumnsFromWidth(containerWidth));
@@ -51,6 +56,7 @@ export default function VirtualizedMccbGrid({
         ? Math.floor(containerRef.current.getBoundingClientRect().width)
         : window.innerWidth;
       setContainerWidth(width);
+      setGridWidth(listOuterRef.current?.clientWidth ?? width);
       setColumns(getColumnsFromWidth(width));
       setListHeight(getAvailableListHeight(containerRef.current));
     };
@@ -62,16 +68,17 @@ export default function VirtualizedMccbGrid({
     if (containerRef.current && typeof ResizeObserver !== "undefined") {
       ro = new ResizeObserver(measure);
       ro.observe(containerRef.current);
+      if (listOuterRef.current) ro.observe(listOuterRef.current);
     }
 
     return () => {
       window.removeEventListener("resize", measure);
       if (ro) ro.disconnect();
     };
-  }, []);
+  }, [items.length]);
 
   const itemWidth = Math.floor(
-    (containerWidth - edgeGap * 2 - hGap * (columns - 1)) / columns,
+    (gridWidth - edgeGap * 2 - hGap * (columns - 1)) / columns,
   );
   const rowCount = Math.ceil(items.length / columns);
   const rowHeight = estimatedCardHeight + rowGap; // 垂直ギャップは rowGap でコントロールする
@@ -86,7 +93,11 @@ export default function VirtualizedMccbGrid({
         cells.push(
           <div
             key={item.id}
-            style={{ width: itemWidth, height: estimatedCardHeight }}
+            style={{
+              flex: `0 0 ${itemWidth}px`,
+              width: itemWidth,
+              height: estimatedCardHeight,
+            }}
           >
             <MccbCard
               mccb={item}
@@ -101,7 +112,12 @@ export default function VirtualizedMccbGrid({
         );
       } else {
         // 空セル（列の数が余る場合の埋め草）
-        cells.push(<div key={`empty-${col}`} style={{ width: itemWidth }} />);
+        cells.push(
+          <div
+            key={`empty-${col}`}
+            style={{ flex: `0 0 ${itemWidth}px`, width: itemWidth }}
+          />,
+        );
       }
     }
 
@@ -131,7 +147,12 @@ export default function VirtualizedMccbGrid({
         itemCount={rowCount}
         itemSize={rowHeight}
         width={containerWidth}
-        style={{ overflowX: "hidden" }}
+        outerRef={listOuterRef}
+        style={{
+          overflowX: "hidden",
+          overflowY: "auto",
+          scrollbarGutter: "stable",
+        }}
       >
         {Row}
       </List>
