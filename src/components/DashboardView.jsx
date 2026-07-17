@@ -119,7 +119,7 @@ export default function DashboardView({ onClose }) {
           <h1 className={`text-3xl lg:text-4xl font-black tracking-widest ${
             isDarkMode ? "text-teal-300" : "text-blue-900"
           }`}>
-            🏢 禁止札管理ダッシュボード
+            🔖 禁止札管理ダッシュボード
           </h1>
           <p className={`text-sm mt-0.5 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
             ※本画面は {POLL_INTERVAL / 1000}秒 間隔で自動同期されています
@@ -187,7 +187,7 @@ export default function DashboardView({ onClose }) {
         }`}>
           <div className="flex justify-between items-center mb-3 shrink-0">
             <h2 className={`text-2xl font-black flex items-center gap-3 ${isDarkMode ? "text-red-400" : "text-red-600"}`}>
-              🔴 現在操作禁止（停電対応中）設備一覧
+              🔴 停電中設備一覧
             </h2>
             <span className={`text-sm border px-4 py-0.5 rounded-full font-black tracking-wider ${
               isDarkMode ? "bg-red-950 text-red-400 border-red-900" : "bg-red-50 text-red-600 border-red-200"
