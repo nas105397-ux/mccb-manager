@@ -8,10 +8,28 @@ import {
 import { formatWorkContent, formatWorkerName } from "../shared/mccbViewUtils";
 import StatusMessageRail from "./StatusMessageRail";
 
+// 送電/停電トグルボタンの配色。送電操作がブロックされている間はグレーアウトする。
+const POWER_BUTTON_STYLES = {
+  blocked: "bg-gray-300 text-gray-500 border-gray-400 cursor-not-allowed opacity-60",
+  powerOff: "bg-red-600 text-white border-red-700 hover:bg-red-700 cursor-pointer",
+  powerOn: "bg-green-600 text-white border-green-700 hover:bg-green-700 cursor-pointer",
+};
+
 // ==========================================
 // 1. メインコンポーネント (ControlModal)
 // ==========================================
-export default function ControlModal({ mccb, requests = [], onClose, onUpdate, onUpdatePower, onUpdateRequestTargetCard = () => {}, onDelete, isAdmin, rooms, categories }) {
+export default function ControlModal({
+  mccb,
+  requests = [],
+  onClose,
+  onUpdate,
+  onUpdatePower,
+  onUpdateRequestTargetCard = () => {},
+  onDelete,
+  isAdmin,
+  rooms,
+  categories,
+}) {
   const {
     isPowerOff,
     room,
@@ -103,10 +121,10 @@ export default function ControlModal({ mccb, requests = [], onClose, onUpdate, o
               title={isSendingBlocked ? "未返却の子札があるため送電できません" : undefined}
               className={`px-5 py-2 rounded-xl text-xs font-black border ${
                 isSendingBlocked
-                  ? "bg-gray-300 text-gray-500 border-gray-400 cursor-not-allowed opacity-60"
+                  ? POWER_BUTTON_STYLES.blocked
                   : isPowerOff
-                    ? "bg-red-600 text-white border-red-700 hover:bg-red-700 cursor-pointer"
-                    : "bg-green-600 text-white border-green-700 hover:bg-green-700 cursor-pointer"
+                    ? POWER_BUTTON_STYLES.powerOff
+                    : POWER_BUTTON_STYLES.powerOn
               }`}
             >
               {isPowerOff ? "🔴 現在：操作禁止（停電中）" : "🟢 現在：通常運用（送電中）"}
@@ -211,7 +229,7 @@ export default function ControlModal({ mccb, requests = [], onClose, onUpdate, o
 }
 
 // ==========================================
-// 3. サブコンポーネント (CardRow)
+// 2. サブコンポーネント (CardRow)
 // ==========================================
 // 貸出中／一時返却中／保管中の3状態で、枠と No. バッジの配色をまとめて切り替える。
 const CARD_STATE_STYLES = {

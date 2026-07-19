@@ -1,7 +1,4 @@
 // 停電依頼表の印刷プレビュー表示。印刷前に割当結果を確認する。
-// ==========================================
-// メインコンポーネント
-// ==========================================
 export default function PrintPreviewForm({
   workerName,
   workContent,
@@ -69,7 +66,7 @@ export default function PrintPreviewForm({
                     {index + 1}. {mccb.name}
                   </span>
                   <span className="font-black shrink-0 text-right bg-gray-100 px-1 rounded print:bg-transparent">
-                    {mccb.cardLabel.replace("代替:", "代替:")}
+                    {mccb.cardLabel}
                   </span>
                 </div>
               ))

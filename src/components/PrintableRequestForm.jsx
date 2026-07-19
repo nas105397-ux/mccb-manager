@@ -1,27 +1,14 @@
 // ブラウザ印刷向けの停電依頼表レイアウト。
-const getIssueDate = (request) => {
-  const timestampValue = Number(String(request.id || "").replace("REQ-", ""));
-  if (Number.isFinite(timestampValue) && timestampValue > 0) {
-    return new Date(timestampValue);
-  }
-  return new Date();
-};
-
-const getDateCode = (date) =>
-  `${date.getFullYear().toString().slice(-2)}${String(date.getMonth() + 1).padStart(2, "0")}${String(date.getDate()).padStart(2, "0")}`;
-
-const getTargetCardLabel = (target) => {
-  const reserveInfo = target.reserveInfo;
-  if (!reserveInfo?.cardNo) return "札の空きなし";
-  return target.isAllocatedFromDummy
-    ? `代替:${reserveInfo.displayName} No.${reserveInfo.cardNo}`
-    : `子札 No.${reserveInfo.cardNo}`;
-};
+import {
+  getDateCode,
+  getReceiptCardLabel,
+  getRequestIssueDate,
+} from "../shared/receiptFormatting";
 
 export default function PrintableRequestForm({ request }) {
   if (!request) return null;
 
-  const issueDate = getIssueDate(request);
+  const issueDate = getRequestIssueDate(request);
   const dateCode = getDateCode(issueDate);
 
   return (
@@ -68,7 +55,7 @@ export default function PrintableRequestForm({ request }) {
                   {index + 1}. {target.name}
                 </span>
                 <span className="font-black shrink-0 text-right px-1 rounded">
-                  {getTargetCardLabel(target)}
+                  {getReceiptCardLabel(target)}
                 </span>
               </div>
             ))}

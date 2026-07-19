@@ -1,5 +1,12 @@
 // 進行中・仮発行の「対象設備一覧」開閉トグル行。履歴では補足ヒントを表示しない。
-export default function FoldToggleRow({ isExpanded, onClick, label, count, className, hintClassName }) {
+export default function FoldToggleRow({
+  isExpanded,
+  onClick,
+  label,
+  count,
+  className,
+  hintClassName,
+}) {
   return (
     <div
       onClick={onClick}

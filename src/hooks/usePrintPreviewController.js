@@ -1,5 +1,6 @@
 // 停電依頼の印刷プレビュー用に、サーバー割当結果を取得して表示状態を管理する。
 import { useEffect, useMemo, useState } from "react";
+import { getDateCode } from "../shared/receiptFormatting";
 
 const REQUEST_PREVIEW_URL = "/api/requests/preview";
 
@@ -10,8 +11,7 @@ export function usePrintPreviewController({
 }) {
   const { now, dateCode } = useMemo(() => {
     const currentDate = new Date();
-    const code = `${currentDate.getFullYear().toString().slice(-2)}${(currentDate.getMonth() + 1).toString().padStart(2, "0")}${currentDate.getDate().toString().padStart(2, "0")}`;
-    return { now: currentDate, dateCode: code };
+    return { now: currentDate, dateCode: getDateCode(currentDate) };
   }, []);
 
   const previewRequest = useMemo(

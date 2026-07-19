@@ -7,31 +7,24 @@ import {
   StarXpandCommand,
 } from "star-io10-web";
 import { loadStarPrinterConnection } from "./starPrinterConnection";
+import { getReceiptCardLabel, getRequestIssueDate } from "./receiptFormatting";
 
 const ROLL_WIDTH_MM = 80.0;
 const PRINTABLE_AREA_WIDTH_MM = 72.0;
 const SEPARATOR_WIDTH_MM = PRINTABLE_AREA_WIDTH_MM;
-
-const getIssueDate = (request) => {
-  const timestampValue = Number(String(request.id || "").replace("REQ-", ""));
-  if (Number.isFinite(timestampValue) && timestampValue > 0) {
-    return new Date(timestampValue);
-  }
-  return new Date();
-};
 
 const formatDate = (date) =>
   `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}`;
 
 const formatDateTime = (request, date) => request.timestamp || formatDate(date);
 
-const createCardLabel = (target) => {
-  const reserveInfo = target.reserveInfo;
-  if (!reserveInfo?.cardNo) return "札の空きなし";
-  if (target.isAllocatedFromDummy) {
-    return `代替:${reserveInfo.displayName} No.${reserveInfo.cardNo}`;
+// print/open失敗後のクローズはベストエフォートで行い、元のエラーを優先して呼び出し元へ伝える。
+const safeClosePrinter = async (printer) => {
+  try {
+    await printer.close();
+  } catch {
+    // Closing is best-effort after a print/open failure.
   }
-  return `子札 No.${reserveInfo.cardNo}`;
 };
 
 export const buildRequestReceiptTargets = (request, mccbList = []) => {
@@ -76,7 +69,7 @@ export const buildRequestReceiptTargets = (request, mccbList = []) => {
 };
 
 export const createRequestReceiptFieldData = (request, mccbList = []) => {
-  const issueDate = getIssueDate(request);
+  const issueDate = getRequestIssueDate(request);
   const targets = buildRequestReceiptTargets(request, mccbList);
   return JSON.stringify({
     title: "操作禁止（停電）依頼表",
@@ -91,7 +84,7 @@ export const createRequestReceiptFieldData = (request, mccbList = []) => {
       no: index + 1,
       room: target.room || "-",
       name: target.name || "名称未設定",
-      card: createCardLabel(target),
+      card: getReceiptCardLabel(target),
     })),
   });
 };
@@ -208,11 +201,7 @@ export const printRequestReceipt = async (request, mccbList = []) => {
     await printer.print(createRequestReceiptFieldData(request, mccbList), options);
     await printer.close();
   } catch (error) {
-    try {
-      await printer.close();
-    } catch {
-      // Closing is best-effort after a print/open failure.
-    }
+    await safeClosePrinter(printer);
     throw error;
   } finally {
     await printer.dispose();
@@ -258,11 +247,7 @@ export const printStarPrinterTestPage = async () => {
     await printer.print(await builder.getCommands());
     await printer.close();
   } catch (error) {
-    try {
-      await printer.close();
-    } catch {
-      // Closing is best-effort after a print/open failure.
-    }
+    await safeClosePrinter(printer);
     throw error;
   } finally {
     await printer.dispose();

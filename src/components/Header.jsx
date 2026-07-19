@@ -113,8 +113,24 @@ export default function Header({
                     <li key={status} className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-sm">
                       <span className="w-4 text-xs font-black text-gray-400">{index + 1}</span>
                       <span className="flex-1 font-bold text-gray-700">{STATUS_LABELS[status]}</span>
-                      <button type="button" onClick={() => moveStatus(index, -1)} disabled={index === 0} className="rounded px-1.5 py-0.5 text-xs font-black text-gray-600 hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer" aria-label={`${status}を上へ`}>▲</button>
-                      <button type="button" onClick={() => moveStatus(index, 1)} disabled={index === statusSortOrder.length - 1} className="rounded px-1.5 py-0.5 text-xs font-black text-gray-600 hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer" aria-label={`${status}を下へ`}>▼</button>
+                      <button
+                        type="button"
+                        onClick={() => moveStatus(index, -1)}
+                        disabled={index === 0}
+                        className="rounded px-1.5 py-0.5 text-xs font-black text-gray-600 hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer"
+                        aria-label={`${status}を上へ`}
+                      >
+                        ▲
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveStatus(index, 1)}
+                        disabled={index === statusSortOrder.length - 1}
+                        className="rounded px-1.5 py-0.5 text-xs font-black text-gray-600 hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer"
+                        aria-label={`${status}を下へ`}
+                      >
+                        ▼
+                      </button>
                     </li>
                   ))}
                 </ol>
