@@ -4,7 +4,8 @@ import { useMccbCardController } from "../hooks/useMccbCardController";
 import { getCategoryBadgeClass } from "../shared/categoryColorUtils";
 
 /**
- * 緑と赤は送電状態専用、青と橙は作業の進捗状態として使い分ける。
+ * カード枠・色帯は実際の電源状態を表す（緑＝送電中系、赤＝停電中系）。
+ * 送電可能／依頼発行中などの細かい状態はバッジの色と文言で判別する。
  * 色だけでなく、同じ位置の文言・記号でも判別できるようにする。
  */
 const CARD_STATUS = {

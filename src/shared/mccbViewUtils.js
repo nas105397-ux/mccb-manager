@@ -1,4 +1,18 @@
 // MCCB 一覧表示用の派生データを作る共有 utility。
+export const REQUEST_ID_PREFIX = "REQ-";
+const DUMMY_LABEL = "ダミー";
+
+export const isDummyMccb = (mccb) =>
+  mccb?.isDummy || mccb?.name?.includes(DUMMY_LABEL);
+
+export const matchesMccbSearch = (mccb, query) =>
+  mccb.name?.toLowerCase().includes(query) ||
+  mccb.room?.toLowerCase().includes(query);
+
+export const formatWorkerName = (workerName) => workerName || "未入力";
+export const formatWorkContent = (workContent) =>
+  workContent || "作業内容未入力";
+
 export const countBorrowedCards = (mccb) =>
   mccb?.childCards?.reduce(
     (count, card) => count + (card.isBorrowed ? 1 : 0),

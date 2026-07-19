@@ -5,6 +5,7 @@ import {
   createStatusMessage,
   STATUS_MESSAGE_KEYS,
 } from "../shared/statusMessages";
+import { formatWorkContent, formatWorkerName } from "../shared/mccbViewUtils";
 import StatusMessageRail from "./StatusMessageRail";
 
 // ==========================================
@@ -37,8 +38,8 @@ export default function ControlModal({ mccb, requests = [], onClose, onUpdate, o
         if (!card || card.isBorrowed) return;
         cardMap.set(reserveInfo.cardNo, {
           requestId: request.id,
-          workerName: request.workerName || "未入力",
-          workContent: request.workContent || "作業内容未入力",
+          workerName: formatWorkerName(request.workerName),
+          workContent: formatWorkContent(request.workContent),
           targetId,
         });
       });
@@ -212,25 +213,35 @@ export default function ControlModal({ mccb, requests = [], onClose, onUpdate, o
 // ==========================================
 // 3. サブコンポーネント (CardRow)
 // ==========================================
+// 貸出中／一時返却中／保管中の3状態で、枠と No. バッジの配色をまとめて切り替える。
+const CARD_STATE_STYLES = {
+  borrowed: {
+    container: "bg-amber-50/40 border-amber-200",
+    badge: "bg-amber-600 text-white",
+  },
+  tempReturned: {
+    container: "bg-sky-50/70 border-sky-200",
+    badge: "bg-sky-600 text-white",
+  },
+  free: {
+    container: "bg-gray-50/50 border-gray-200",
+    badge: "bg-gray-200 text-gray-500",
+  },
+};
+
 function CardRow({ card, temporaryReturnInfo, onBorrow, onBorrowTemporaryReturn, onReturn }) {
   const [inputName, setInputName] = useState("");
+  const cardState = card.isBorrowed
+    ? "borrowed"
+    : temporaryReturnInfo
+      ? "tempReturned"
+      : "free";
+  const { container, badge } = CARD_STATE_STYLES[cardState];
 
   return (
-    <div className={`p-3 rounded-xl border flex flex-wrap items-center justify-between gap-2 text-xs ${
-      card.isBorrowed
-        ? "bg-amber-50/40 border-amber-200"
-        : temporaryReturnInfo
-          ? "bg-sky-50/70 border-sky-200"
-          : "bg-gray-50/50 border-gray-200"
-    }`}>
+    <div className={`p-3 rounded-xl border flex flex-wrap items-center justify-between gap-2 text-xs ${container}`}>
       <div className="flex items-center gap-2">
-        <span className={`font-mono px-1.5 py-0.5 rounded text-[10px] font-black ${
-          card.isBorrowed
-            ? "bg-amber-600 text-white"
-            : temporaryReturnInfo
-              ? "bg-sky-600 text-white"
-              : "bg-gray-200 text-gray-500"
-        }`}>
+        <span className={`font-mono px-1.5 py-0.5 rounded text-[10px] font-black ${badge}`}>
           No.{card.id}
         </span>
         {card.isBorrowed ? (

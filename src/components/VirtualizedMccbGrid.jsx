@@ -1,7 +1,8 @@
 // MCCB 一覧の仮想スクロールグリッド。大量設備でも操作画面を軽く保つ。
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { FixedSizeList as List } from "react-window";
 import MccbCard from "./MccbCard";
+import { useResizeObserverEffect } from "../hooks/useResizeObserverEffect";
 
 // ブレークポイントは Tailwind のデフォルトに合わせる
 const getColumnsFromWidth = (width) => {
@@ -50,32 +51,22 @@ export default function VirtualizedMccbGrid({
     getAvailableListHeight(null),
   );
 
-  useEffect(() => {
-    const measure = () => {
-      const width = containerRef.current
-        ? Math.floor(containerRef.current.getBoundingClientRect().width)
-        : window.innerWidth;
-      setContainerWidth(width);
-      setGridWidth(listOuterRef.current?.clientWidth ?? width);
-      setColumns(getColumnsFromWidth(width));
-      setListHeight(getAvailableListHeight(containerRef.current));
-    };
+  const measure = () => {
+    const width = containerRef.current
+      ? Math.floor(containerRef.current.getBoundingClientRect().width)
+      : window.innerWidth;
+    // 縦スクロールバーの実幅は outer 要素の offsetWidth と clientWidth の差分で求める。
+    // clientWidth を直接使うと、直前の描画分の幅を読んでしまい resize 時に一瞬ずれる。
+    const outer = listOuterRef.current;
+    const scrollbarGutter = outer ? outer.offsetWidth - outer.clientWidth : 0;
 
-    measure();
-    window.addEventListener("resize", measure);
+    setContainerWidth(width);
+    setGridWidth(width - scrollbarGutter);
+    setColumns(getColumnsFromWidth(width));
+    setListHeight(getAvailableListHeight(containerRef.current));
+  };
 
-    let ro;
-    if (containerRef.current && typeof ResizeObserver !== "undefined") {
-      ro = new ResizeObserver(measure);
-      ro.observe(containerRef.current);
-      if (listOuterRef.current) ro.observe(listOuterRef.current);
-    }
-
-    return () => {
-      window.removeEventListener("resize", measure);
-      if (ro) ro.disconnect();
-    };
-  }, [items.length]);
+  useResizeObserverEffect([containerRef, listOuterRef], measure, []);
 
   const itemWidth = Math.floor(
     (gridWidth - edgeGap * 2 - hGap * (columns - 1)) / columns,

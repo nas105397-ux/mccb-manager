@@ -1,8 +1,13 @@
 // 依頼票バーコード読み取りをキーボード入力として受け、対象依頼の完了確認へつなぐ。
 import { useCallback, useEffect, useMemo, useRef } from "react";
+import {
+  REQUEST_ID_PREFIX,
+  formatWorkerName,
+  formatWorkContent,
+} from "../shared/mccbViewUtils";
 
 const SCAN_IDLE_MS = 180;
-const REQUEST_ID_PATTERN = /REQ-\d+/i;
+const REQUEST_ID_PATTERN = new RegExp(`${REQUEST_ID_PREFIX}\\d+`, "i");
 
 const normalizeScannedRequestId = (value) => {
   // 前後に制御文字や任意文字が付くスキャナー出力から依頼番号だけを抜き出す。
@@ -34,8 +39,8 @@ const buildCompletionConfirmMessage = (request) => {
   return [
     `依頼番号 ${request.id} を作業完了・札返却しますか？`,
     "",
-    `作業者: ${request.workerName || "未入力"}`,
-    `作業内容: ${request.workContent || "作業内容未入力"}`,
+    `作業者: ${formatWorkerName(request.workerName)}`,
+    `作業内容: ${formatWorkContent(request.workContent)}`,
     `対象設備: ${request.targets.length} 面`,
     `貸出中の札: ${borrowedCardCount} 枚${warningLine}`,
   ].join("\n");

@@ -143,7 +143,6 @@ export function useDashboardController() {
   );
 
   return {
-    data,
     loading,
     isDarkMode,
     setIsDarkMode,

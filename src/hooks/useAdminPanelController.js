@@ -34,6 +34,13 @@ const downloadTextFile = ({ content, fileName, type }) => {
 
 const getTodayString = () => new Date().toISOString().slice(0, 10);
 
+// window.prompt で新しい名称を受け取り、未入力・変更なしの場合は何もしない。
+const promptRename = (label, oldName, onRename) => {
+  const nextName = window.prompt(`${label}「${oldName}」の新しい名称を入力してください:`, oldName)?.trim();
+  if (!nextName || nextName === oldName) return;
+  onRename(nextName);
+};
+
 export function useAdminPanelController({
   onSaveEntry,
   mccbList,
@@ -103,19 +110,11 @@ export function useAdminPanelController({
     csvInputRef.current?.click();
   };
 
-  const handleEditRoomPrompt = (oldName) => {
-    const res = window.prompt(`電気室「${oldName}」の新しい名称を入力してください:`, oldName);
-    if (res && res.trim() && res.trim() !== oldName) {
-      updateRoom(oldName, res.trim());
-    }
-  };
+  const handleEditRoomPrompt = (oldName) =>
+    promptRename("電気室", oldName, (nextName) => updateRoom(oldName, nextName));
 
-  const handleEditCategoryPrompt = (oldName) => {
-    const res = window.prompt(`区分「${oldName}」の新しい名称を入力してください:`, oldName);
-    if (res && res.trim() && res.trim() !== oldName) {
-      updateCategory(oldName, res.trim());
-    }
-  };
+  const handleEditCategoryPrompt = (oldName) =>
+    promptRename("区分", oldName, (nextName) => updateCategory(oldName, nextName));
 
   const handleAddRoom = () => {
     if (newRoomInput.trim()) {
@@ -151,22 +150,21 @@ export function useAdminPanelController({
   const handleEditGroupPrompt = (group, e) => {
     e.stopPropagation();
     const oldName = group.name || "";
-    const res = window.prompt(`グループ「${oldName}」の新しい名称を入力してください:`, oldName);
-    const nextName = res?.trim();
-    if (!nextName || nextName === oldName) return;
 
-    if (deviceGroups.some((g) => g.id !== group.id && g.name === nextName)) {
-      alert(`グループ「${nextName}」は既に存在します。`);
-      return;
-    }
+    promptRename("グループ", oldName, (nextName) => {
+      if (deviceGroups.some((g) => g.id !== group.id && g.name === nextName)) {
+        alert(`グループ「${nextName}」は既に存在します。`);
+        return;
+      }
 
-    updateDeviceGroup(
-      group.id,
-      { ...group, name: nextName },
-      {
-        logMessage: `設備グループ「${oldName}」を「${nextName}」に名称変更しました。`,
-      },
-    );
+      updateDeviceGroup(
+        group.id,
+        { ...group, name: nextName },
+        {
+          logMessage: `設備グループ「${oldName}」を「${nextName}」に名称変更しました。`,
+        },
+      );
+    });
   };
 
   const handleToggleDeviceInGroup = (deviceId) => {

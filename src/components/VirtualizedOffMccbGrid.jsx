@@ -2,6 +2,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { VariableSizeGrid as Grid } from "react-window";
 import { getCategoryBadgeClass } from "../shared/categoryColorUtils";
+import { useResizeObserverEffect } from "../hooks/useResizeObserverEffect";
 
 const getColumnCountFromLayout = (colLayout, width) => {
   // 指定列数を上限にしつつ、狭い画面ではカード幅を守るため列数を減らす。
@@ -199,34 +200,20 @@ export default function VirtualizedOffMccbGrid({
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
   const [measuredHeights, setMeasuredHeights] = useState({});
 
-  useEffect(() => {
-    const measure = () => {
-      if (!containerRef.current) return;
+  const measureViewport = () => {
+    if (!containerRef.current) return;
 
-      const rect = containerRef.current.getBoundingClientRect();
-      const nextWidth = Math.floor(rect.width);
-      const nextHeight = Math.floor(rect.height);
+    const rect = containerRef.current.getBoundingClientRect();
+    const nextWidth = Math.floor(rect.width);
+    const nextHeight = Math.floor(rect.height);
 
-      setViewportSize((prev) => {
-        if (prev.width === nextWidth && prev.height === nextHeight) return prev;
-        return { width: nextWidth, height: nextHeight };
-      });
-    };
+    setViewportSize((prev) => {
+      if (prev.width === nextWidth && prev.height === nextHeight) return prev;
+      return { width: nextWidth, height: nextHeight };
+    });
+  };
 
-    measure();
-    window.addEventListener("resize", measure);
-
-    let observer;
-    if (containerRef.current && typeof ResizeObserver !== "undefined") {
-      observer = new ResizeObserver(measure);
-      observer.observe(containerRef.current);
-    }
-
-    return () => {
-      window.removeEventListener("resize", measure);
-      if (observer) observer.disconnect();
-    };
-  }, []);
+  useResizeObserverEffect([containerRef], measureViewport, []);
 
   const gap = 16;
   const rowGap = 16;

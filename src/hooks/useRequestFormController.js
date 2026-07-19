@@ -5,6 +5,7 @@ import {
   createStatusMessage,
   STATUS_MESSAGE_KEYS,
 } from "../shared/statusMessages";
+import { REQUEST_ID_PREFIX, matchesMccbSearch } from "../shared/mccbViewUtils";
 
 const SEARCH_DEBOUNCE_MS = 200;
 
@@ -19,17 +20,13 @@ const waitForNextPaint = () =>
 const createPreviewKey = (targetMccbIds, dummyNames) =>
   JSON.stringify({ targetMccbIds, dummyNames });
 
-const matchesMccbSearch = (mccb, query) =>
-  mccb.name?.toLowerCase().includes(query) ||
-  mccb.room?.toLowerCase().includes(query);
-
 const createRequestPayload = ({
   workerName,
   workContent,
   selectedMccbIds,
   dummyNames,
 }) => ({
-  id: `REQ-${Date.now()}`,
+  id: `${REQUEST_ID_PREFIX}${Date.now()}`,
   timestamp: new Date().toLocaleString("ja-JP"),
   workerName,
   workContent,

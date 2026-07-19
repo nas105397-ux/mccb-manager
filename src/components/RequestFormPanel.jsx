@@ -6,6 +6,7 @@ import { useRequestFormController } from "../hooks/useRequestFormController";
 import { usePrintPreviewController } from "../hooks/usePrintPreviewController";
 import { VariableSizeList as List } from "react-window";
 import { REQUEST_PRINT_MODES } from "../shared/printSettings";
+import { isDummyMccb } from "../shared/mccbViewUtils";
 
 // ==========================================
 // 定数定義
@@ -68,7 +69,7 @@ function DummyNameInput({ mccbId, value, onChange }) {
 // ==========================================
 const RequestMccbRow = React.memo(
   ({ mccb, isSelected, onToggle, dummyName, onDummyNameChange }) => {
-    const isDummy = mccb.isDummy || mccb.name?.includes("ダミー");
+    const isDummy = isDummyMccb(mccb);
 
     return (
       <div
@@ -332,7 +333,7 @@ export default function RequestFormPanel({
                 const mccb = filteredMccbList[index];
                 if (!mccb) return ROW_HEIGHT_COLLAPSED + ROW_GAP;
                 const isSelected = selectedMccbIdSet.has(mccb.id);
-                const isDummy = mccb.isDummy || mccb.name?.includes("ダミー");
+                const isDummy = isDummyMccb(mccb);
                 if (!isSelected) return ROW_HEIGHT_COLLAPSED + ROW_GAP; // 標準行高さ + ギャップ
                 const base = isDummy
                   ? ROW_HEIGHT_SELECTED_DUMMY

@@ -1,9 +1,6 @@
 // 依頼一覧の展開状態と、対象設備ごとの表示名・札状態の組み立てを担当する。
 import { useCallback, useMemo, useState } from "react";
-
-const DUMMY_LABEL = "ダミー";
-
-const isDummyMccb = (mccb) => mccb.isDummy || mccb.name?.includes(DUMMY_LABEL);
+import { isDummyMccb } from "../shared/mccbViewUtils";
 
 const getReservedCard = (actualMccb, reserveInfo) => {
   if (!reserveInfo?.cardNo) return null;
@@ -44,7 +41,6 @@ const buildRequestTargetView = (targetId, req, mccbMap) => {
     reserveInfo,
     isAllocatedFromDummy,
     isCardBorrowed: !!reservedCard?.isBorrowed,
-    cardWorkerName: reservedCard?.workerName || "",
   };
 };
 
