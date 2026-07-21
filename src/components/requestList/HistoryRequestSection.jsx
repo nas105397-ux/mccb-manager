@@ -67,7 +67,7 @@ export default function HistoryRequestSection({
                         const reserveInfo = target.reserveInfo;
                         return (
                           <div key={target.id} className={HISTORY.targetCard}>
-                            <div className="flex items-center gap-2 truncate">
+                            <div className="flex flex-wrap items-center gap-1.5 min-w-0">
                               <span className={HISTORY.roomTag}>
                                 {target.room}
                               </span>
@@ -102,7 +102,7 @@ export default function HistoryRequestSection({
             type="button"
             onClick={() => onChangeHistoryPage(historyPageInfo.page - 1)}
             disabled={historyPageInfo.page <= 1}
-            className="px-3 py-1 rounded border bg-white text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            className="px-3 py-2 rounded border bg-white text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
           >
             前へ
           </button>
@@ -113,7 +113,7 @@ export default function HistoryRequestSection({
             type="button"
             onClick={() => onChangeHistoryPage(historyPageInfo.page + 1)}
             disabled={historyPageInfo.page >= historyPageInfo.totalPages}
-            className="px-3 py-1 rounded border bg-white text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            className="px-3 py-2 rounded border bg-white text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
           >
             次へ
           </button>
