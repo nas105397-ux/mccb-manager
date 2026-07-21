@@ -1,6 +1,5 @@
-param(
-  [Parameter(Mandatory = $true)]
-  [string]$Target,
+﻿param(
+  [string]$Target = '',
 
   [string]$AppDir = '$HOME/mccb-manager',
 
@@ -11,8 +10,6 @@ param(
   [switch]$StartKiosk,
 
   [switch]$BootstrapLite,
-
-  [switch]$InstallJapaneseInput,
 
   [switch]$NoInstallNode,
 
@@ -32,6 +29,139 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+function Write-DeployHeader {
+  Write-Host ""
+  Write-Host "============================================================" -ForegroundColor DarkCyan
+  Write-Host " MCCB Manager - Raspberry Pi デプロイ" -ForegroundColor Cyan
+  Write-Host "============================================================" -ForegroundColor DarkCyan
+  Write-Host "  接続先        : $Target (ポート: $Port)"
+  Write-Host "  インストール先: $AppDir"
+  if ($BootstrapLite) { Write-Host "  初回セットアップ: あり" -ForegroundColor Yellow }
+  if ($StartKiosk) {
+    Write-Host "  kiosk         : あり ($KioskMode モード)" -ForegroundColor Yellow
+  } else {
+    Write-Host "  kiosk         : なし（サーバー専用）"
+  }
+  Write-Host "============================================================" -ForegroundColor DarkCyan
+  Write-Host ""
+}
+
+function Write-Step {
+  param([string]$Number, [string]$Message)
+  Write-Host ""
+  Write-Host "[$Number] $Message" -ForegroundColor Cyan
+}
+
+function Test-YesAnswer {
+  param([string]$Answer)
+  return $Answer -match '^(y|yes)$'
+}
+
+$IsInteractive = [string]::IsNullOrWhiteSpace($Target)
+
+if ($IsInteractive) {
+  Write-Host "============================================================" -ForegroundColor DarkCyan
+  Write-Host " MCCB Manager - Raspberry Pi デプロイ" -ForegroundColor Cyan
+  Write-Host "============================================================" -ForegroundColor DarkCyan
+
+  Write-Step "1/4" "接続先の設定"
+  $Target = Read-Host "接続先ユーザー@ホスト (例: pi@192.168.1.50)"
+  if ([string]::IsNullOrWhiteSpace($Target)) {
+    Write-Host "エラー: 接続先が必要です。" -ForegroundColor Red
+    exit 1
+  }
+
+  $PortInput = Read-Host "SSH ポート番号 (そのままEnterで 22)"
+  if (-not [string]::IsNullOrWhiteSpace($PortInput)) {
+    $Port = [int]$PortInput
+  }
+
+  $KeyPathInput = Read-Host "SSH 鍵のパス (そのままEnterで自動検索)"
+  if (-not [string]::IsNullOrWhiteSpace($KeyPathInput)) {
+    $KeyPath = $KeyPathInput
+  }
+
+  Write-Step "2/4" "インストール先"
+  $AppDirInput = Read-Host "Raspberry Pi 上のインストール先 (そのままEnterで `$HOME/mccb-manager)"
+  if (-not [string]::IsNullOrWhiteSpace($AppDirInput)) {
+    $AppDir = $AppDirInput
+  }
+
+  Write-Step "3/4" "初回セットアップ"
+  Write-Host "  Lite OS パッケージ・Node.js・日本語入力(fcitx5-mozc)のインストールを行います。"
+  Write-Host "  初回のみ必要です。2回目以降のデプロイでは N を選択してください。"
+  $BootstrapAnswer = Read-Host "Lite OS の初回セットアップも実行しますか？ (y/N)"
+  $BootstrapLite = Test-YesAnswer $BootstrapAnswer
+
+  Write-Step "4/4" "kiosk 表示"
+  Write-Host "  Pi 本体のモニターに操作画面を表示します。"
+  Write-Host "  サーバー専用（別PCやタブレットから見るだけ）の場合は N を選択してください。"
+  $KioskAnswer = Read-Host "Pi 本体の画面に kiosk 表示しますか？ (y/N)"
+  $StartKiosk = Test-YesAnswer $KioskAnswer
+
+  if ($StartKiosk) {
+    Write-Host ""
+    Write-Host "kiosk モードを選択してください:"
+    Write-Host "  main  - 操作画面のみ (1画面)"
+    Write-Host "  dual  - 操作画面 + ダッシュボード (2画面、既定)"
+    $KioskModeInput = Read-Host "kiosk モード (そのままEnterで dual)"
+    if (-not [string]::IsNullOrWhiteSpace($KioskModeInput)) {
+      if ($KioskModeInput -in @('main', 'dual')) {
+        $KioskMode = $KioskModeInput
+      } else {
+        Write-Host "不明なモードのため既定の dual を使用します。" -ForegroundColor Yellow
+      }
+    }
+
+    Write-Host ""
+    Write-Host "画面サイズと配置は「幅x高さ+X位置+Y位置」の形式で指定します。"
+    Write-Host "  例: 1920x1080+0+0     -> 1枚目の画面"
+    Write-Host "  例: 1920x1080+1920+0  -> 1枚目の右に並ぶ2枚目"
+    Write-Host "  例: 3840x2160+1920+0  -> 1枚目の右に並ぶ4K画面"
+    $MainGeometryInput = Read-Host "メイン画面 (そのままEnterで $MainGeometry)"
+    if (-not [string]::IsNullOrWhiteSpace($MainGeometryInput)) { $MainGeometry = $MainGeometryInput }
+
+    $MainScaleInput = Read-Host "メイン画面スケール (そのままEnterで $MainScale)"
+    if (-not [string]::IsNullOrWhiteSpace($MainScaleInput)) { $MainScale = $MainScaleInput }
+
+    if ($KioskMode -eq 'dual') {
+      $DashboardGeometryInput = Read-Host "ダッシュボード画面 (そのままEnterで $DashboardGeometry)"
+      if (-not [string]::IsNullOrWhiteSpace($DashboardGeometryInput)) { $DashboardGeometry = $DashboardGeometryInput }
+
+      $DashboardScaleInput = Read-Host "ダッシュボードスケール (そのままEnterで $DashboardScale)"
+      if (-not [string]::IsNullOrWhiteSpace($DashboardScaleInput)) { $DashboardScale = $DashboardScaleInput }
+    }
+  }
+
+  Write-Host ""
+  Write-Host "============================================================" -ForegroundColor DarkCyan
+  Write-Host " 実行内容の確認" -ForegroundColor Cyan
+  Write-Host "============================================================" -ForegroundColor DarkCyan
+  Write-Host " 接続先        : $Target"
+  Write-Host " SSH ポート    : $Port"
+  if (-not [string]::IsNullOrWhiteSpace($KeyPath)) { Write-Host " SSH 鍵        : $KeyPath" }
+  Write-Host " インストール先: $AppDir"
+  if ($BootstrapLite) {
+    Write-Host " 初回セットアップ: あり（Lite OS パッケージ + Node.js + 日本語入力）"
+  } else {
+    Write-Host " 初回セットアップ: なし"
+  }
+  if ($StartKiosk) {
+    Write-Host " kiosk         : あり（$KioskMode モード）"
+    Write-Host " メイン画面    : $MainGeometry  スケール: $MainScale"
+    if ($KioskMode -eq 'dual') { Write-Host " ダッシュボード: $DashboardGeometry  スケール: $DashboardScale" }
+  } else {
+    Write-Host " kiosk         : なし（サーバー専用）"
+  }
+  Write-Host "============================================================" -ForegroundColor DarkCyan
+  Write-Host ""
+  $Confirm = Read-Host "上記の設定でデプロイを開始しますか？ (y/N)"
+  if (-not (Test-YesAnswer $Confirm)) {
+    Write-Host "キャンセルしました。"
+    exit 0
+  }
+}
+
 $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..')
 $TempRoot = Join-Path ([System.IO.Path]::GetTempPath()) "mccb-manager-deploy-$([guid]::NewGuid())"
 $StageDir = Join-Path $TempRoot 'package'
@@ -41,7 +171,7 @@ $RemoteZip = '/tmp/mccb-manager-deploy.zip'
 $RemoteScriptFile = '/tmp/mccb-manager-remote-deploy.sh'
 $StartKioskValue = if ($StartKiosk.IsPresent) { '1' } else { '0' }
 $BootstrapLiteValue = if ($BootstrapLite.IsPresent) { '1' } else { '0' }
-$InstallJapaneseInputValue = if ($InstallJapaneseInput.IsPresent) { '1' } else { '0' }
+$InstallJapaneseInputValue = if ($BootstrapLite) { '1' } else { '0' }
 $InstallNodeValue = if ($NoInstallNode.IsPresent) { '0' } else { '1' }
 $DefaultKeyPath = "$HOME\.ssh\mccb_manager_ed25519"
 if ([string]::IsNullOrWhiteSpace($KeyPath) -and (Test-Path $DefaultKeyPath)) {
@@ -227,7 +357,12 @@ function Compress-StagedPackage {
 try {
   Set-Location $RepoRoot
 
+  if (-not $IsInteractive) {
+    Write-DeployHeader
+  }
+
   if (-not $SkipBuild) {
+    Write-Step "1/4" "ビルド"
     if (-not (Test-Path (Join-Path $RepoRoot 'node_modules'))) {
       npm ci
     }
@@ -238,6 +373,7 @@ try {
     throw 'dist was not found. Run without -SkipBuild first, or run npm run build.'
   }
 
+  Write-Step "2/4" "デプロイパッケージを作成"
   New-Item -ItemType Directory -Force -Path $StageDir | Out-Null
 
   @(
@@ -258,10 +394,13 @@ try {
 
   Compress-StagedPackage
 
+  Write-Step "3/4" "Raspberry Pi へ転送"
   Invoke-NativeCommandWithRetry `
     -Action 'scp upload' `
     -Command 'scp' `
     -Arguments (@('-P', "$Port") + $SshIdentityOptions + $SshOptions + @($ZipPath, "${Target}:$RemoteZip"))
+
+  Write-Step "4/4" "Raspberry Pi でセットアップ"
 
   $RemoteScript = @'
 set -euo pipefail
@@ -406,6 +545,12 @@ fi
     -Command 'ssh' `
     -Arguments (@('-tt', '-p', "$Port") + $SshIdentityOptions + $SshOptions + @($Target, "bash '$RemoteScriptFile' '$AppDir' '$StartKioskValue' '$BootstrapLiteValue' '$InstallJapaneseInputValue' '$InstallNodeValue' '$KioskMode' '$MainGeometry' '$DashboardGeometry' '$MainScale' '$DashboardScale'")) `
     -MaxAttempts 2
+
+  Write-Host ""
+  Write-Host "============================================================" -ForegroundColor DarkGreen
+  Write-Host " デプロイ完了" -ForegroundColor Green
+  Write-Host "============================================================" -ForegroundColor DarkGreen
+  Write-Host ""
 }
 finally {
   if (Test-Path $TempRoot) {

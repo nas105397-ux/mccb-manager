@@ -54,7 +54,21 @@ sudo apt install -y --no-install-recommends fontconfig fonts-noto-cjk fonts-noto
 
 ### クリックして実行する場合
 
-`deploy\raspi\deploy-over-ssh.cmd` をダブルクリックしてください。接続先、SSH ポート、配置先を順番に入力できます。
+`deploy\raspi\deploy-over-ssh.cmd` をダブルクリックしてください。接続先、SSH ポート、配置先を順番に日本語で入力できます。
+
+### npm scripts から実行する場合
+
+リポジトリのルートで次を実行してください。
+
+```powershell
+npm run deploy
+```
+
+SSH 鍵の設定:
+
+```powershell
+npm run ssh-key
+```
 
 ## SSH パスワード入力を省略する
 
@@ -120,13 +134,7 @@ Pi本体に画面を出さないサーバー専用運用では、`-StartKiosk` �
 .\deploy\raspi\deploy-over-ssh.ps1 -Target pi@192.168.1.50 -BootstrapLite -StartKiosk
 ```
 
-kiosk で日本語入力も使う場合:
-
-```powershell
-.\deploy\raspi\deploy-over-ssh.ps1 -Target pi@192.168.1.50 -BootstrapLite -StartKiosk -InstallJapaneseInput
-```
-
-`-BootstrapLite` は Raspberry Pi がインターネットへ接続できる初回セットアップ向けです。既定で Lite 用パッケージと Node.js 24 以上をインストールします。すでに Node.js を用意済みで、NodeSource へ接続したくない場合は `-NoInstallNode` を付けます。
+`-BootstrapLite` は Raspberry Pi がインターネットへ接続できる初回セットアップ向けです。既定で Lite 用パッケージ、Node.js 24 以上、日本語入力（fcitx5-mozc）をインストールします。すでに Node.js を用意済みで、NodeSource へ接続したくない場合は `-NoInstallNode` を付けます。
 
 ## kiosk 画面構成を選ぶ
 

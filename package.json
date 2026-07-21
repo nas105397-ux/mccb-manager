@@ -9,7 +9,9 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "preview": "vite preview",
-    "start": "node server.js"
+    "start": "node server.js",
+    "deploy": "deploy\\raspi\\deploy-over-ssh.cmd",
+    "ssh-key": "deploy\\raspi\\setup-ssh-key.cmd"
   },
   "dependencies": {
     "cors": "^2.8.6",

@@ -22,13 +22,9 @@ Pi本体に画面を出さず、別PCやタブレットから見るだけの場�
 .\deploy\raspi\deploy-over-ssh.ps1 -Target pi@<Raspberry Pi IP> -BootstrapLite
 ```
 
-日本語入力も入れる場合:
+`-BootstrapLite` では、Lite 用パッケージ、Node.js 24+ に加えて日本語入力（fcitx5-mozc）も自動的に導入されます。
 
-```powershell
-.\deploy\raspi\deploy-over-ssh.ps1 -Target pi@<Raspberry Pi IP> -BootstrapLite -StartKiosk -InstallJapaneseInput
-```
-
-クリック実行する場合は `deploy\raspi\deploy-over-ssh.cmd` を開き、`Run first-time Lite setup on Raspberry Pi?` に `y` と答えます。
+クリック実行する場合は `deploy\raspi\deploy-over-ssh.cmd` を開き、初回セットアップの質問に `y` と答えます。
 
 完了後、Raspberry Pi を再起動します。
 
@@ -93,17 +89,11 @@ sudo reboot
 
 Raspberry Pi 側で先に必要パッケージだけ手動で入れる場合は、以下を実行します。
 
-kiosk表示あり:
+kiosk表示あり（日本語入力込み）:
 
 ```bash
 sudo apt update
-sudo apt install -y --no-install-recommends ca-certificates curl openssl unzip nginx xserver-xorg xserver-xorg-legacy xinit openbox x11-xserver-utils dbus-x11 chromium fontconfig fonts-noto-cjk fonts-noto-cjk-extra fonts-noto-color-emoji
-```
-
-日本語入力も使う場合:
-
-```bash
-sudo apt install -y --no-install-recommends fontconfig fonts-noto-cjk fonts-noto-cjk-extra fcitx5 fcitx5-frontend-gtk3 fcitx5-mozc
+sudo apt install -y --no-install-recommends ca-certificates curl openssl unzip nginx xserver-xorg xserver-xorg-legacy xinit openbox x11-xserver-utils dbus-x11 chromium fontconfig fonts-noto-cjk fonts-noto-cjk-extra fonts-noto-color-emoji fcitx5 fcitx5-frontend-gtk3 fcitx5-mozc
 ```
 
 Pi本体に画面を出さず、別PCやタブレットから見るだけの場合:
@@ -133,13 +123,11 @@ cd /home/pi/mccb-manager
 sudo TARGET_USER=pi SKIP_APT=1 bash deploy/raspi/setup-lite-os.sh
 ```
 
-日本語入力も入れる場合:
+`setup-lite-os.sh` は既定で `fcitx5-mozc` を入れ、Mozcを既定の日本語入力にする設定も作成します。日本語入力が不要な場合:
 
 ```bash
-sudo TARGET_USER=pi INSTALL_JAPANESE_INPUT=1 bash deploy/raspi/setup-lite-os.sh
+sudo TARGET_USER=pi INSTALL_JAPANESE_INPUT=0 bash deploy/raspi/setup-lite-os.sh
 ```
-
-この指定では `fcitx5-mozc` を入れ、Mozcを既定の日本語入力にする設定も作成します。
 
 画面をPi本体に出さず、別PCやタブレットから見るだけならkioskは不要です。
 
