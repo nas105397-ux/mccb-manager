@@ -13,7 +13,7 @@ export default function OperationGuideSidebar({ isOpen, onClose, guideType = "op
           <p className="text-[11px] font-black text-blue-500 tracking-wide">
             {guide.eyebrow}
           </p>
-          <h2 className="text-base font-black text-gray-850 leading-tight">
+          <h2 className="text-base font-black text-gray-900 leading-tight">
             {guide.title}
           </h2>
         </div>

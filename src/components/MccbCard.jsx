@@ -88,7 +88,7 @@ function MccbCard({
 
       <div>
         {/* 状態・電気室・区分を同じ位置に集約し、色覚に依存しない */}
-        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_1.75rem] items-start gap-1.5 mb-2">
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_2.25rem] items-start gap-1.5 mb-2">
           <div className="flex min-w-0 flex-wrap items-center gap-1.5">
             <span className={`inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-black tracking-wide ${status.badgeClass}`}>
               <span className="grid h-3.5 w-3.5 place-items-center rounded-full border border-white/70 text-[10px] leading-none" aria-hidden="true">{status.icon}</span>
@@ -103,7 +103,7 @@ function MccbCard({
           </div>
           <button
             onClick={handleToggleFavorite}
-            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-lg leading-none focus:outline-none cursor-pointer ${
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-lg leading-none focus:outline-none cursor-pointer ${
               isFavorite
                 ? "text-amber-500 font-bold"
                 : "text-gray-300 hover:text-amber-400"
@@ -115,7 +115,7 @@ function MccbCard({
           </button>
         </div>
         <h3
-          className="text-sm font-black text-gray-800 leading-snug truncate mb-2"
+          className="text-lg sm:text-base font-black text-gray-800 leading-snug truncate mb-2"
           title={name}
         >
           {name}
