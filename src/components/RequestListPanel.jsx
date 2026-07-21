@@ -27,7 +27,7 @@ export default function RequestListPanel({
   onAddTargetsToRequest = () => {},
   onUpdateRequestTargetCard = () => {},
   onChangeHistoryPage = () => {},
-  requestPrintMode = REQUEST_PRINT_MODES.STAR_RECEIPT,
+  requestPrintMode = REQUEST_PRINT_MODES.NONE,
 }) {
   const [activeView, setActiveView] = useState("active");
   const [addPanelRequestId, setAddPanelRequestId] = useState(null);

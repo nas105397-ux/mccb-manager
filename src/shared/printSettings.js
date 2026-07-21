@@ -27,7 +27,7 @@ export const REQUEST_PRINT_MODE_OPTIONS = [
   },
 ];
 
-export const DEFAULT_REQUEST_PRINT_MODE = REQUEST_PRINT_MODES.STAR_RECEIPT;
+export const DEFAULT_REQUEST_PRINT_MODE = REQUEST_PRINT_MODES.NONE;
 
 export const normalizeRequestPrintMode = (mode) => {
   if (Object.values(REQUEST_PRINT_MODES).includes(mode)) {

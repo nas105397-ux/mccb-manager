@@ -20,13 +20,16 @@ const waitForNextPaint = () =>
 const createPreviewKey = (targetMccbIds, dummyNames) =>
   JSON.stringify({ targetMccbIds, dummyNames });
 
+const generateRequestId = () => `${REQUEST_ID_PREFIX}${Date.now()}`;
+
 const createRequestPayload = ({
+  id,
   workerName,
   workContent,
   selectedMccbIds,
   dummyNames,
 }) => ({
-  id: `${REQUEST_ID_PREFIX}${Date.now()}`,
+  id,
   timestamp: new Date().toLocaleString("ja-JP"),
   workerName,
   workContent,
@@ -40,7 +43,7 @@ export function useRequestFormController({
   onAddDraftRequest,
   getPrintPreviewStatus,
   onAfterPrint,
-  requestPrintMode = REQUEST_PRINT_MODES.STAR_RECEIPT,
+  requestPrintMode = REQUEST_PRINT_MODES.NONE,
 }) {
   // 入力フォーム状態
   const [workerName, setWorkerName] = useState("");
@@ -52,6 +55,8 @@ export function useRequestFormController({
   const [isIssuingRequest, setIsIssuingRequest] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [formMessage, setFormMessage] = useState(null);
+  // プレビューと発行結果の依頼番号を一致させるため、発行前に確定させておく。
+  const [requestId, setRequestId] = useState(generateRequestId);
 
   // 検索入力のたびに大量の設備一覧を再フィルタしないよう、短時間だけ遅延させる。
   useEffect(() => {
@@ -169,15 +174,17 @@ export function useRequestFormController({
 
     setIsIssuingRequest(true);
     try {
-      // 先に依頼を確定し、サーバーが決めた実札割当を使って印刷する。
+      // プレビューで見せていたIDをそのまま使い、実際の依頼番号と一致させる。
       const createdRequest = await onAddRequest?.(
         createRequestPayload({
+          id: requestId,
           workerName,
           workContent,
           selectedMccbIds,
           dummyNames,
         }),
       );
+      setRequestId(generateRequestId());
 
       if (requestPrintMode === REQUEST_PRINT_MODES.BROWSER) {
         await printByBrowser();
@@ -199,6 +206,7 @@ export function useRequestFormController({
     onAddRequest,
     printByBrowser,
     printByStarReceipt,
+    requestId,
     requestPrintMode,
     selectedMccbIds,
     workContent,
@@ -220,14 +228,17 @@ export function useRequestFormController({
     setIsSavingDraft(true);
     try {
       // 仮発行では札を確保せず、入力内容だけを本発行用に保存する。
+      // プレビューで見せていたIDをそのまま使い、実際の依頼番号と一致させる。
       await onAddDraftRequest?.(
         createRequestPayload({
+          id: requestId,
           workerName,
           workContent,
           selectedMccbIds,
           dummyNames,
         }),
       );
+      setRequestId(generateRequestId());
       setFormMessage(
         createStatusMessage(STATUS_MESSAGE_KEYS.REQUEST_DRAFT_SAVED),
       );
@@ -242,6 +253,7 @@ export function useRequestFormController({
     isIssuingRequest,
     isSavingDraft,
     onAddDraftRequest,
+    requestId,
     selectedMccbIds,
     workContent,
     workerName,
@@ -266,6 +278,7 @@ export function useRequestFormController({
     filteredMccbList,
     formMessage,
     setFormMessage,
+    requestId,
     handleToggleMccb,
     handleDummyNameChange,
     handleSelectGroup,
