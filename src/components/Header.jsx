@@ -103,7 +103,7 @@ export default function Header({
             <div
               role="dialog"
               aria-label="表示・並び順の設定"
-              className="absolute right-0 z-30 mt-2 w-[min(24rem,calc(100vw-2rem))] rounded-xl border border-gray-200 bg-white p-4 shadow-xl"
+              className="absolute left-0 sm:left-auto sm:right-0 z-30 mt-2 w-[min(24rem,calc(100vw-2rem))] rounded-xl border border-gray-200 bg-white p-4 shadow-xl"
             >
               <section>
                 <h2 className="text-sm font-black text-gray-800">1. 状態の優先順位</h2>

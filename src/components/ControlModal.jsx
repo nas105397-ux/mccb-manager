@@ -105,7 +105,7 @@ export default function ControlModal({
         <div className="p-6 overflow-y-auto space-y-6 flex-1 text-sm text-gray-700">
 
           {/* ⚡ SECTION 2: 停電・送電ステータス切り替えトグル */}
-          <div className="bg-gray-50 p-4 rounded-xl border flex items-center justify-between">
+          <div className="bg-gray-50 p-4 rounded-xl border flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="font-black text-gray-800">⚡ 設備停電ステータス</p>
               <p className="text-xs text-gray-400 mt-0.5">※依頼発行とは別に、主幹の開閉状態を直接操作ロックします</p>
@@ -119,7 +119,7 @@ export default function ControlModal({
               onClick={handleTogglePower}
               disabled={isSendingBlocked}
               title={isSendingBlocked ? "未返却の子札があるため送電できません" : undefined}
-              className={`px-5 py-2 rounded-xl text-xs font-black border ${
+              className={`w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-black border whitespace-nowrap ${
                 isSendingBlocked
                   ? POWER_BUTTON_STYLES.blocked
                   : isPowerOff
