@@ -1372,7 +1372,7 @@ app.get("/{*splat}", (req, res) => {
 httpServer = app.listen(PORT, HOST, () => {
   const localIp = getLocalIpAddress();
   console.log("==================================================");
-  console.log(" 🚀 禁止札データ(SQLite) ＆ Webサーバーが一体型で正常稼働しました");
+  console.log(" 🚀 禁止札データ(SQLite) & Webサーバーが一体型で正常稼働しました");
   console.log(` 🌐 待受: http://${HOST}:${PORT}`);
   console.log(` 🌐 LAN接続URL目安: http://${localIp}:${PORT}`);
   console.log(` 💾 DB: ${DB_PATH}`);
