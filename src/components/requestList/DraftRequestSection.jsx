@@ -74,7 +74,7 @@ export default function DraftRequestSection({
                 <div className={ACTIVE.targetGrid}>
                   {req.targets.map((target) => (
                     <div key={target.id} className={ACTIVE.targetCard}>
-                      <div className="flex items-center gap-2 truncate">
+                      <div className="flex flex-wrap items-center gap-1.5 min-w-0">
                         <span className={ACTIVE.roomTag}>{target.room}</span>
                         <span className={ACTIVE.targetName}>{target.name}</span>
                         <span className={ACTIVE.noReserveBadge}>子札未割当</span>

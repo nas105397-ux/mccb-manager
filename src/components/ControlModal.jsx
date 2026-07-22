@@ -69,27 +69,27 @@ export default function ControlModal({
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 print:hidden"
+      className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-2 sm:p-4 print:hidden"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-2xl border border-gray-200 w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]"
+        className="bg-white rounded-2xl border border-gray-200 w-full max-w-2xl overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[90vh]"
       >
 
         {/* 🔝 SECTION 1: モーダルヘッダー */}
-        <div className="bg-gray-50 border-b p-4 flex justify-between items-center shrink-0">
-          <div>
+        <div className="bg-gray-50 border-b p-3 sm:p-4 flex justify-between items-start sm:items-center gap-2 shrink-0">
+          <div className="min-w-0">
             <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-md mr-2">
               {mccb.room}
             </span>
-            <h2 className="text-base font-black text-gray-800 inline-block">
+            <h2 className="text-base font-black text-gray-800 inline-block break-words">
               {mccb.name} <span className="text-xs font-normal text-gray-500 font-mono">({mccb.id})</span>
             </h2>
           </div>
 
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded-full w-10 h-10 flex items-center justify-center text-3xl font-black cursor-pointer focus:outline-none"
+            className="shrink-0 text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded-full w-10 h-10 flex items-center justify-center text-3xl font-black cursor-pointer focus:outline-none"
             title="閉じる"
           >
             ×
@@ -102,10 +102,10 @@ export default function ControlModal({
         />
 
         {/* 📜 モーダルボディ */}
-        <div className="p-6 overflow-y-auto space-y-6 flex-1 text-sm text-gray-700">
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-6 flex-1 text-sm text-gray-700">
 
           {/* ⚡ SECTION 2: 停電・送電ステータス切り替えトグル */}
-          <div className="bg-gray-50 p-4 rounded-xl border flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="bg-gray-50 p-4 rounded-xl border flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="font-black text-gray-800">⚡ 設備停電ステータス</p>
               <p className="text-xs text-gray-400 mt-0.5">※依頼発行とは別に、主幹の開閉状態を直接操作ロックします</p>
@@ -119,7 +119,7 @@ export default function ControlModal({
               onClick={handleTogglePower}
               disabled={isSendingBlocked}
               title={isSendingBlocked ? "未返却の子札があるため送電できません" : undefined}
-              className={`w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-black border whitespace-nowrap ${
+              className={`w-full sm:w-auto px-5 py-3 sm:py-2 rounded-xl text-xs font-black border ${
                 isSendingBlocked
                   ? POWER_BUTTON_STYLES.blocked
                   : isPowerOff
@@ -276,33 +276,33 @@ function CardRow({ card, temporaryReturnInfo, onBorrow, onBorrowTemporaryReturn,
         )}
       </div>
 
-      <div>
+      <div className="w-full sm:w-auto">
         {card.isBorrowed ? (
           <button
             onClick={onReturn}
-            className="bg-white hover:bg-gray-100 text-gray-700 font-bold px-3 py-1 rounded border border-gray-300 cursor-pointer"
+            className="w-full sm:w-auto bg-white hover:bg-gray-100 text-gray-700 font-bold px-3 py-2 rounded border border-gray-300 cursor-pointer"
           >
             ↩️ 札を返却（フリーに戻す）
           </button>
         ) : temporaryReturnInfo ? (
           <button
             onClick={() => onBorrowTemporaryReturn(temporaryReturnInfo)}
-            className="bg-sky-600 hover:bg-sky-700 text-white font-black px-3 py-1.5 rounded cursor-pointer shadow-sm"
+            className="w-full sm:w-auto bg-sky-600 hover:bg-sky-700 text-white font-black px-3 py-2 rounded cursor-pointer shadow-sm"
           >
             🔖 再貸出
           </button>
         ) : (
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1">
             <input
               type="text"
               placeholder="手動使用者名"
               value={inputName}
               onChange={(e) => setInputName(e.target.value)}
-              className="border p-1.5 rounded text-[11px] w-28 bg-white focus:outline-none"
+              className="border p-2 rounded text-[11px] flex-1 min-w-[7rem] bg-white focus:outline-none"
             />
             <button
               onClick={() => onBorrow(inputName)}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-black px-3 py-1.5 rounded cursor-pointer"
+              className="bg-blue-600 hover:bg-blue-700 text-white font-black px-3 py-2 rounded cursor-pointer"
             >
               🔖 貸出
             </button>

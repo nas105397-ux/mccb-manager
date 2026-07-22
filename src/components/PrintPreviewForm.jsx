@@ -3,18 +3,18 @@ export default function PrintPreviewForm({
   workerName,
   workContent,
   now,
-  dateCode,
+  requestId,
   selectedMccbsWithAssignedCards,
   isPreviewLoading,
   previewError,
 }) {
   return (
-    <div className="w-full lg:w-2/3 bg-white p-6 rounded-xl border border-gray-200 print:border-0 print:shadow-none print:p-0 print:w-[78mm] print:mx-auto">
+    <div className="w-full lg:w-2/3 bg-white p-4 sm:p-6 rounded-xl border border-gray-200 print:border-0 print:shadow-none print:p-0 print:w-[78mm] print:mx-auto">
       {/* レシート外枠：高コントラスト現場用デザイン */}
       <div className="border border-gray-300 p-4 space-y-4 text-black bg-white print:border-0 print:p-1 font-mono text-xs">
         {/* 🔝 レシートヘッダー */}
         <div className="text-center border-b-2 border-black pb-2 mb-2">
-          <h1 className="text-base font-black tracking-tighter">
+          <h1 className="text-base font-black tracking-tighter text-black">
             操作禁止（停電）依頼表
           </h1>
           <p className="text-[9px] text-gray-500 print:text-black mt-0.5">
@@ -24,7 +24,7 @@ export default function PrintPreviewForm({
             <span>
               日付: {now.getFullYear()}/{now.getMonth() + 1}/{now.getDate()}
             </span>
-            <span>No: REQ-{dateCode}</span>
+            <span>No: {requestId}</span>
           </div>
         </div>
 

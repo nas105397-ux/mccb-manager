@@ -29,7 +29,7 @@ const ROW_DEFAULT_CLASS =
   "p-2 rounded border bg-white border-gray-200 text-gray-700 hover:bg-gray-50";
 /** グループボタン共通ベース */
 const BTN_GROUP_BASE =
-  "px-2.5 py-1.5 rounded text-[11px] font-black border cursor-pointer";
+  "px-2.5 py-2 rounded text-[11px] font-black border cursor-pointer";
 
 // 仮想リストの行高さ/ギャップ（px）
 const ROW_HEIGHT_COLLAPSED = 40;
@@ -120,7 +120,7 @@ export default function RequestFormPanel({
   onAddRequest,
   onAddDraftRequest,
   deviceGroups = [],
-  requestPrintMode = REQUEST_PRINT_MODES.STAR_RECEIPT,
+  requestPrintMode = REQUEST_PRINT_MODES.NONE,
 }) {
   const [previewRefreshNonce, setPreviewRefreshNonce] = useState(0);
   const printPreviewStatusRef = useRef({
@@ -142,6 +142,7 @@ export default function RequestFormPanel({
     filteredMccbList,
     formMessage,
     setFormMessage,
+    requestId,
     handleToggleMccb,
     handleDummyNameChange,
     handleSelectGroup,
@@ -159,7 +160,6 @@ export default function RequestFormPanel({
   });
   const {
     now,
-    dateCode,
     previewRequestKey,
     selectedMccbsWithAssignedCards,
     isPreviewLoading,
@@ -243,11 +243,11 @@ export default function RequestFormPanel({
 
   // --- 画面レンダリング ---
   return (
-    <div className="flex flex-col lg:flex-row gap-6 items-start print:block print:space-y-0 print:p-0">
+    <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 items-start print:block print:space-y-0 print:p-0">
       {/* 左側：入力設定フォームパネル (印刷時は非表示) */}
-      <div className="w-full lg:w-1/3 bg-white p-6 rounded-xl border border-gray-200 space-y-4 print:hidden shrink-0 lg:sticky lg:top-4">
+      <div className="w-full lg:w-1/3 bg-white p-4 sm:p-6 rounded-xl border border-gray-200 space-y-4 print:hidden shrink-0 lg:sticky lg:top-4">
         <h2 className="text-sm font-black text-gray-700 border-b pb-2">
-          📝 停電依頼書の作成・印刷用フォーム
+          📝 停電依頼書の作成・発行用フォーム
         </h2>
 
         {/* 基本情報入力 */}
@@ -398,7 +398,7 @@ export default function RequestFormPanel({
         workerName={workerName}
         workContent={workContent}
         now={now}
-        dateCode={dateCode}
+        requestId={requestId}
         selectedMccbsWithAssignedCards={selectedMccbsWithAssignedCards}
         isPreviewLoading={isPreviewLoading}
         previewError={previewError}

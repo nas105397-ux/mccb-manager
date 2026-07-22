@@ -78,24 +78,24 @@ function AppContent() {
   return (
     <div
       translate="no"
-      className={`box-border bg-gray-50 text-gray-850 p-4 font-sans print:p-0 print:bg-white ${
+      className={`box-border bg-gray-50 text-gray-900 p-2 sm:p-4 font-sans print:p-0 print:bg-white ${
         isFixedOperationScreen ? "h-svh overflow-hidden" : "min-h-svh"
       }`}
     >
       <div
         className={`max-w-7xl mx-auto print:space-y-0 ${
-          isFixedOperationScreen ? "h-full min-h-0 flex flex-col gap-4" : "space-y-4"
+          isFixedOperationScreen ? "h-full min-h-0 flex flex-col gap-2 sm:gap-4" : "space-y-2 sm:space-y-4"
         }`}
       >
-        {/* 上部共通ヘッダー・ナビゲーションバー */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between bg-white p-2 rounded-xl border border-gray-200 shadow-sm print:hidden">
-          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto sm:flex-wrap sm:overflow-visible -mx-1 px-1 sm:mx-0 sm:px-0">
+        {/* 上部共通ヘッダー・ナビゲーションバー（スマホではモニター/管理者切替を隠しユーザー操作に集中させる） */}
+        <div className="flex justify-between items-center bg-white p-2 rounded-xl border border-gray-200 shadow-sm print:hidden">
+          <div className="flex flex-wrap gap-2">
             {/* 重複していたタブボタンをループ展開に変更しスッキリ整頓 */}
             {controller.navItems.map((item) => (
               <button
                 key={item.path}
                 onClick={() => controller.goTo(item.path)}
-                className={`shrink-0 whitespace-nowrap px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-[11px] sm:text-xs font-black transition-all cursor-pointer ${
+                className={`px-3 py-2 sm:px-4 rounded-lg text-xs font-black transition-all cursor-pointer ${
                   controller.activeTab === item.path
                     ? "bg-blue-600 text-white shadow-md"
                     : "text-gray-500 hover:bg-gray-100"
@@ -104,10 +104,10 @@ function AppContent() {
                 {item.label}
               </button>
             ))}
-            {/* モニターボタンはスマホでは使用しない導線のため sm 以上でのみ表示 */}
+            {/* モニターボタンはダッシュボード用のためモバイルでは非表示 */}
             <button
               onClick={() => controller.goTo("/monitor")}
-              className="hidden sm:flex shrink-0 whitespace-nowrap px-4 py-2 rounded-lg text-xs font-black text-teal-600 border border-teal-200 bg-teal-50 hover:bg-teal-100 transition-all cursor-pointer shadow-sm items-center gap-1"
+              className="hidden sm:flex px-4 py-2 rounded-lg text-xs font-black text-teal-600 border border-teal-200 bg-teal-50 hover:bg-teal-100 transition-all cursor-pointer shadow-sm items-center gap-1"
             >
               🖥️ 電気室モニター
             </button>
@@ -121,7 +121,7 @@ function AppContent() {
                       : controller.activeTab,
                   )
                 }
-                className={`shrink-0 whitespace-nowrap px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-[11px] sm:text-xs font-black border transition-all cursor-pointer shadow-sm flex items-center gap-1 ${
+                className={`px-3 py-2 sm:px-4 rounded-lg text-xs font-black border transition-all cursor-pointer shadow-sm flex items-center gap-1 ${
                   isGuideOpen
                     ? "bg-blue-600 text-white border-blue-600"
                     : "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
@@ -133,9 +133,10 @@ function AppContent() {
             )}
           </div>
 
+          {/* 管理者切替はモバイルの主要導線ではないため sm 以上のみ表示 */}
           <button
             onClick={controller.handleToggleAdmin}
-            className={`self-end sm:self-auto shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-black tracking-wide border cursor-pointer shadow-sm transition-all whitespace-nowrap sm:mr-1
+            className={`hidden sm:inline-block px-3 py-1.5 rounded-lg text-[11px] font-black tracking-wide border cursor-pointer shadow-sm transition-all whitespace-nowrap mr-1
                       ${controller.isAdmin ? "bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100" : "bg-gray-50 border-gray-300 text-gray-500 hover:bg-gray-100"}`}
           >
             {controller.isAdmin

@@ -1,11 +1,11 @@
 // RequestListPanel とその各セクションで共有する UI スタイル定数。
 export const UI = {
   panel:
-    "bg-white p-6 rounded-xl border border-gray-200 shadow-sm min-h-[60vh]",
+    "bg-white p-4 sm:p-6 rounded-xl border border-gray-200 shadow-sm min-h-[60vh]",
   tabWrap:
-    "mb-5 inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1 shadow-inner",
+    "mb-4 sm:mb-5 grid grid-cols-3 sm:inline-flex sm:grid-cols-none w-full sm:w-auto rounded-lg border border-gray-200 bg-gray-50 p-1 shadow-inner",
   tabButton:
-    "px-4 py-2 rounded-md text-xs font-black transition-all cursor-pointer",
+    "px-2 py-2.5 sm:px-4 sm:py-2 rounded-md text-xs font-black transition-all cursor-pointer text-center",
   tabActive: "bg-white text-blue-700 shadow-sm border border-gray-200",
   tabIdle: "text-gray-500 hover:text-gray-700",
   empty:
@@ -20,7 +20,7 @@ export const UI = {
 export const ACTIVE = {
   card: "border border-gray-200 rounded-lg p-4 bg-gray-50 hover:shadow-sm transition-all",
   header:
-    "flex flex-wrap justify-between items-start mb-3 border-b border-gray-200 pb-3 gap-2",
+    "flex flex-col sm:flex-row sm:flex-wrap sm:justify-between sm:items-start mb-3 border-b border-gray-200 pb-3 gap-2",
   summary: "min-w-0 flex-1",
   metaRow: "flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-bold",
   timestamp: "text-gray-400",
@@ -52,13 +52,13 @@ export const ACTIVE = {
   addCancel:
     "bg-white hover:bg-gray-50 text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer whitespace-nowrap",
   foldRow:
-    "flex items-center gap-2 text-xs font-bold text-gray-500 cursor-pointer hover:text-gray-700 w-fit select-none",
+    "flex items-center gap-2 py-1.5 text-xs font-bold text-gray-500 cursor-pointer hover:text-gray-700 w-fit select-none",
   foldHint: "text-[10px] font-normal text-gray-400 opacity-80",
   targetGrid: "grid grid-cols-1 gap-2 transition-all duration-200",
   targetCard:
-    "flex items-center justify-between bg-white p-2.5 rounded-lg border border-gray-200 text-xs font-bold shadow-sm",
+    "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-white p-2.5 rounded-lg border border-gray-200 text-xs font-bold shadow-sm",
   roomTag: "bg-gray-100 text-gray-500 text-[10px] px-1.5 py-0.5 rounded border",
-  targetName: "text-gray-800 truncate",
+  targetName: "text-gray-800 break-words",
   reserveBadge:
     "bg-amber-100 text-amber-800 border border-amber-200 text-[10px] px-1.5 py-0.5 rounded font-black shadow-sm ml-1",
   returnedBadge:
@@ -72,7 +72,7 @@ export const ACTIVE = {
   pendingStatus:
     "bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-black border border-green-200 shadow-sm animate-pulse shrink-0",
   completionStamp:
-    "bg-red-600 text-white px-2 py-0.5 text-[11px] rounded-full font-black tracking-wider shadow-sm shrink-0 animate-pulse",
+    "bg-red-600 text-white px-3 py-1.5 text-sm rounded-full font-black tracking-wider shadow-sm shrink-0 animate-pulse",
 };
 
 export const HISTORY = {
@@ -81,7 +81,7 @@ export const HISTORY = {
   list: "space-y-3 pr-1",
   card: "border border-gray-200 rounded-lg p-3.5 bg-white shadow-sm hover:border-gray-300 transition-colors",
   header:
-    "flex flex-wrap justify-between items-start border-b border-gray-100 pb-2 mb-2 gap-2",
+    "flex flex-col sm:flex-row sm:flex-wrap sm:justify-between sm:items-start border-b border-gray-100 pb-2 mb-2 gap-2",
   summary: "min-w-0 flex-1",
   stampRow:
     "flex flex-wrap items-center gap-x-2 text-[10px] text-gray-400 font-bold",
@@ -97,12 +97,12 @@ export const HISTORY = {
   status:
     "bg-gray-50 border border-gray-200 text-gray-400 text-[10px] font-black tracking-wide px-2 py-1 rounded shadow-inner",
   foldRow:
-    "flex items-center gap-1 text-[11px] font-bold text-gray-400 cursor-pointer hover:text-gray-600 w-fit select-none",
+    "flex items-center gap-1 py-1.5 text-[11px] font-bold text-gray-400 cursor-pointer hover:text-gray-600 w-fit select-none",
   targetGrid: "grid grid-cols-1 gap-1.5 mt-1.5 transition-all",
   targetCard:
-    "flex items-center justify-between bg-gray-50/50 px-2 py-1.5 rounded border border-gray-150 text-[11px] font-bold",
+    "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 bg-gray-50/50 px-2 py-1.5 rounded border border-gray-150 text-[11px] font-bold",
   roomTag: "bg-white text-gray-400 text-[9px] px-1 rounded border",
-  targetName: "text-gray-600 truncate",
+  targetName: "text-gray-600 break-words",
   reserveBadge:
     "bg-white text-gray-400 border border-gray-200 text-[9px] px-1 rounded font-normal",
 };

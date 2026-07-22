@@ -15,7 +15,7 @@ export default function PrintableRequestForm({ request }) {
     <div className="hidden print:block print:w-[78mm] print:mx-auto text-black bg-white font-mono text-xs">
       <div className="border-0 p-1 space-y-4">
         <div className="text-center border-b-2 border-black pb-2 mb-2">
-          <h1 className="text-base font-black tracking-tighter">
+          <h1 className="text-base font-black tracking-tighter text-black">
             操作禁止（停電）依頼表
           </h1>
           <p className="text-[9px] text-black mt-0.5">

@@ -70,18 +70,18 @@ export default function ActiveRequestSection({
                 >
                   停電設備を追加
                 </button>
-                <button
-                  type="button"
-                  onClick={() => handlePrintRequest(req)}
-                  disabled={starPrintRequestId === req.id || isPrintDisabledBySetting}
-                  className={`${ACTIVE.actionButtonBase} ${ACTIVE.printButton} disabled:opacity-60 disabled:cursor-not-allowed`}
-                >
-                  {isPrintDisabledBySetting
-                    ? "印刷なし"
-                    : starPrintRequestId === req.id
+                {!isPrintDisabledBySetting && (
+                  <button
+                    type="button"
+                    onClick={() => handlePrintRequest(req)}
+                    disabled={starPrintRequestId === req.id}
+                    className={`${ACTIVE.actionButtonBase} ${ACTIVE.printButton} disabled:opacity-60 disabled:cursor-not-allowed`}
+                  >
+                    {starPrintRequestId === req.id
                       ? "レシート送信中..."
                       : "依頼表を印刷"}
-                </button>
+                  </button>
+                )}
                 <button
                   onClick={() => onDeleteRequest(req.id)}
                   className={`${ACTIVE.actionButtonBase} ${ACTIVE.deleteButton}`}
@@ -159,7 +159,7 @@ export default function ActiveRequestSection({
 
                     return (
                       <div key={target.id} className={ACTIVE.targetCard}>
-                        <div className="flex items-center gap-2 truncate">
+                        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
                           <span className={ACTIVE.roomTag}>{target.room}</span>
                           <span className={ACTIVE.targetName}>{target.name}</span>
 
@@ -181,7 +181,7 @@ export default function ActiveRequestSection({
                           )}
                         </div>
 
-                        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                        <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end">
                           {reserveInfo?.cardNo && (
                             <button
                               type="button"

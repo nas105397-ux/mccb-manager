@@ -58,10 +58,10 @@ export default function Header({
       : `${selectedRooms.length} 電気室`;
 
   return (
-    <div className="bg-white p-4 rounded-xl mb-4 border border-gray-200">
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-3 border-b border-gray-100">
-        <div className="flex items-center gap-3">
-          <h1 className="text-lg font-extrabold text-gray-850 tracking-wider flex items-center gap-1.5">
+    <div className="bg-white p-3 sm:p-4 rounded-xl mb-2 sm:mb-4 border border-gray-200">
+      <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-4 pb-2 sm:pb-3 border-b border-gray-100">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <h1 className="text-base sm:text-lg font-extrabold text-gray-900 tracking-wider flex items-center gap-1.5">
             📋 操作禁止札管理システム
           </h1>
           <div className="flex items-center gap-1.5 text-xs font-bold">
@@ -72,14 +72,14 @@ export default function Header({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 mt-3">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-2 sm:mt-3">
         <div className="flex-1 min-w-[200px]">
           <input
             type="text"
             placeholder="🔍 設備名称で検索..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full border border-gray-300 p-1.5 rounded-lg text-sm bg-gray-50/50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full border border-gray-300 p-2 rounded-lg text-sm bg-gray-50/50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
 
@@ -87,7 +87,7 @@ export default function Header({
           <button
             type="button"
             onClick={() => setIsSortMenuOpen((isOpen) => !isOpen)}
-            className={`flex items-center gap-2 border p-1.5 rounded-lg text-sm font-bold cursor-pointer transition-colors ${
+            className={`flex items-center gap-2 border p-2 rounded-lg text-sm font-bold cursor-pointer transition-colors ${
               isSortMenuOpen
                 ? "border-blue-500 bg-blue-50 text-blue-700"
                 : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
@@ -117,7 +117,7 @@ export default function Header({
                         type="button"
                         onClick={() => moveStatus(index, -1)}
                         disabled={index === 0}
-                        className="rounded px-1.5 py-0.5 text-xs font-black text-gray-600 hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer"
+                        className="grid h-8 w-8 place-items-center rounded text-sm font-black text-gray-600 hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer"
                         aria-label={`${status}を上へ`}
                       >
                         ▲
@@ -126,7 +126,7 @@ export default function Header({
                         type="button"
                         onClick={() => moveStatus(index, 1)}
                         disabled={index === statusSortOrder.length - 1}
-                        className="rounded px-1.5 py-0.5 text-xs font-black text-gray-600 hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer"
+                        className="grid h-8 w-8 place-items-center rounded text-sm font-black text-gray-600 hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer"
                         aria-label={`${status}を下へ`}
                       >
                         ▼
@@ -150,7 +150,7 @@ export default function Header({
                 <p className="mt-1 text-xs text-gray-500">複数選択できます。未選択の場合は全電気室を表示します。</p>
                 <div className="mt-2 max-h-36 space-y-1 overflow-y-auto pr-1">
                   {rooms.map((roomName) => (
-                    <label key={roomName} className="flex items-center gap-2 rounded px-1 py-1 text-sm hover:bg-gray-50 cursor-pointer">
+                    <label key={roomName} className="flex items-center gap-2 rounded px-1 py-2 text-sm hover:bg-gray-50 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={selectedRooms.length === 0 || selectedRooms.includes(roomName)}
@@ -161,7 +161,7 @@ export default function Header({
                           }
                           toggleRoom(roomName);
                         }}
-                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                       <span>{roomName}</span>
                     </label>
