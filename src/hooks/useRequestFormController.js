@@ -261,8 +261,14 @@ export function useRequestFormController({
 
   const filteredMccbList = useMemo(() => {
     const query = debouncedSearchQuery.toLowerCase().trim();
-    if (!query) return mccbList;
-    return mccbList.filter((mccb) => matchesMccbSearch(mccb, query));
+    const base = query
+      ? mccbList.filter((mccb) => matchesMccbSearch(mccb, query))
+      : mccbList;
+    // お気に入り設備を先頭に寄せる。それ以外の並びは元の登録順を維持する（安定ソート）。
+    return [...base].sort((a, b) => {
+      if (a.isFavorite !== b.isFavorite) return a.isFavorite ? -1 : 1;
+      return 0;
+    });
   }, [mccbList, debouncedSearchQuery]);
 
   return {
