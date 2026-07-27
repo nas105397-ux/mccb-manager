@@ -136,7 +136,50 @@ Pi本体に画面を出さないサーバー専用運用では、`-StartKiosk` �
 
 `-BootstrapLite` は Raspberry Pi がインターネットへ接続できる初回セットアップ向けです。既定で Lite 用パッケージ、Node.js 24 以上、日本語入力（fcitx5-mozc）をインストールします。すでに Node.js を用意済みで、NodeSource へ接続したくない場合は `-NoInstallNode` を付けます。
 
+## LAN固定IPを設定する
+
+`-BootstrapLite` による初回セットアップ時に、Raspberry PiのLANアドレスを固定IPにできます。指定しない場合はDHCPのままです。
+
+```powershell
+.\deploy\raspi\deploy-over-ssh.ps1 -Target pi@192.168.1.50 -BootstrapLite -StaticIp 192.168.1.50/24 -StaticGateway 192.168.1.1 -StaticDns 192.168.1.1
+```
+
+対象のネットワーク接続名を明示したい場合:
+
+```powershell
+.\deploy\raspi\deploy-over-ssh.ps1 -Target pi@192.168.1.50 -BootstrapLite -StaticIp 192.168.1.50/24 -StaticConnection "Wired connection 1"
+```
+
+固定IPが今回の接続先アドレスと異なる場合、反映と同時にSSH接続が切れます。これは想定内の動作です。反映は数秒後にバックグラウンドで行われるため、デプロイ処理自体はSSH切断の影響を受けません。反映後は新しいIPで再接続してください。
+
+```bash
+ssh pi@192.168.1.50
+```
+
+対話モードでクリック実行する場合も、初回セットアップを選択すると固定IPの設定を質問されます（不要なら空Enterでスキップ）。
+
+Raspberry Pi側で後から手動設定・変更する場合:
+
+```bash
+cd /home/pi/mccb-manager
+sudo STATIC_IP=192.168.1.50/24 STATIC_GATEWAY=192.168.1.1 STATIC_DNS=192.168.1.1 bash deploy/raspi/setup-static-ip.sh
+```
+
+2 LAN構成（OA LANと現場LANを分離する運用）は [Raspberry Pi OA LAN 接続設定案](../../docs/raspberry-pi-oalan-settings.md) を参照してください。
+
 ## kiosk 画面構成を選ぶ
+
+kiosk が開くURLのホスト/IPは既定で `localhost` です。kiosk はこのRaspberry Pi自身が動かすアプリを表示するため、通常はLAN側のIPを意識せず `localhost` のままで問題ありません。
+
+```powershell
+.\deploy\raspi\deploy-over-ssh.ps1 -Target pi@192.168.1.50 -StartKiosk -KioskHost localhost
+```
+
+別のホスト名やIPを明示したい場合（証明書のSANに含まれる名前が必要です）:
+
+```powershell
+.\deploy\raspi\deploy-over-ssh.ps1 -Target pi@192.168.1.50 -StartKiosk -KioskHost 192.168.1.50
+```
 
 kiosk 表示は、操作画面のみの `main` と、操作画面 + ダッシュボードの `dual` を選べます。
 
@@ -190,6 +233,12 @@ MAIN_GEOMETRY=1920x1080+0+0
 DASHBOARD_GEOMETRY=3840x2160+1920+0
 MAIN_SCALE=1
 DASHBOARD_SCALE=1.5
+```
+
+kiosk が開くURLのホスト/IPを変更する場合（既定は `localhost`）:
+
+```ini
+APP_URL=https://192.168.1.50
 ```
 
 反映:

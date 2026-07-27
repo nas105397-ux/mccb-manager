@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_URL="${APP_URL:-https://192.168.40.111}"
+APP_URL="${APP_URL:-https://localhost}"
 KIOSK_MODE="${KIOSK_MODE:-dual}"
 MAIN_GEOMETRY="${MAIN_GEOMETRY:-1920x1080+0+0}"
 DASHBOARD_GEOMETRY="${DASHBOARD_GEOMETRY:-3840x2160+1920+0}"

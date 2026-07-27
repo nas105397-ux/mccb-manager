@@ -5,6 +5,7 @@ APP_DIR="${APP_DIR:-$HOME/mccb-manager}"
 NODE_MAJOR_MIN="${NODE_MAJOR_MIN:-24}"
 ENABLE_KIOSK="${ENABLE_KIOSK:-1}"
 MCCB_SERVER_HOST="${MCCB_SERVER_HOST:-192.168.40.111}"
+MCCB_KIOSK_HOST="${MCCB_KIOSK_HOST:-localhost}"
 KIOSK_MODE="${KIOSK_MODE:-dual}"
 MAIN_GEOMETRY="${MAIN_GEOMETRY:-1920x1080+0+0}"
 DASHBOARD_GEOMETRY="${DASHBOARD_GEOMETRY:-3840x2160+1920+0}"
@@ -236,14 +237,14 @@ Environment=GTK_IM_MODULE=fcitx
 Environment=QT_IM_MODULE=fcitx
 Environment=XMODIFIERS=@im=fcitx
 Environment=XCURSOR_SIZE=24
-Environment=APP_URL=https://$MCCB_SERVER_HOST
+Environment=APP_URL=https://$MCCB_KIOSK_HOST
 Environment=KIOSK_MODE=$KIOSK_MODE
 Environment=MAIN_GEOMETRY=$MAIN_GEOMETRY
 Environment=DASHBOARD_GEOMETRY=$DASHBOARD_GEOMETRY
 Environment=MAIN_SCALE=$MAIN_SCALE
 Environment=DASHBOARD_SCALE=$DASHBOARD_SCALE
 Environment=ENABLE_GPU_TUNING=0
-Environment="CHROMIUM_FLAGS=--disable-gpu-vsync --ignore-certificate-errors --unsafely-treat-insecure-origin-as-secure=https://$MCCB_SERVER_HOST"
+Environment="CHROMIUM_FLAGS=--disable-gpu-vsync --ignore-certificate-errors --unsafely-treat-insecure-origin-as-secure=https://$MCCB_KIOSK_HOST"
 EnvironmentFile=-%h/.config/mccb-kiosk/kiosk.env
 ExecStartPre=/bin/sleep 8
 ExecStartPre=-/usr/bin/xset s off
@@ -278,6 +279,9 @@ App:
   http://<raspberry-pi-ip>:5000/#/
   https://$MCCB_SERVER_HOST/#/monitor
   http://<raspberry-pi-ip>:5000/#/monitor
+
+Kiosk display URL (this Raspberry Pi only):
+  https://$MCCB_KIOSK_HOST/#/
 
 HTTPS certificate:
   /etc/ssl/certs/mccb-manager-selfsigned.crt

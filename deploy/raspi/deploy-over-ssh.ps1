@@ -24,7 +24,17 @@
 
   [string]$MainScale = '1',
 
-  [string]$DashboardScale = '1.5'
+  [string]$DashboardScale = '1.5',
+
+  [string]$KioskHost = 'localhost',
+
+  [string]$StaticIp = '',
+
+  [string]$StaticGateway = '',
+
+  [string]$StaticDns = '',
+
+  [string]$StaticConnection = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -37,8 +47,12 @@ function Write-DeployHeader {
   Write-Host "  接続先        : $Target (ポート: $Port)"
   Write-Host "  インストール先: $AppDir"
   if ($BootstrapLite) { Write-Host "  初回セットアップ: あり" -ForegroundColor Yellow }
+  if (-not [string]::IsNullOrWhiteSpace($StaticIp)) {
+    Write-Host "  LAN 固定IP    : $StaticIp" -ForegroundColor Yellow
+  }
   if ($StartKiosk) {
     Write-Host "  kiosk         : あり ($KioskMode モード)" -ForegroundColor Yellow
+    Write-Host "  kiosk URL     : https://$KioskHost/#/"
   } else {
     Write-Host "  kiosk         : なし（サーバー専用）"
   }
@@ -64,7 +78,7 @@ if ($IsInteractive) {
   Write-Host " MCCB Manager - Raspberry Pi デプロイ" -ForegroundColor Cyan
   Write-Host "============================================================" -ForegroundColor DarkCyan
 
-  Write-Step "1/4" "接続先の設定"
+  Write-Step "1/5" "接続先の設定"
   $Target = Read-Host "接続先ユーザー@ホスト (例: pi@192.168.1.50)"
   if ([string]::IsNullOrWhiteSpace($Target)) {
     Write-Host "エラー: 接続先が必要です。" -ForegroundColor Red
@@ -81,25 +95,49 @@ if ($IsInteractive) {
     $KeyPath = $KeyPathInput
   }
 
-  Write-Step "2/4" "インストール先"
+  Write-Step "2/5" "インストール先"
   $AppDirInput = Read-Host "Raspberry Pi 上のインストール先 (そのままEnterで `$HOME/mccb-manager)"
   if (-not [string]::IsNullOrWhiteSpace($AppDirInput)) {
     $AppDir = $AppDirInput
   }
 
-  Write-Step "3/4" "初回セットアップ"
+  Write-Step "3/5" "初回セットアップ"
   Write-Host "  Lite OS パッケージ・Node.js・日本語入力(fcitx5-mozc)のインストールを行います。"
   Write-Host "  初回のみ必要です。2回目以降のデプロイでは N を選択してください。"
   $BootstrapAnswer = Read-Host "Lite OS の初回セットアップも実行しますか？ (y/N)"
   $BootstrapLite = Test-YesAnswer $BootstrapAnswer
 
-  Write-Step "4/4" "kiosk 表示"
+  if ($BootstrapLite) {
+    Write-Step "4/5" "LAN 固定IP設定"
+    Write-Host "  Raspberry Pi の LAN アドレスを固定IPにします。不要なら空Enterでスキップします（DHCPのまま）。"
+    Write-Host "  固定IPに変更すると、今回の接続先アドレスと異なる場合は SSH 接続が切れます。"
+    $StaticIpInput = Read-Host "固定IPアドレス (例: 192.168.1.50/24、そのままEnterでスキップ)"
+    if (-not [string]::IsNullOrWhiteSpace($StaticIpInput)) {
+      $StaticIp = $StaticIpInput
+
+      $StaticGatewayInput = Read-Host "デフォルトゲートウェイ (そのままEnterで設定なし)"
+      if (-not [string]::IsNullOrWhiteSpace($StaticGatewayInput)) { $StaticGateway = $StaticGatewayInput }
+
+      $StaticDnsInput = Read-Host "DNSサーバー (そのままEnterで設定なし。複数はスペース区切り)"
+      if (-not [string]::IsNullOrWhiteSpace($StaticDnsInput)) { $StaticDns = $StaticDnsInput }
+
+      $StaticConnectionInput = Read-Host "対象のネットワーク接続名 (そのままEnterで自動検出)"
+      if (-not [string]::IsNullOrWhiteSpace($StaticConnectionInput)) { $StaticConnection = $StaticConnectionInput }
+    }
+  }
+
+  Write-Step "5/5" "kiosk 表示"
   Write-Host "  Pi 本体のモニターに操作画面を表示します。"
   Write-Host "  サーバー専用（別PCやタブレットから見るだけ）の場合は N を選択してください。"
   $KioskAnswer = Read-Host "Pi 本体の画面に kiosk 表示しますか？ (y/N)"
   $StartKiosk = Test-YesAnswer $KioskAnswer
 
   if ($StartKiosk) {
+    Write-Host ""
+    Write-Host "kiosk が開くURLのホスト/IPを指定します。Pi本体で自己完結する通常運用では localhost のままで問題ありません。"
+    $KioskHostInput = Read-Host "kiosk URL のホスト/IP (そのままEnterで localhost)"
+    if (-not [string]::IsNullOrWhiteSpace($KioskHostInput)) { $KioskHost = $KioskHostInput }
+
     Write-Host ""
     Write-Host "kiosk モードを選択してください:"
     Write-Host "  main  - 操作画面のみ (1画面)"
@@ -146,8 +184,17 @@ if ($IsInteractive) {
   } else {
     Write-Host " 初回セットアップ: なし"
   }
+  if (-not [string]::IsNullOrWhiteSpace($StaticIp)) {
+    Write-Host " LAN 固定IP    : $StaticIp"
+    if (-not [string]::IsNullOrWhiteSpace($StaticGateway)) { Write-Host "   ゲートウェイ : $StaticGateway" }
+    if (-not [string]::IsNullOrWhiteSpace($StaticDns)) { Write-Host "   DNS         : $StaticDns" }
+    if (-not [string]::IsNullOrWhiteSpace($StaticConnection)) { Write-Host "   接続名      : $StaticConnection" }
+  } else {
+    Write-Host " LAN 固定IP    : なし（DHCPのまま）"
+  }
   if ($StartKiosk) {
     Write-Host " kiosk         : あり（$KioskMode モード）"
+    Write-Host " kiosk URL     : https://$KioskHost/#/"
     Write-Host " メイン画面    : $MainGeometry  スケール: $MainScale"
     if ($KioskMode -eq 'dual') { Write-Host " ダッシュボード: $DashboardGeometry  スケール: $DashboardScale" }
   } else {
@@ -415,6 +462,11 @@ MAIN_GEOMETRY="$7"
 DASHBOARD_GEOMETRY="$8"
 MAIN_SCALE="$9"
 DASHBOARD_SCALE="${10}"
+KIOSK_HOST="${11}"
+STATIC_IP="${12}"
+STATIC_GATEWAY="${13}"
+STATIC_DNS="${14}"
+STATIC_CONNECTION="${15}"
 REMOTE_ZIP="/tmp/mccb-manager-deploy.zip"
 STAGE_DIR="/tmp/mccb-manager-deploy-$(id -u)-$$"
 
@@ -480,6 +532,7 @@ APP_DIR="$APP_DIR" \
   DASHBOARD_GEOMETRY="$DASHBOARD_GEOMETRY" \
   MAIN_SCALE="$MAIN_SCALE" \
   DASHBOARD_SCALE="$DASHBOARD_SCALE" \
+  MCCB_KIOSK_HOST="$KIOSK_HOST" \
   bash deploy/raspi/setup-system.sh
 
 if [ "$START_KIOSK" = "1" ]; then
@@ -525,6 +578,16 @@ if [ "$START_KIOSK" = "1" ]; then
   echo "Recent kiosk log:"
   journalctl --user -u mccb-kiosk.service --no-pager -n 30 || true
 fi
+
+if [ -n "$STATIC_IP" ]; then
+  echo
+  echo "Configuring LAN static IP..."
+  sudo STATIC_IP="$STATIC_IP" \
+    STATIC_GATEWAY="$STATIC_GATEWAY" \
+    STATIC_DNS="$STATIC_DNS" \
+    STATIC_CONNECTION="$STATIC_CONNECTION" \
+    bash deploy/raspi/setup-static-ip.sh
+fi
 '@
 
   $RemoteScript = $RemoteScript -replace "`r`n", "`n"
@@ -543,7 +606,7 @@ fi
   Invoke-NativeCommandWithRetry `
     -Action 'remote deploy' `
     -Command 'ssh' `
-    -Arguments (@('-tt', '-p', "$Port") + $SshIdentityOptions + $SshOptions + @($Target, "bash '$RemoteScriptFile' '$AppDir' '$StartKioskValue' '$BootstrapLiteValue' '$InstallJapaneseInputValue' '$InstallNodeValue' '$KioskMode' '$MainGeometry' '$DashboardGeometry' '$MainScale' '$DashboardScale'")) `
+    -Arguments (@('-tt', '-p', "$Port") + $SshIdentityOptions + $SshOptions + @($Target, "bash '$RemoteScriptFile' '$AppDir' '$StartKioskValue' '$BootstrapLiteValue' '$InstallJapaneseInputValue' '$InstallNodeValue' '$KioskMode' '$MainGeometry' '$DashboardGeometry' '$MainScale' '$DashboardScale' '$KioskHost' '$StaticIp' '$StaticGateway' '$StaticDns' '$StaticConnection'")) `
     -MaxAttempts 2
 
   Write-Host ""
