@@ -30,6 +30,15 @@
 
   [string]$KioskHost = 'localhost',
 
+  [ValidateSet('off', 'idle', 'schedule', 'both')]
+  [string]$DisplaySleepMode = 'off',
+
+  [string]$IdleSleepMinutes = '15',
+
+  [string]$SleepStartTime = '',
+
+  [string]$SleepEndTime = '',
+
   [string]$StaticIp = '',
 
   [string]$StaticGateway = '',
@@ -60,6 +69,9 @@ function Write-DeployHeader {
     Write-Host "  kiosk URL     : https://$KioskHost/#/"
   } else {
     Write-Host "  役割          : サーバーのみ（kiosk なし）"
+  }
+  if ($StartKiosk) {
+    Write-Host "  スリープ      : $DisplaySleepMode"
   }
   Write-Host "============================================================" -ForegroundColor DarkCyan
   Write-Host ""
@@ -187,6 +199,39 @@ if ($IsInteractive) {
       $DashboardScaleInput = Read-Host "ダッシュボードスケール (そのままEnterで $DashboardScale)"
       if (-not [string]::IsNullOrWhiteSpace($DashboardScaleInput)) { $DashboardScale = $DashboardScaleInput }
     }
+
+    Write-Host ""
+    Write-Host "ディスプレイのスリープ設定を選択してください:"
+    Write-Host "  off      - 常時点灯・スリープなし (既定)"
+    Write-Host "  idle     - 無操作が続いたらスリープ"
+    Write-Host "  schedule - 指定した時刻の範囲でスリープ"
+    Write-Host "  both     - idle と schedule の両方を有効化"
+    $SleepModeInput = Read-Host "スリープモード (そのままEnterで off)"
+    if (-not [string]::IsNullOrWhiteSpace($SleepModeInput)) {
+      if ($SleepModeInput -in @('off', 'idle', 'schedule', 'both')) {
+        $DisplaySleepMode = $SleepModeInput
+      } else {
+        Write-Host "不明なモードのため既定の off を使用します。" -ForegroundColor Yellow
+      }
+    }
+
+    if ($DisplaySleepMode -eq 'idle' -or $DisplaySleepMode -eq 'both') {
+      $IdleSleepMinutesInput = Read-Host "無操作でスリープするまでの時間 (分、そのままEnterで $IdleSleepMinutes)"
+      if (-not [string]::IsNullOrWhiteSpace($IdleSleepMinutesInput)) { $IdleSleepMinutes = $IdleSleepMinutesInput }
+    }
+
+    if ($DisplaySleepMode -eq 'schedule' -or $DisplaySleepMode -eq 'both') {
+      Write-Host "スリープする時間帯を HH:MM で指定します（日をまたぐ指定も可能です。例: 22:00〜06:00）。"
+      do {
+        $SleepStartTimeInput = Read-Host "スリープ開始時刻 (例: 22:00)"
+      } while ([string]::IsNullOrWhiteSpace($SleepStartTimeInput))
+      $SleepStartTime = $SleepStartTimeInput
+
+      do {
+        $SleepEndTimeInput = Read-Host "スリープ終了時刻 (例: 06:00)"
+      } while ([string]::IsNullOrWhiteSpace($SleepEndTimeInput))
+      $SleepEndTime = $SleepEndTimeInput
+    }
   }
 
   Write-Host ""
@@ -223,6 +268,11 @@ if ($IsInteractive) {
   } else {
     Write-Host " 役割          : サーバーのみ（kiosk なし）"
   }
+  if ($StartKiosk) {
+    Write-Host " スリープ      : $DisplaySleepMode"
+    if ($DisplaySleepMode -eq 'idle' -or $DisplaySleepMode -eq 'both') { Write-Host "   無操作     : ${IdleSleepMinutes}分" }
+    if ($DisplaySleepMode -eq 'schedule' -or $DisplaySleepMode -eq 'both') { Write-Host "   時間帯     : $SleepStartTime 〜 $SleepEndTime" }
+  }
   Write-Host "============================================================" -ForegroundColor DarkCyan
   Write-Host ""
   $Confirm = Read-Host "上記の設定でデプロイを開始しますか？ (y/N)"
@@ -236,6 +286,11 @@ if ($KioskOnly) {
   $StartKiosk = $true
   if ([string]::IsNullOrWhiteSpace($KioskHost) -or $KioskHost -eq 'localhost') {
     throw "KioskOnly では -KioskHost に接続先サーバー(別のRaspberry Pi)のホスト名/IPを指定してください。"
+  }
+}
+if ($StartKiosk -and ($DisplaySleepMode -eq 'schedule' -or $DisplaySleepMode -eq 'both')) {
+  if ([string]::IsNullOrWhiteSpace($SleepStartTime) -or [string]::IsNullOrWhiteSpace($SleepEndTime)) {
+    throw "-DisplaySleepMode $DisplaySleepMode では -SleepStartTime と -SleepEndTime (HH:MM) の指定が必要です。"
   }
 }
 $EnableServer = -not $KioskOnly.IsPresent
@@ -512,6 +567,10 @@ STATIC_GATEWAY="${13}"
 STATIC_DNS="${14}"
 STATIC_CONNECTION="${15}"
 ENABLE_SERVER="${16}"
+DISPLAY_SLEEP_MODE="${17}"
+IDLE_SLEEP_MINUTES="${18}"
+SLEEP_START_TIME="${19}"
+SLEEP_END_TIME="${20}"
 REMOTE_ZIP="/tmp/mccb-manager-deploy.zip"
 STAGE_DIR="/tmp/mccb-manager-deploy-$(id -u)-$$"
 
@@ -582,6 +641,10 @@ APP_DIR="$APP_DIR" \
   MAIN_SCALE="$MAIN_SCALE" \
   DASHBOARD_SCALE="$DASHBOARD_SCALE" \
   MCCB_KIOSK_HOST="$KIOSK_HOST" \
+  DISPLAY_SLEEP_MODE="$DISPLAY_SLEEP_MODE" \
+  IDLE_SLEEP_MINUTES="$IDLE_SLEEP_MINUTES" \
+  SLEEP_START_TIME="$SLEEP_START_TIME" \
+  SLEEP_END_TIME="$SLEEP_END_TIME" \
   bash deploy/raspi/setup-system.sh
 
 if [ "$START_KIOSK" = "1" ]; then
@@ -660,7 +723,7 @@ fi
   Invoke-NativeCommandWithRetry `
     -Action 'remote deploy' `
     -Command 'ssh' `
-    -Arguments (@('-tt', '-p', "$Port") + $SshIdentityOptions + $SshOptions + @($Target, "bash '$RemoteScriptFile' '$AppDir' '$StartKioskValue' '$BootstrapLiteValue' '$InstallJapaneseInputValue' '$InstallNodeValue' '$KioskMode' '$MainGeometry' '$DashboardGeometry' '$MainScale' '$DashboardScale' '$KioskHost' '$StaticIp' '$StaticGateway' '$StaticDns' '$StaticConnection' '$EnableServerValue'")) `
+    -Arguments (@('-tt', '-p', "$Port") + $SshIdentityOptions + $SshOptions + @($Target, "bash '$RemoteScriptFile' '$AppDir' '$StartKioskValue' '$BootstrapLiteValue' '$InstallJapaneseInputValue' '$InstallNodeValue' '$KioskMode' '$MainGeometry' '$DashboardGeometry' '$MainScale' '$DashboardScale' '$KioskHost' '$StaticIp' '$StaticGateway' '$StaticDns' '$StaticConnection' '$EnableServerValue' '$DisplaySleepMode' '$IdleSleepMinutes' '$SleepStartTime' '$SleepEndTime'")) `
     -MaxAttempts 2
 
   Write-Host ""

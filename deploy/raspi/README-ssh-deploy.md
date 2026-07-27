@@ -279,7 +279,21 @@ systemctl --user restart mccb-kiosk.service
 
 ## ディスプレイのスリープを設定する
 
-kiosk 表示は既定でディスプレイのスリープを無効にしています（常時点灯）。無操作時の自動スリープや、夜間などの時刻指定によるスリープを使う場合は、`~/.config/mccb-kiosk/kiosk.env` に設定を追加します。
+kiosk 表示は既定でディスプレイのスリープを無効にしています（常時点灯）。
+
+対話モードでクリック実行する場合は、kiosk の画面サイズ設定に続けてスリープモードを質問されるので、そこで選択できます。
+
+PowerShell から直接実行する場合は、`-DisplaySleepMode` などのパラメータで指定します。
+
+```powershell
+.\deploy\raspi\deploy-over-ssh.ps1 -Target pi@192.168.1.50 -StartKiosk -DisplaySleepMode schedule -SleepStartTime 22:00 -SleepEndTime 06:00
+```
+
+```powershell
+.\deploy\raspi\deploy-over-ssh.ps1 -Target pi@192.168.1.50 -StartKiosk -DisplaySleepMode both -IdleSleepMinutes 15 -SleepStartTime 22:00 -SleepEndTime 06:00
+```
+
+再デプロイせずに Raspberry Pi 側だけで設定を変更する場合は、`~/.config/mccb-kiosk/kiosk.env` を直接編集します。
 
 ```bash
 mkdir -p ~/.config/mccb-kiosk
