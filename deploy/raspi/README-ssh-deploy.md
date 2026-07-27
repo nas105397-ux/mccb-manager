@@ -136,6 +136,36 @@ Pi本体に画面を出さないサーバー専用運用では、`-StartKiosk` �
 
 `-BootstrapLite` は Raspberry Pi がインターネットへ接続できる初回セットアップ向けです。既定で Lite 用パッケージ、Node.js 24 以上、日本語入力（fcitx5-mozc）をインストールします。すでに Node.js を用意済みで、NodeSource へ接続したくない場合は `-NoInstallNode` を付けます。
 
+## サーバー + kiosk と kiosk のみを選ぶ
+
+MCCB Manager サーバーを動かす Raspberry Pi（メインPi）とは別に、現場にサーバーを持たず、メインPiのMCCB Managerサーバーへ接続して画面を表示するだけの Raspberry Pi（キオスク専用機）を用意できます。
+
+サーバー + kiosk（このPi自身がアプリサーバーを動かし、この画面にもkiosk表示する）:
+
+```powershell
+.\deploy\raspi\deploy-over-ssh.ps1 -Target pi@192.168.1.50 -StartKiosk -KioskHost localhost
+```
+
+kiosk のみ（このPiにはサーバーを構築せず、別のPiのサーバーへ接続して画面表示だけ行う）:
+
+```powershell
+.\deploy\raspi\deploy-over-ssh.ps1 -Target pi@192.168.1.121 -KioskOnly -KioskHost 192.168.40.111
+```
+
+`-KioskOnly` を付けると、`-KioskHost` にはこのPi自身ではなく、接続先となるメインPi（サーバー側）のホスト名/IPを指定します。省略した既定値の `localhost` のままでは接続先が無いためエラーになります。
+
+`-KioskOnly` のデプロイでは、Node.js・nginx・アプリ本体（`dist/`、`node_modules` など）はこのPiへ配置・インストールされません。`mccb-manager.service`、`mccb-star-webusb.service`、HTTPS証明書の作成も行われず、kiosk表示に必要な最小Xサービスと Chromium kiosk サービスだけをセットアップします。
+
+初回セットアップも同時に行う場合:
+
+```powershell
+.\deploy\raspi\deploy-over-ssh.ps1 -Target pi@192.168.1.121 -BootstrapLite -KioskOnly -KioskHost 192.168.40.111
+```
+
+対話モードでクリック実行する場合は、「Pi の役割」の質問で `3) kiosk のみ` を選ぶと、同じ設定を対話形式で行えます。
+
+2 LAN構成での現場Pi配置例は [Raspberry Pi OA LAN 接続設定案](../../docs/raspberry-pi-oalan-settings.md) を参照してください。
+
 ## LAN固定IPを設定する
 
 `-BootstrapLite` による初回セットアップ時に、Raspberry PiのLANアドレスを固定IPにできます。指定しない場合はDHCPのままです。
@@ -328,6 +358,8 @@ README.md
 ```
 
 `node_modules/` は全体ではなく、`express`、`cors` とその依存パッケージだけを含めます。React、Vite、Star WebUSB などのフロントエンド用パッケージは `dist/` にビルド済みのため、Raspberry Pi へ毎回転送しません。
+
+`-KioskOnly` の場合は上記と異なり、ビルドを行わず `deploy/` と `README.md` だけを zip化・転送します。Raspberry Pi 側でも `mccb-manager.service`、`mccb-star-webusb.service`、nginx、HTTPS証明書は作成せず、kiosk表示用の最小Xサービスと Chromium kiosk サービスだけを登録します。
 
 ## アクセス URL
 

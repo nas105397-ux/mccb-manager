@@ -4,6 +4,8 @@ MCCB Manager は Raspberry Pi OS Lite 64-bit 固定で運用します。Raspberr
 
 Liteではデスクトップ環境を入れず、最小のX + Openbox + Chromiumだけでkiosk表示します。Piをサーバー専用にして別端末から見る場合は、kiosk関連は不要です。
 
+サーバーを動かさず、別のPiで動くMCCB Managerサーバーへ接続してkiosk表示だけを行う専用機にする場合は、`deploy-over-ssh.ps1 -KioskOnly` を使います。詳細は [Raspberry Pi オフライン SSH デプロイ](README-ssh-deploy.md) の「サーバー + kiosk と kiosk のみを選ぶ」を参照してください。
+
 この文書では、Raspberry Pi OS Lite の初期セットアップと kiosk 関連パッケージの導入を扱います。Windows PC からのデプロイは [Raspberry Pi オフライン SSH デプロイ](README-ssh-deploy.md)、日常操作やバックアップは [取扱説明・運用ガイド](../../docs/operation-guide.md) を参照してください。
 
 ## 最短手順（初回オンライン導入）

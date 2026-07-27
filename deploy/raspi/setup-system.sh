@@ -4,6 +4,7 @@ set -euo pipefail
 APP_DIR="${APP_DIR:-$HOME/mccb-manager}"
 NODE_MAJOR_MIN="${NODE_MAJOR_MIN:-24}"
 ENABLE_KIOSK="${ENABLE_KIOSK:-1}"
+ENABLE_SERVER="${ENABLE_SERVER:-1}"
 MCCB_SERVER_HOST="${MCCB_SERVER_HOST:-192.168.40.111}"
 MCCB_KIOSK_HOST="${MCCB_KIOSK_HOST:-localhost}"
 KIOSK_MODE="${KIOSK_MODE:-dual}"
@@ -28,6 +29,10 @@ fi
 cd "$APP_DIR"
 
 export PATH="$HOME/.local/bin:$HOME/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:$PATH"
+
+chmod +x deploy/kiosk/start-kiosk.sh
+
+if [ "$ENABLE_SERVER" = "1" ]; then
 
 if ! command -v node >/dev/null 2>&1; then
   for nvm_dir in "${NVM_DIR:-}" "$HOME/.nvm" "/usr/local/nvm"; do
@@ -197,7 +202,6 @@ else
   echo "nginx is not installed. Skipping HTTPS reverse proxy; use http://<raspberry-pi-ip>:5000/#/."
 fi
 
-chmod +x deploy/kiosk/start-kiosk.sh
 chmod +x deploy/raspi/install-star-webusb-driver.sh
 
 sudo tee /etc/systemd/system/mccb-star-webusb.service >/dev/null <<SERVICE
@@ -218,6 +222,8 @@ SERVICE
 sudo systemctl daemon-reload
 sudo systemctl enable mccb-star-webusb.service
 sudo systemctl restart mccb-star-webusb.service || true
+
+fi
 
 if [ "$ENABLE_KIOSK" = "1" ]; then
   if command -v chromium-browser >/dev/null 2>&1 || command -v chromium >/dev/null 2>&1; then
@@ -275,7 +281,8 @@ SERVICE
   fi
 fi
 
-cat <<MSG
+if [ "$ENABLE_SERVER" = "1" ]; then
+  cat <<MSG
 Setup completed.
 
 App:
@@ -291,3 +298,15 @@ HTTPS certificate:
   /etc/ssl/certs/mccb-manager-selfsigned.crt
   Install this certificate as trusted on client devices before using Star WebUSB over LAN.
 MSG
+else
+  cat <<MSG
+Setup completed (kiosk only, no local server).
+
+Connected server:
+  https://$MCCB_KIOSK_HOST/#/
+
+If the server uses a self-signed HTTPS certificate, browser warnings may still
+appear for embedded resources; the kiosk browser already ignores certificate
+errors for this host.
+MSG
+fi

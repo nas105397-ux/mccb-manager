@@ -6,8 +6,13 @@ INSTALL_KIOSK="${INSTALL_KIOSK:-1}"
 INSTALL_JAPANESE_INPUT="${INSTALL_JAPANESE_INPUT:-1}"
 ENABLE_AUTOLOGIN="${ENABLE_AUTOLOGIN:-1}"
 SKIP_APT="${SKIP_APT:-0}"
+ENABLE_SERVER="${ENABLE_SERVER:-1}"
 INSTALL_NODE="${INSTALL_NODE:-1}"
 NODE_MAJOR_MIN="${NODE_MAJOR_MIN:-24}"
+
+if [ "$ENABLE_SERVER" != "1" ]; then
+  INSTALL_NODE=0
+fi
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "Run with sudo: sudo TARGET_USER=pi bash deploy/raspi/setup-lite-os.sh" >&2
@@ -34,9 +39,13 @@ if [ "$SKIP_APT" != "1" ]; then
   apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
-    openssl \
-    unzip \
-    nginx
+    unzip
+
+  if [ "$ENABLE_SERVER" = "1" ]; then
+    apt-get install -y --no-install-recommends \
+      openssl \
+      nginx
+  fi
 
   if [ "$INSTALL_KIOSK" = "1" ]; then
     apt-get install -y --no-install-recommends \
@@ -205,11 +214,13 @@ cat <<MSG
 Raspberry Pi OS Lite base setup finished.
 
 Next:
-  1. Deploy the app with deploy/raspi/deploy-over-ssh.ps1 -StartKiosk.
+  1. Deploy the app with deploy/raspi/deploy-over-ssh.ps1 -StartKiosk (or -KioskOnly for a kiosk-only Pi).
   2. Reboot the Raspberry Pi, or restart mccb-xsession.service and mccb-kiosk.service.
 
 Services:
   sudo systemctl status mccb-xsession.service
-  sudo systemctl status mccb-manager.service
-  systemctl --user status mccb-kiosk.service
 MSG
+if [ "$ENABLE_SERVER" = "1" ]; then
+  echo "  sudo systemctl status mccb-manager.service"
+fi
+echo "  systemctl --user status mccb-kiosk.service"

@@ -9,6 +9,8 @@
 
   [switch]$StartKiosk,
 
+  [switch]$KioskOnly,
+
   [switch]$BootstrapLite,
 
   [switch]$NoInstallNode,
@@ -50,11 +52,14 @@ function Write-DeployHeader {
   if (-not [string]::IsNullOrWhiteSpace($StaticIp)) {
     Write-Host "  LAN 固定IP    : $StaticIp" -ForegroundColor Yellow
   }
-  if ($StartKiosk) {
-    Write-Host "  kiosk         : あり ($KioskMode モード)" -ForegroundColor Yellow
+  if ($KioskOnly) {
+    Write-Host "  役割          : kiosk のみ（このPiにはサーバーを構築しません）" -ForegroundColor Yellow
+    Write-Host "  接続先サーバー: https://$KioskHost/#/"
+  } elseif ($StartKiosk) {
+    Write-Host "  役割          : サーバー + kiosk ($KioskMode モード)" -ForegroundColor Yellow
     Write-Host "  kiosk URL     : https://$KioskHost/#/"
   } else {
-    Write-Host "  kiosk         : なし（サーバー専用）"
+    Write-Host "  役割          : サーバーのみ（kiosk なし）"
   }
   Write-Host "============================================================" -ForegroundColor DarkCyan
   Write-Host ""
@@ -126,17 +131,30 @@ if ($IsInteractive) {
     }
   }
 
-  Write-Step "5/5" "kiosk 表示"
-  Write-Host "  Pi 本体のモニターに操作画面を表示します。"
-  Write-Host "  サーバー専用（別PCやタブレットから見るだけ）の場合は N を選択してください。"
-  $KioskAnswer = Read-Host "Pi 本体の画面に kiosk 表示しますか？ (y/N)"
-  $StartKiosk = Test-YesAnswer $KioskAnswer
+  Write-Step "5/5" "Pi の役割"
+  Write-Host "  1) サーバーのみ         : このPiにアプリサーバーを構築します。画面出力なし（別PCやタブレットから見る）。"
+  Write-Host "  2) サーバー + kiosk     : このPiにアプリサーバーを構築し、このPi自身の画面にも kiosk 表示します。"
+  Write-Host "  3) kiosk のみ           : このPiにはサーバーを構築せず、別の Raspberry Pi の MCCB Manager サーバーへ接続して kiosk 表示だけ行います。"
+  $RoleAnswer = Read-Host "役割を選択してください (1/2/3、そのままEnterで 1)"
+  switch ($RoleAnswer) {
+    '2' { $StartKiosk = $true; $KioskOnly = $false }
+    '3' { $StartKiosk = $true; $KioskOnly = $true }
+    default { $StartKiosk = $false; $KioskOnly = $false }
+  }
 
   if ($StartKiosk) {
     Write-Host ""
-    Write-Host "kiosk が開くURLのホスト/IPを指定します。Pi本体で自己完結する通常運用では localhost のままで問題ありません。"
-    $KioskHostInput = Read-Host "kiosk URL のホスト/IP (そのままEnterで localhost)"
-    if (-not [string]::IsNullOrWhiteSpace($KioskHostInput)) { $KioskHost = $KioskHostInput }
+    if ($KioskOnly) {
+      Write-Host "kiosk のみの運用のため、接続先となるサーバー側 Raspberry Pi のホスト名/IPを指定してください（このPi自身のIPではありません）。"
+      do {
+        $KioskHostInput = Read-Host "サーバー側 Pi のホスト名/IP (例: 192.168.40.111)"
+      } while ([string]::IsNullOrWhiteSpace($KioskHostInput))
+      $KioskHost = $KioskHostInput
+    } else {
+      Write-Host "kiosk が開くURLのホスト/IPを指定します。Pi本体で自己完結する通常運用では localhost のままで問題ありません。"
+      $KioskHostInput = Read-Host "kiosk URL のホスト/IP (そのままEnterで localhost)"
+      if (-not [string]::IsNullOrWhiteSpace($KioskHostInput)) { $KioskHost = $KioskHostInput }
+    }
 
     Write-Host ""
     Write-Host "kiosk モードを選択してください:"
@@ -192,13 +210,18 @@ if ($IsInteractive) {
   } else {
     Write-Host " LAN 固定IP    : なし（DHCPのまま）"
   }
-  if ($StartKiosk) {
-    Write-Host " kiosk         : あり（$KioskMode モード）"
+  if ($KioskOnly) {
+    Write-Host " 役割          : kiosk のみ（このPiにはサーバーを構築しません）"
+    Write-Host " 接続先サーバー: https://$KioskHost/#/"
+    Write-Host " メイン画面    : $MainGeometry  スケール: $MainScale"
+    if ($KioskMode -eq 'dual') { Write-Host " ダッシュボード: $DashboardGeometry  スケール: $DashboardScale" }
+  } elseif ($StartKiosk) {
+    Write-Host " 役割          : サーバー + kiosk（$KioskMode モード）"
     Write-Host " kiosk URL     : https://$KioskHost/#/"
     Write-Host " メイン画面    : $MainGeometry  スケール: $MainScale"
     if ($KioskMode -eq 'dual') { Write-Host " ダッシュボード: $DashboardGeometry  スケール: $DashboardScale" }
   } else {
-    Write-Host " kiosk         : なし（サーバー専用）"
+    Write-Host " 役割          : サーバーのみ（kiosk なし）"
   }
   Write-Host "============================================================" -ForegroundColor DarkCyan
   Write-Host ""
@@ -209,6 +232,14 @@ if ($IsInteractive) {
   }
 }
 
+if ($KioskOnly) {
+  $StartKiosk = $true
+  if ([string]::IsNullOrWhiteSpace($KioskHost) -or $KioskHost -eq 'localhost') {
+    throw "KioskOnly では -KioskHost に接続先サーバー(別のRaspberry Pi)のホスト名/IPを指定してください。"
+  }
+}
+$EnableServer = -not $KioskOnly.IsPresent
+
 $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..')
 $TempRoot = Join-Path ([System.IO.Path]::GetTempPath()) "mccb-manager-deploy-$([guid]::NewGuid())"
 $StageDir = Join-Path $TempRoot 'package'
@@ -217,6 +248,7 @@ $RemoteScriptPath = Join-Path $TempRoot 'mccb-manager-remote-deploy.sh'
 $RemoteZip = '/tmp/mccb-manager-deploy.zip'
 $RemoteScriptFile = '/tmp/mccb-manager-remote-deploy.sh'
 $StartKioskValue = if ($StartKiosk.IsPresent) { '1' } else { '0' }
+$EnableServerValue = if ($EnableServer) { '1' } else { '0' }
 $BootstrapLiteValue = if ($BootstrapLite.IsPresent) { '1' } else { '0' }
 $InstallJapaneseInputValue = if ($BootstrapLite) { '1' } else { '0' }
 $InstallNodeValue = if ($NoInstallNode.IsPresent) { '0' } else { '1' }
@@ -408,34 +440,46 @@ try {
     Write-DeployHeader
   }
 
-  if (-not $SkipBuild) {
-    Write-Step "1/4" "ビルド"
-    if (-not (Test-Path (Join-Path $RepoRoot 'node_modules'))) {
-      npm ci
+  if ($EnableServer) {
+    if (-not $SkipBuild) {
+      Write-Step "1/4" "ビルド"
+      if (-not (Test-Path (Join-Path $RepoRoot 'node_modules'))) {
+        npm ci
+      }
+      npm run build
     }
-    npm run build
-  }
 
-  if (-not (Test-Path (Join-Path $RepoRoot 'dist'))) {
-    throw 'dist was not found. Run without -SkipBuild first, or run npm run build.'
+    if (-not (Test-Path (Join-Path $RepoRoot 'dist'))) {
+      throw 'dist was not found. Run without -SkipBuild first, or run npm run build.'
+    }
+  } else {
+    Write-Step "1/4" "ビルド"
+    Write-Host "kiosk のみのデプロイのため、ビルドはスキップします。"
   }
 
   Write-Step "2/4" "デプロイパッケージを作成"
   New-Item -ItemType Directory -Force -Path $StageDir | Out-Null
 
-  @(
-    'package.json',
-    'package-lock.json',
-    'server.js',
-    'dbStore.js',
-    'server',
-    'src/shared',
-    'dist',
-    'deploy',
-    'README.md'
-  ) | ForEach-Object { Copy-RepoItem $_ }
+  if ($EnableServer) {
+    @(
+      'package.json',
+      'package-lock.json',
+      'server.js',
+      'dbStore.js',
+      'server',
+      'src/shared',
+      'dist',
+      'deploy',
+      'README.md'
+    ) | ForEach-Object { Copy-RepoItem $_ }
 
-  Copy-RuntimeNodeModules
+    Copy-RuntimeNodeModules
+  } else {
+    @(
+      'deploy',
+      'README.md'
+    ) | ForEach-Object { Copy-RepoItem $_ }
+  }
 
   Convert-StagedUnixLineEndings
 
@@ -467,6 +511,7 @@ STATIC_IP="${12}"
 STATIC_GATEWAY="${13}"
 STATIC_DNS="${14}"
 STATIC_CONNECTION="${15}"
+ENABLE_SERVER="${16}"
 REMOTE_ZIP="/tmp/mccb-manager-deploy.zip"
 STAGE_DIR="/tmp/mccb-manager-deploy-$(id -u)-$$"
 
@@ -512,7 +557,9 @@ else
   exit 1
 fi
 cp -a "$STAGE_DIR"/. "$APP_DIR"/
-mkdir -p "$APP_DIR/data/backups"
+if [ "$ENABLE_SERVER" = "1" ]; then
+  mkdir -p "$APP_DIR/data/backups"
+fi
 cd "$APP_DIR"
 
 if [ "$BOOTSTRAP_LITE" = "1" ]; then
@@ -522,11 +569,13 @@ if [ "$BOOTSTRAP_LITE" = "1" ]; then
     INSTALL_KIOSK="$START_KIOSK" \
     INSTALL_JAPANESE_INPUT="$INSTALL_JAPANESE_INPUT" \
     INSTALL_NODE="$INSTALL_NODE" \
+    ENABLE_SERVER="$ENABLE_SERVER" \
     bash deploy/raspi/setup-lite-os.sh
 fi
 
 APP_DIR="$APP_DIR" \
   ENABLE_KIOSK="$START_KIOSK" \
+  ENABLE_SERVER="$ENABLE_SERVER" \
   KIOSK_MODE="$KIOSK_MODE" \
   MAIN_GEOMETRY="$MAIN_GEOMETRY" \
   DASHBOARD_GEOMETRY="$DASHBOARD_GEOMETRY" \
@@ -544,26 +593,31 @@ fi
 
 echo
 echo "Deployment finished."
-echo "Application URL:"
-if command -v nginx >/dev/null 2>&1; then
-  hostname -I | awk '{print "  https://"$1"/#/"}'
-  hostname -I | awk '{print "  https://"$1"/#/monitor"}'
-else
-  hostname -I | awk '{print "  http://"$1":5000/#/"}'
-  hostname -I | awk '{print "  http://"$1":5000/#/monitor"}'
-fi
-echo
-echo "Service status:"
-for i in $(seq 1 12); do
-  if systemctl is-active --quiet mccb-manager.service; then
-    break
+if [ "$ENABLE_SERVER" = "1" ]; then
+  echo "Application URL:"
+  if command -v nginx >/dev/null 2>&1; then
+    hostname -I | awk '{print "  https://"$1"/#/"}'
+    hostname -I | awk '{print "  https://"$1"/#/monitor"}'
+  else
+    hostname -I | awk '{print "  http://"$1":5000/#/"}'
+    hostname -I | awk '{print "  http://"$1":5000/#/monitor"}'
   fi
-  sleep 1
-done
-systemctl status mccb-manager.service --no-pager -n 8 || true
-systemctl status mccb-star-webusb.service --no-pager -n 8 || true
-if command -v nginx >/dev/null 2>&1; then
-  systemctl status nginx --no-pager -n 5 || true
+  echo
+  echo "Service status:"
+  for i in $(seq 1 12); do
+    if systemctl is-active --quiet mccb-manager.service; then
+      break
+    fi
+    sleep 1
+  done
+  systemctl status mccb-manager.service --no-pager -n 8 || true
+  systemctl status mccb-star-webusb.service --no-pager -n 8 || true
+  if command -v nginx >/dev/null 2>&1; then
+    systemctl status nginx --no-pager -n 5 || true
+  fi
+else
+  echo "kiosk-only deployment. Connecting to server:"
+  echo "  https://$KIOSK_HOST/#/"
 fi
 echo
 echo "Kiosk status:"
@@ -606,7 +660,7 @@ fi
   Invoke-NativeCommandWithRetry `
     -Action 'remote deploy' `
     -Command 'ssh' `
-    -Arguments (@('-tt', '-p', "$Port") + $SshIdentityOptions + $SshOptions + @($Target, "bash '$RemoteScriptFile' '$AppDir' '$StartKioskValue' '$BootstrapLiteValue' '$InstallJapaneseInputValue' '$InstallNodeValue' '$KioskMode' '$MainGeometry' '$DashboardGeometry' '$MainScale' '$DashboardScale' '$KioskHost' '$StaticIp' '$StaticGateway' '$StaticDns' '$StaticConnection'")) `
+    -Arguments (@('-tt', '-p', "$Port") + $SshIdentityOptions + $SshOptions + @($Target, "bash '$RemoteScriptFile' '$AppDir' '$StartKioskValue' '$BootstrapLiteValue' '$InstallJapaneseInputValue' '$InstallNodeValue' '$KioskMode' '$MainGeometry' '$DashboardGeometry' '$MainScale' '$DashboardScale' '$KioskHost' '$StaticIp' '$StaticGateway' '$StaticDns' '$StaticConnection' '$EnableServerValue'")) `
     -MaxAttempts 2
 
   Write-Host ""
