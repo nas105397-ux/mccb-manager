@@ -290,8 +290,11 @@ ssh pi@192.168.40.121
 
 OA LAN 側 PC から現場 Pi へ直接到達できないことを確認します。現場 LAN 側から OA LAN 上の PC やファイルサーバーへも直接到達できないことを確認します。
 
+現場 Pi A・B のような kiosk 専用機は、サーバーを構築せずメイン Pi へ接続するだけの `-KioskOnly` デプロイで導入できます。詳細は [Raspberry Pi オフライン SSH デプロイ](../deploy/raspi/README-ssh-deploy.md) の「サーバー + kiosk と kiosk のみを選ぶ」を参照してください。
+
 ## 関連ドキュメント
 
 - [ハードウェア構成](hardware-architecture.md)
 - [システム構成](system-architecture.md)
 - [取扱説明・運用ガイド](operation-guide.md)
+- [Raspberry Pi オフライン SSH デプロイ](../deploy/raspi/README-ssh-deploy.md)

@@ -13,36 +13,22 @@ Raspberry Pi で常時稼働させ、Pi 本体の kiosk 画面、PC、タブレ�
 
 ## 利用画面
 
-Raspberry Pi で動かしている場合:
+Raspberry Pi で動かしている場合、ブラウザで次を開きます。
 
 ```text
 https://<Raspberry PiのIP>/#/
 ```
 
-例:
-
-```text
-https://192.168.40.111/#/
-```
-
-主な画面:
-
-| 画面 | URL | 使う場面 |
-| --- | --- | --- |
-| メイン操作 | `/#/` | 設備の検索、停電・送電、子札貸出 |
-| 依頼発行・印刷 | `/#/request` | 停電依頼表の作成、印刷 |
-| 依頼一覧 | `/#/request-list` | 進行中依頼、履歴、再印刷、作業完了 |
-| 電気室モニター | `/#/monitor` | モニター表示用 |
-| 管理画面 | `/#/admin` | 設備登録、CSV、マスター、ログ、DB バックアップ |
+例: `https://192.168.40.111/#/`
 
 管理者モードの初期パスワードは `admin` です。本番運用前に変更してください。
 
-WebUSB 印刷を使う端末では、Chrome/Edge で `localhost` または HTTPS から開く必要があります。Raspberry Pi の LAN URL で開く場合は、HTTPS 証明書を端末に信頼登録してください。
+画面一覧、WebUSB 印刷の注意点は [取扱説明・運用ガイド](docs/operation-guide.md) を参照してください。
 
 ## 導入の入口
 
 標準手順は、Windows PC から Raspberry Pi へ SSH でデプロイする方法です。
-Pi 本体に画面を出す場合は kiosk 表示あり、別端末から見るだけの場合は kiosk 表示なしで導入します。
+Pi の役割（サーバーのみ / サーバー + kiosk / kiosk のみ）を選んで導入します。
 
 導入・設定の詳細:
 
@@ -56,13 +42,13 @@ Pi 本体に画面を出す場合は kiosk 表示あり、別端末から見る�
 | 日常操作、バックアップ、困ったとき | [取扱説明・運用ガイド](docs/operation-guide.md) |
 | 詳細ドキュメント一覧 | [docs/README.md](docs/README.md) |
 
-最短のデプロイコマンド:
+最短のデプロイコマンド（サーバー + kiosk）:
 
 ```powershell
 .\deploy\raspi\deploy-over-ssh.ps1 -Target pi@<Raspberry PiのIP> -StartKiosk
 ```
 
-kiosk 表示なしの場合は `-StartKiosk` を外します。
+サーバーのみ、kiosk のみなど他の役割の選び方は [Raspberry Pi オフライン SSH デプロイ](deploy/raspi/README-ssh-deploy.md) の「サーバー + kiosk と kiosk のみを選ぶ」を参照してください。
 
 ## 前提
 
@@ -104,7 +90,5 @@ npm run build
 
 ## 注意事項
 
-- 停電操作、送電操作、禁止札運用は現場安全に直結します。
-- 送電前に未返却の子札がないことを必ず確認してください。
-- 管理者モードは信頼できる担当者だけが使用してください。
-- `data/` は運用データです。更新時に手動で上書きしないでください。
+停電操作・送電操作・禁止札運用は現場安全に直結します。送電前は未返却の子札がないことを必ず確認してください。
+詳しい注意事項は [取扱説明・運用ガイド](docs/operation-guide.md) を参照してください。

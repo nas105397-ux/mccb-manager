@@ -238,7 +238,7 @@ Windows PC で最新版を転送します。
 .\deploy\raspi\deploy-over-ssh.ps1 -Target pi@<Raspberry PiのIP> -StartKiosk
 ```
 
-kiosk 表示なしの場合は `-StartKiosk` を外します。
+サーバーのみ、kiosk のみなど他の役割の選び方は [Raspberry Pi オフライン SSH デプロイ](../deploy/raspi/README-ssh-deploy.md) の「サーバー + kiosk と kiosk のみを選ぶ」を参照してください。
 
 注意:
 

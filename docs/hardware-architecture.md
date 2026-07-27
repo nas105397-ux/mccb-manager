@@ -67,7 +67,7 @@ flowchart LR
 | 事務所 PC | OA LAN に接続 | ブラウザで MCCB Manager を操作 |
 | メイン Raspberry Pi | LAN 1: OA LAN、LAN 2: 現場 HUB | Web アプリ、SQLite DB、kiosk、両 LAN からの HTTPS 入口 |
 | 現場 HUB | メイン Raspberry Pi の LAN 2 と現場 Raspberry Pi を接続 | 現場側端末の集約 |
-| 現場 Raspberry Pi | 現場 HUB に接続 | メイン Raspberry Pi の画面を kiosk 表示 |
+| 現場 Raspberry Pi | 現場 HUB に接続 | メイン Raspberry Pi の画面を kiosk 表示（サーバーは構築しない、`-KioskOnly` デプロイ） |
 
 ### IP アドレス例
 
