@@ -247,6 +247,56 @@ APP_URL=https://192.168.1.50
 systemctl --user restart mccb-kiosk.service
 ```
 
+## ディスプレイのスリープを設定する
+
+kiosk 表示は既定でディスプレイのスリープを無効にしています（常時点灯）。無操作時の自動スリープや、夜間などの時刻指定によるスリープを使う場合は、`~/.config/mccb-kiosk/kiosk.env` に設定を追加します。
+
+```bash
+mkdir -p ~/.config/mccb-kiosk
+nano ~/.config/mccb-kiosk/kiosk.env
+```
+
+`DISPLAY_SLEEP_MODE` で動作を選びます。
+
+```text
+off       常時点灯・スリープなし（既定）
+idle      無操作が続いたらスリープ
+schedule  指定した時刻の範囲でスリープ
+both      idle と schedule の両方を有効化
+```
+
+無操作時に自動スリープする場合（例: 15分無操作でスリープ）:
+
+```ini
+DISPLAY_SLEEP_MODE=idle
+IDLE_SLEEP_MINUTES=15
+```
+
+夜間など時刻指定でスリープする場合（例: 22:00〜翌6:00、日またぎ可）:
+
+```ini
+DISPLAY_SLEEP_MODE=schedule
+SLEEP_START_TIME=22:00
+SLEEP_END_TIME=06:00
+```
+
+両方を組み合わせる場合:
+
+```ini
+DISPLAY_SLEEP_MODE=both
+IDLE_SLEEP_MINUTES=15
+SLEEP_START_TIME=22:00
+SLEEP_END_TIME=06:00
+```
+
+スリープ中でも画面に触れると自動的に復帰します（`schedule` の時間帯内であれば、次回のチェック時に再びスリープします。既定は60秒間隔で、`SLEEP_CHECK_INTERVAL_SECONDS` で変更できます）。
+
+反映:
+
+```bash
+systemctl --user restart mccb-kiosk.service
+```
+
 ## デプロイ処理の内容
 
 1. PC 側で `node_modules` が無ければ `npm ci` を実行します。

@@ -15,8 +15,29 @@ MAIN_SCALE="${MAIN_SCALE:-1}"
 DASHBOARD_SCALE="${DASHBOARD_SCALE:-1.5}"
 DISPLAY_WAIT_SECONDS="${DISPLAY_WAIT_SECONDS:-60}"
 XCURSOR_SIZE="${XCURSOR_SIZE:-24}"
+DISPLAY_SLEEP_MODE="${DISPLAY_SLEEP_MODE:-off}"
+IDLE_SLEEP_MINUTES="${IDLE_SLEEP_MINUTES:-15}"
+SLEEP_START_TIME="${SLEEP_START_TIME:-}"
+SLEEP_END_TIME="${SLEEP_END_TIME:-}"
+SLEEP_CHECK_INTERVAL_SECONDS="${SLEEP_CHECK_INTERVAL_SECONDS:-60}"
 
 export XCURSOR_SIZE
+
+case "$DISPLAY_SLEEP_MODE" in
+  off|idle|schedule|both)
+    ;;
+  *)
+    echo "Invalid DISPLAY_SLEEP_MODE: $DISPLAY_SLEEP_MODE. Use 'off', 'idle', 'schedule', or 'both'." >&2
+    exit 1
+    ;;
+esac
+
+if [ "$DISPLAY_SLEEP_MODE" = "schedule" ] || [ "$DISPLAY_SLEEP_MODE" = "both" ]; then
+  if [ -z "$SLEEP_START_TIME" ] || [ -z "$SLEEP_END_TIME" ]; then
+    echo "SLEEP_START_TIME and SLEEP_END_TIME (HH:MM) are required for DISPLAY_SLEEP_MODE=$DISPLAY_SLEEP_MODE." >&2
+    exit 1
+  fi
+fi
 
 if [ -z "$CHROMIUM_BIN" ]; then
   if [ -x /usr/lib/chromium/chromium ]; then
@@ -55,6 +76,7 @@ case "$KIOSK_MODE" in
 esac
 
 CHROMIUM_PIDS=()
+SCHEDULER_PID=""
 
 mkdir -p "$MAIN_PROFILE_DIR" "$DASHBOARD_PROFILE_DIR"
 
@@ -74,8 +96,78 @@ wait_for_display() {
   return 1
 }
 
+configure_display_sleep() {
+  case "$DISPLAY_SLEEP_MODE" in
+    off)
+      xset s off >/dev/null 2>&1 || true
+      xset -dpms >/dev/null 2>&1 || true
+      xset s noblank >/dev/null 2>&1 || true
+      ;;
+    idle)
+      local timeout=$((IDLE_SLEEP_MINUTES * 60))
+      xset +dpms >/dev/null 2>&1 || true
+      xset dpms "$timeout" "$timeout" "$timeout" >/dev/null 2>&1 || true
+      xset s "$timeout" >/dev/null 2>&1 || true
+      ;;
+    schedule)
+      xset +dpms >/dev/null 2>&1 || true
+      xset dpms 0 0 0 >/dev/null 2>&1 || true
+      xset s off >/dev/null 2>&1 || true
+      xset s noblank >/dev/null 2>&1 || true
+      ;;
+    both)
+      local timeout=$((IDLE_SLEEP_MINUTES * 60))
+      xset +dpms >/dev/null 2>&1 || true
+      xset dpms "$timeout" "$timeout" "$timeout" >/dev/null 2>&1 || true
+      xset s "$timeout" >/dev/null 2>&1 || true
+      ;;
+  esac
+}
+
+time_to_minutes() {
+  local hhmm="$1"
+  local hour="${hhmm%%:*}"
+  local minute="${hhmm#*:}"
+  echo $((10#$hour * 60 + 10#$minute))
+}
+
+in_sleep_window() {
+  local now_minutes start_minutes end_minutes
+  now_minutes=$(( 10#$(date +%H) * 60 + 10#$(date +%M) ))
+  start_minutes="$(time_to_minutes "$SLEEP_START_TIME")"
+  end_minutes="$(time_to_minutes "$SLEEP_END_TIME")"
+
+  if [ "$start_minutes" -le "$end_minutes" ]; then
+    [ "$now_minutes" -ge "$start_minutes" ] && [ "$now_minutes" -lt "$end_minutes" ]
+  else
+    [ "$now_minutes" -ge "$start_minutes" ] || [ "$now_minutes" -lt "$end_minutes" ]
+  fi
+}
+
+run_display_sleep_scheduler() {
+  local in_window_prev="0"
+
+  while true; do
+    if in_sleep_window; then
+      xset dpms force off >/dev/null 2>&1 || true
+      in_window_prev="1"
+    else
+      if [ "$in_window_prev" = "1" ]; then
+        xset dpms force on >/dev/null 2>&1 || true
+      fi
+      in_window_prev="0"
+    fi
+    sleep "$SLEEP_CHECK_INTERVAL_SECONDS"
+  done
+}
+
 cleanup() {
   trap - TERM INT HUP EXIT
+
+  if [ -n "$SCHEDULER_PID" ] && kill -0 "$SCHEDULER_PID" >/dev/null 2>&1; then
+    kill "$SCHEDULER_PID" >/dev/null 2>&1 || true
+    wait "$SCHEDULER_PID" >/dev/null 2>&1 || true
+  fi
 
   for pid in "${CHROMIUM_PIDS[@]}"; do
     if kill -0 "$pid" >/dev/null 2>&1; then
@@ -90,9 +182,12 @@ trap cleanup TERM INT HUP EXIT
 
 wait_for_display
 
-xset s off >/dev/null 2>&1 || true
-xset -dpms >/dev/null 2>&1 || true
-xset s noblank >/dev/null 2>&1 || true
+configure_display_sleep
+
+if [ "$DISPLAY_SLEEP_MODE" = "schedule" ] || [ "$DISPLAY_SLEEP_MODE" = "both" ]; then
+  run_display_sleep_scheduler &
+  SCHEDULER_PID="$!"
+fi
 
 if [ "$ENABLE_FCITX" = "1" ] && command -v fcitx5 >/dev/null 2>&1; then
   export GTK_IM_MODULE="${GTK_IM_MODULE:-fcitx}"

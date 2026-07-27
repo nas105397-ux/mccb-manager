@@ -243,6 +243,10 @@ Environment=MAIN_GEOMETRY=$MAIN_GEOMETRY
 Environment=DASHBOARD_GEOMETRY=$DASHBOARD_GEOMETRY
 Environment=MAIN_SCALE=$MAIN_SCALE
 Environment=DASHBOARD_SCALE=$DASHBOARD_SCALE
+Environment=DISPLAY_SLEEP_MODE=off
+Environment=IDLE_SLEEP_MINUTES=15
+Environment=SLEEP_START_TIME=
+Environment=SLEEP_END_TIME=
 Environment=ENABLE_GPU_TUNING=0
 Environment="CHROMIUM_FLAGS=--disable-gpu-vsync --ignore-certificate-errors --unsafely-treat-insecure-origin-as-secure=https://$MCCB_KIOSK_HOST"
 EnvironmentFile=-%h/.config/mccb-kiosk/kiosk.env
