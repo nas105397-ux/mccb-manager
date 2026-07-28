@@ -20,6 +20,9 @@ IDLE_SLEEP_MINUTES="${IDLE_SLEEP_MINUTES:-15}"
 SLEEP_START_TIME="${SLEEP_START_TIME:-}"
 SLEEP_END_TIME="${SLEEP_END_TIME:-}"
 SLEEP_CHECK_INTERVAL_SECONDS="${SLEEP_CHECK_INTERVAL_SECONDS:-60}"
+CONFIGURE_DISPLAY_LAYOUT="${CONFIGURE_DISPLAY_LAYOUT:-1}"
+MAIN_OUTPUT="${MAIN_OUTPUT:-}"
+DASHBOARD_OUTPUT="${DASHBOARD_OUTPUT:-}"
 
 export XCURSOR_SIZE
 
@@ -59,11 +62,11 @@ parse_geometry() {
   local x="${position%%+*}"
   local y="${position#*+}"
 
-  printf '%s %s,%s\n' "$size" "$x" "$y"
+  printf '%s %s,%s %sx%s\n' "$size" "$x" "$y" "$x" "$y"
 }
 
-read -r MAIN_SIZE MAIN_POSITION < <(parse_geometry "$MAIN_GEOMETRY")
-read -r DASHBOARD_SIZE DASHBOARD_POSITION < <(parse_geometry "$DASHBOARD_GEOMETRY")
+read -r MAIN_SIZE MAIN_POSITION MAIN_XRANDR_POS < <(parse_geometry "$MAIN_GEOMETRY")
+read -r DASHBOARD_SIZE DASHBOARD_POSITION DASHBOARD_XRANDR_POS < <(parse_geometry "$DASHBOARD_GEOMETRY")
 read -r -a EXTRA_CHROMIUM_FLAGS <<< "$CHROMIUM_FLAGS"
 
 case "$KIOSK_MODE" in
@@ -94,6 +97,68 @@ wait_for_display() {
 
   echo "X display is not ready: DISPLAY=${DISPLAY:-<unset>}" >&2
   return 1
+}
+
+set_output_mode() {
+  local output="$1" mode="$2" pos="$3"
+  shift 3
+  local err_log="/tmp/mccb-kiosk-xrandr-err.log"
+
+  if xrandr --output "$output" --mode "$mode" --pos "$pos" "$@" 2>"$err_log"; then
+    return 0
+  fi
+
+  if command -v cvt >/dev/null 2>&1; then
+    local width="${mode%%x*}" height="${mode#*x}"
+    local modeline
+    modeline="$(cvt "$width" "$height" 60 2>/dev/null | awk '/^Modeline/{sub(/^Modeline /,""); print}' | tr -d '"')"
+    if [ -n "$modeline" ]; then
+      local modeline_name="${modeline%% *}"
+      xrandr --newmode $modeline >/dev/null 2>&1 || true
+      xrandr --addmode "$output" "$modeline_name" >/dev/null 2>&1 || true
+      if xrandr --output "$output" --mode "$modeline_name" --pos "$pos" "$@" 2>"$err_log"; then
+        return 0
+      fi
+    fi
+  fi
+
+  echo "警告: 出力 $output を $mode に設定できませんでした: $(cat "$err_log" 2>/dev/null)" >&2
+  return 1
+}
+
+configure_display_layout() {
+  if [ "$CONFIGURE_DISPLAY_LAYOUT" != "1" ] || ! command -v xrandr >/dev/null 2>&1; then
+    return 0
+  fi
+
+  local connected
+  connected="$(xrandr --query 2>/dev/null | awk '/ connected/{print $1}')"
+
+  local main_out dashboard_out
+  main_out="${MAIN_OUTPUT:-$(printf '%s\n' "$connected" | sed -n '1p')}"
+  dashboard_out="${DASHBOARD_OUTPUT:-$(printf '%s\n' "$connected" | sed -n '2p')}"
+
+  if [ -z "$main_out" ]; then
+    echo "接続中のディスプレイ出力を検出できませんでした。画面レイアウト設定をスキップします。" >&2
+    return 0
+  fi
+
+  set_output_mode "$main_out" "$MAIN_SIZE" "$MAIN_XRANDR_POS" --rotate normal --primary
+
+  if [ "$KIOSK_MODE" = "dual" ]; then
+    if [ -z "$dashboard_out" ]; then
+      echo "警告: ダッシュボード用のディスプレイ出力が見つかりません。2画面目のケーブル接続を確認してください。" >&2
+    else
+      set_output_mode "$dashboard_out" "$DASHBOARD_SIZE" "$DASHBOARD_XRANDR_POS" --rotate normal
+    fi
+  else
+    local out
+    for out in $connected; do
+      if [ "$out" != "$main_out" ]; then
+        xrandr --output "$out" --off >/dev/null 2>&1 || true
+      fi
+    done
+  fi
 }
 
 configure_display_sleep() {
@@ -181,6 +246,8 @@ cleanup() {
 trap cleanup TERM INT HUP EXIT
 
 wait_for_display
+
+configure_display_layout
 
 configure_display_sleep
 

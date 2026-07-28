@@ -357,7 +357,30 @@ EOF
 systemctl --user restart mccb-kiosk.service
 ```
 
-画面サイズと配置は `幅x高さ+X位置+Y位置` で指定します。たとえば `1920x1080+1920+0` は、1枚目のフルHD画面の右にある2枚目のフルHD画面です。
+画面サイズと配置は `幅x高さ+X位置+Y位置` で指定します。たとえば `1920x1080+1920+0` は、1枚目のフルHD画面の右にある2枚目のフルHD画面です。この `MAIN_GEOMETRY`/`DASHBOARD_GEOMETRY` は、Chromiumウィンドウの位置・サイズだけでなく、`xrandr` による物理ディスプレイの解像度・拡張配置（`--mode`/`--pos`）にも使われます（起動時に `start-kiosk.sh` が自動設定）。
+
+2画面が「拡張」ではなく「複製」になる・意図しない解像度（例: 1024x768）で表示される場合:
+
+1. 出力名を確認します。
+
+   ```bash
+   DISPLAY=:0 xrandr --query
+   ```
+
+   `HDMI-1 connected ...` のように「connected」の出力名を控えます（Pi 5では通常 `HDMI-1` / `HDMI-2`）。物理的にどちらのHDMIポートかは、片方のケーブルを一時的に抜いて `xrandr --query` の変化で確認できます。
+
+2. 自動検出したメイン/ダッシュボードの出力名が実際の配線と逆・不正確な場合は、`kiosk.env` で明示的に指定します。
+
+   ```bash
+   cat >> ~/.config/mccb-kiosk/kiosk.env <<'EOF'
+   MAIN_OUTPUT=HDMI-1
+   DASHBOARD_OUTPUT=HDMI-2
+   EOF
+   systemctl --user restart mccb-kiosk.service
+   ```
+
+3. `MAIN_GEOMETRY`/`DASHBOARD_GEOMETRY` の解像度がディスプレイのEDIDに存在しない場合（`1920x1200` など、PCモニタ特有の解像度でよく発生）、`start-kiosk.sh` は `cvt` で暗黙的にモードラインを生成して適用を試みますが、それでも失敗する場合はケーブル・ディスプレイ側のEDID読み取り不良を疑ってください（別のHDMIケーブル・ポートで再確認）。
+4. 画面レイアウトの自動設定自体を無効にしたい場合は `CONFIGURE_DISPLAY_LAYOUT=0` を `kiosk.env` に追加します。
 
 kiosk停止:
 
