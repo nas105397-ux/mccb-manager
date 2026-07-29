@@ -1,7 +1,7 @@
 // 電気室モニター用の全画面ビュー。停電中設備と直近ログを監視表示する。
 import { useEffect, useState } from "react";
 import { useDashboardController, POLL_INTERVAL } from "../hooks/useDashboardController";
-import VirtualizedOffMccbGrid from "./VirtualizedOffMccbGrid";
+import OffMccbSlideGrid from "./OffMccbSlideGrid";
 
 // ==========================================
 // 定数定義
@@ -20,7 +20,6 @@ const DARK_STYLES = {
   subtleText:         "text-gray-400",
   closeButton:        "bg-red-950/40 border-red-900 text-red-400 hover:bg-red-900/60",
   themeToggleButton:  "bg-gray-900 border-gray-700 text-amber-400 hover:bg-gray-800",
-  colLayoutWrap:      "bg-gray-900 border-gray-700",
   dangerTitle:        "text-red-400",
   dangerBadge:        "bg-red-950 text-red-400 border-red-900",
   emptyStateContainer: "text-gray-500 border-gray-800 bg-gray-900/30",
@@ -44,7 +43,6 @@ const LIGHT_STYLES = {
   subtleText:         "text-gray-500",
   closeButton:        "bg-white border-red-200 text-red-600 hover:bg-red-50",
   themeToggleButton:  "bg-white border-gray-300 text-blue-950 hover:bg-gray-50",
-  colLayoutWrap:      "bg-white border-gray-300",
   dangerTitle:        "text-red-600",
   dangerBadge:        "bg-red-50 text-red-600 border-red-200",
   emptyStateContainer: "text-gray-400 border-gray-300 bg-gray-50",
@@ -109,8 +107,6 @@ export default function DashboardView({ onClose }) {
     loading,
     isDarkMode,
     setIsDarkMode,
-    colLayout,
-    setColLayout,
     processedOffMccbs,
     stats,
     recentLogs,
@@ -181,26 +177,6 @@ export default function DashboardView({ onClose }) {
             >
               {isDarkMode ? "☀️ ライトモード" : "🌙 ダークモード"}
             </button>
-
-            {/* 表示列数コントローラースイッチ */}
-            <div className={`flex items-center gap-1 border rounded-xl p-1 shrink-0 h-9 ${
-              getThemeStyle(isDarkMode, "colLayoutWrap")
-            }`}>
-              <span className="text-[10px] font-black px-2 text-gray-500 tracking-tighter uppercase">📑 表示列数:</span>
-              {["auto", "3", "4", "5"].map((col) => (
-                <button
-                  key={col}
-                  onClick={() => setColLayout(col)}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-black cursor-pointer h-full flex items-center ${
-                    colLayout === col
-                      ? pick(isDarkMode, "bg-teal-50 text-gray-950", "bg-blue-600 text-white")
-                      : pick(isDarkMode, "text-gray-400 hover:text-white hover:bg-gray-800", "text-gray-600 hover:bg-gray-100")
-                  }`}
-                >
-                  {col === "auto" ? "自動" : `${col}列`}
-                </button>
-              ))}
-            </div>
           </div>
 
           <CurrentTimeClock isDarkMode={isDarkMode} />
@@ -237,9 +213,8 @@ export default function DashboardView({ onClose }) {
                 <p className={`text-sm ${getThemeStyle(isDarkMode, "emptyStateSubtitle")}`}>全系統、通常送電運用中</p>
               </div>
             ) : (
-              <VirtualizedOffMccbGrid
+              <OffMccbSlideGrid
                 items={processedOffMccbs}
-                colLayout={colLayout}
                 isDarkMode={isDarkMode}
                 categoryColors={categoryColors}
               />

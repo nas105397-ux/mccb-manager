@@ -11,7 +11,6 @@ const VERSION_URL = `${API_URL}/version`;
 const ACTIVITY_LOG_LIMIT = 20;
 const STORAGE_KEYS = {
   DARK_MODE: "dashboard_is_dark_mode",
-  COL_LAYOUT: "dashboard_col_layout",
 };
 const LOGS_PAGE_URL = `/api/logs?page=1&pageSize=${ACTIVITY_LOG_LIMIT}`;
 export const POLL_INTERVAL = 15000;
@@ -22,23 +21,16 @@ const getInitialDarkMode = () => {
   return savedMode !== null ? savedMode === "true" : true;
 };
 
-const getInitialColLayout = () => localStorage.getItem(STORAGE_KEYS.COL_LAYOUT) || "auto";
-
 export function useDashboardController() {
   const [data, setData] = useState(INITIAL_DATA);
   const [loading, setLoading] = useState(true);
   const [isDarkMode, setIsDarkMode] = useState(getInitialDarkMode);
-  const [colLayout, setColLayout] = useState(getInitialColLayout);
   const lastVersion = useRef(0);
 
   // モニター画面は常時表示されるため、表示設定を端末ごとに保存する。
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.DARK_MODE, isDarkMode);
   }, [isDarkMode]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.COL_LAYOUT, colLayout);
-  }, [colLayout]);
 
   useEffect(() => {
     let disposed = false;
@@ -146,8 +138,6 @@ export function useDashboardController() {
     loading,
     isDarkMode,
     setIsDarkMode,
-    colLayout,
-    setColLayout,
     processedOffMccbs,
     stats,
     recentLogs,
