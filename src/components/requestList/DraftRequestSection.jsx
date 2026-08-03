@@ -71,9 +71,13 @@ export default function DraftRequestSection({
   };
 
   const editQuery = editSearchTerm.trim().toLowerCase();
-  const filteredEditMccbs = mccbList.filter(
-    (mccb) => !editQuery || matchesMccbSearch(mccb, editQuery),
-  );
+  const filteredEditMccbs = mccbList
+    .filter((mccb) => !editQuery || matchesMccbSearch(mccb, editQuery))
+    // お気に入り設備を先頭に寄せる。それ以外の並びは元の登録順を維持する（安定ソート）。
+    .sort((a, b) => {
+      if (a.isFavorite !== b.isFavorite) return a.isFavorite ? -1 : 1;
+      return 0;
+    });
 
   return (
     <div className="space-y-4">
