@@ -79,6 +79,12 @@ npm run build
 npm start
 ```
 
+本番サーバー停止（Windows PC で、既定ポート5000を使用中のプロセスを終了）:
+
+```bash
+npm run stop
+```
+
 確認:
 
 ```bash
