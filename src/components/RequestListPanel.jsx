@@ -24,6 +24,7 @@ export default function RequestListPanel({
   onDeleteRequest,
   onIssueDraftRequest = () => {},
   onDeleteDraftRequest = () => {},
+  onUpdateDraftRequest = () => {},
   onAddTargetsToRequest = () => {},
   onUpdateRequestTargetCard = () => {},
   onChangeHistoryPage = () => {},
@@ -98,6 +99,18 @@ export default function RequestListPanel({
         actionLabel: label,
       }),
     );
+  };
+
+  const handleUpdateDraft = async (draftId, updates) => {
+    try {
+      await onUpdateDraftRequest(draftId, updates);
+      setListMessage(
+        createStatusMessage(STATUS_MESSAGE_KEYS.DRAFT_REQUEST_UPDATED),
+      );
+    } catch (error) {
+      console.error(error);
+      alert(error?.message || "仮発行依頼の編集に失敗しました。");
+    }
   };
 
   const handleIssueDraft = async (draftId) => {
@@ -179,9 +192,11 @@ export default function RequestListPanel({
       {activeView === "draft" && (
         <DraftRequestSection
           draftRequestViews={draftRequestViews}
+          mccbList={mccbList}
           toggleExpand={toggleExpand}
           handleIssueDraft={handleIssueDraft}
           onDeleteDraftRequest={onDeleteDraftRequest}
+          onUpdateDraft={handleUpdateDraft}
         />
       )}
 

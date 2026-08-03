@@ -78,6 +78,35 @@ export function useMccbRequests({
     [applyLogs, applyVersion, runSyncTask],
   );
 
+  const updateDraftRequest = useCallback(
+    async (draftRequestId, updates) => {
+      await runSyncTask(async () => {
+        const res = await fetch(
+          `/api/draft-requests/${encodeURIComponent(draftRequestId)}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(updates),
+          },
+        );
+
+        const result = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(
+            result?.error || `仮発行依頼の編集に失敗しました (${res.status})`,
+          );
+        }
+
+        if (Array.isArray(result.draftRequests)) {
+          setDraftRequests(result.draftRequests);
+        }
+        if (Array.isArray(result.logs)) applyLogs(result.logs);
+        applyVersion(result.version);
+      });
+    },
+    [applyLogs, applyVersion, runSyncTask],
+  );
+
   const issueDraftRequest = useCallback(
     async (draftRequestId) => {
       let createdRequest = null;
@@ -239,6 +268,7 @@ export function useMccbRequests({
     setDraftRequests,
     addRequest,
     addDraftRequest,
+    updateDraftRequest,
     issueDraftRequest,
     deleteDraftRequest,
     addTargetsToRequest,

@@ -1072,6 +1072,55 @@ app.post("/api/draft-requests/:id/issue", (req, res) => {
   }
 });
 
+/** 仮発行依頼の編集（作業者・作業内容・停電対象設備） */
+app.patch("/api/draft-requests/:id", (req, res) => {
+  try {
+    const currentDrafts = store.readCollection("draftRequests") || [];
+    const draftIndex = currentDrafts.findIndex((request) => request.id === req.params.id);
+
+    if (draftIndex === -1) {
+      return res.status(404).json({ error: "対象の仮発行依頼が見つかりません。" });
+    }
+
+    const { workerName, workContent, targetMccbIds, dummyNames } = req.body || {};
+    if (!Array.isArray(targetMccbIds) || targetMccbIds.length === 0) {
+      return res.status(400).json({ error: "停電対象設備を1件以上選択してください。" });
+    }
+
+    const logsBefore = store.readCollection("logs");
+    const logSettings = store.readCollection("logSettings");
+    const updatedDraft = {
+      ...currentDrafts[draftIndex],
+      workerName,
+      workContent,
+      targetMccbIds,
+      dummyNames: dummyNames || {},
+    };
+
+    const draftRequests = [...currentDrafts];
+    draftRequests[draftIndex] = updatedDraft;
+    const logs = createUpdatedLogs(
+      LOG_TYPES.OPERATION,
+      `📝 ${updatedDraft.workerName || "作業者"}氏の仮発行依頼を編集しました。`,
+      logsBefore,
+      logSettings?.maxSize || DEFAULT_MAX_SIZE,
+    );
+
+    store.writeCollections({ draftRequests, logs });
+
+    res.json({
+      status: "success",
+      draftRequest: updatedDraft,
+      draftRequests,
+      logs,
+      version: store.getVersion(),
+    });
+  } catch (error) {
+    console.error("仮発行依頼編集失敗:", error);
+    res.status(500).json({ error: "仮発行依頼の編集に失敗しました" });
+  }
+});
+
 /** 仮発行依頼の削除 */
 app.delete("/api/draft-requests/:id", (req, res) => {
   try {

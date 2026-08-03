@@ -51,6 +51,20 @@ export const ACTIVE = {
     "bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 px-3 py-1.5 rounded-lg text-xs font-black cursor-pointer whitespace-nowrap",
   addCancel:
     "bg-white hover:bg-gray-50 text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer whitespace-nowrap",
+  editButton: "bg-white hover:bg-sky-50 text-sky-700 border-sky-200",
+  editPanel:
+    "mb-3 rounded-lg border border-sky-200 bg-sky-50/40 p-3 space-y-3",
+  editLabel: "block text-[11px] font-bold text-gray-500 mb-1",
+  editInput:
+    "w-full rounded-lg border border-sky-200 bg-white p-2 text-xs font-bold text-gray-700 focus:outline-none focus:ring-1 focus:ring-sky-500",
+  editList:
+    "max-h-56 overflow-y-auto rounded-lg border border-sky-100 bg-white p-2 space-y-1.5",
+  editItem:
+    "flex items-center gap-2 rounded border border-gray-100 bg-gray-50 p-2 text-xs font-bold text-gray-700 cursor-pointer hover:bg-white",
+  editDummyInput:
+    "border border-sky-200 rounded text-[11px] w-full bg-white p-1.5 mt-1.5 focus:outline-none font-medium text-gray-700",
+  editSubmit:
+    "bg-sky-600 hover:bg-sky-700 text-white border border-sky-700 px-3 py-1.5 rounded-lg text-xs font-black cursor-pointer whitespace-nowrap",
   foldRow:
     "flex items-center gap-2 py-1.5 text-xs font-bold text-gray-500 cursor-pointer hover:text-gray-700 w-fit select-none",
   foldHint: "text-[10px] font-normal text-gray-400 opacity-80",

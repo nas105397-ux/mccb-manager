@@ -7,6 +7,7 @@ export const STATUS_MESSAGE_KEYS = {
   REQUEST_TARGETS_ADDED: "requestTargetsAdded",
   REQUEST_TARGET_CARD_UPDATED: "requestTargetCardUpdated",
   DRAFT_REQUEST_ISSUED: "draftRequestIssued",
+  DRAFT_REQUEST_UPDATED: "draftRequestUpdated",
   MASTER_UPDATED: "masterUpdated",
   TEMPORARY_RETURN_CARD_BORROWED: "temporaryReturnCardBorrowed",
 };
@@ -40,6 +41,10 @@ const STATUS_MESSAGE_DEFINITIONS = {
   [STATUS_MESSAGE_KEYS.DRAFT_REQUEST_ISSUED]: {
     type: "success",
     text: "仮発行依頼を発行しました。",
+  },
+  [STATUS_MESSAGE_KEYS.DRAFT_REQUEST_UPDATED]: {
+    type: "success",
+    text: "仮発行依頼を編集しました。",
   },
   [STATUS_MESSAGE_KEYS.MASTER_UPDATED]: {
     type: "success",
