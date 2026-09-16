@@ -38,8 +38,14 @@ export function useRequestListPrintController({
       return;
     }
 
+    // 一部返却済みの設備は札を手放しているため、依頼表には現在の作業対象だけを刷る。
+    const printableRequest = {
+      ...request,
+      targets: (request.targets || []).filter((target) => !target.isReturned),
+    };
+
     if (requestPrintMode === REQUEST_PRINT_MODES.BROWSER) {
-      setPrintRequest(request);
+      setPrintRequest(printableRequest);
       return;
     }
 
@@ -48,7 +54,7 @@ export function useRequestListPrintController({
     setStarPrintRequestId(request.id);
     try {
       const { printRequestReceipt } = await import("../shared/starReceiptPrinter");
-      await printRequestReceipt(request, mccbList);
+      await printRequestReceipt(printableRequest, mccbList);
       onStatusMessage?.(
         createStatusMessage(STATUS_MESSAGE_KEYS.REQUEST_LIST_RECEIPT_SENT),
       );

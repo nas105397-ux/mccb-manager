@@ -146,6 +146,30 @@ function createUpdatedLogs(type, message, currentLogs, maxSize) {
   return [newLog, ...normalizeLogs(currentLogs)].slice(0, maxSize);
 }
 
+/** 依頼で確保した子札 1 枚を解放する */
+// 現場で別作業者が手動貸出した札を奪わないよう、使用者名が一致する札だけを戻す。
+function releaseReservedCard(mccbList, reserveInfo, workerName) {
+  if (!reserveInfo?.actualMccbId || !reserveInfo?.cardNo) return mccbList;
+
+  return mccbList.map((mccb) => {
+    if (mccb.id !== reserveInfo.actualMccbId || !Array.isArray(mccb.childCards)) {
+      return mccb;
+    }
+
+    const cardIdx = mccb.childCards.findIndex(
+      (card) => card.id === reserveInfo.cardNo,
+    );
+    if (cardIdx === -1) return mccb;
+
+    const card = mccb.childCards[cardIdx];
+    if (card.workerName !== workerName) return mccb;
+
+    const updatedCards = [...mccb.childCards];
+    updatedCards[cardIdx] = { ...card, isBorrowed: false, workerName: "" };
+    return { ...mccb, childCards: updatedCards };
+  });
+}
+
 function createIssueRequestFromDraft(draftRequest) {
   return {
     ...draftRequest,
@@ -1224,6 +1248,116 @@ app.patch("/api/requests/:id/targets", (req, res) => {
   }
 });
 
+/** 発行中依頼の対象設備を一部返却（子札を解放し依頼には返却済みとして残す） */
+// 一時返却と違い予約自体を解除するため、解放した札は他作業者が使えるようになる。
+app.patch("/api/requests/:id/targets/return", (req, res) => {
+  try {
+    const requestedTargetIds = Array.isArray(req.body?.targetMccbIds)
+      ? [...new Set(req.body.targetMccbIds.filter(Boolean))]
+      : null;
+
+    if (!requestedTargetIds || requestedTargetIds.length === 0) {
+      return res.status(400).json({ error: "返却する設備が選択されていません。" });
+    }
+
+    const currentRequests = store.readCollection("requests") || [];
+    const targetRequest = currentRequests.find(
+      (request) => request.id === req.params.id,
+    );
+
+    if (!targetRequest) {
+      return res.status(404).json({ error: "対象の依頼が見つかりません。" });
+    }
+
+    const currentTargetIds = new Set(targetRequest.targetMccbIds || []);
+    const returnedCardsBefore = targetRequest.returnedCards || {};
+    // 依頼に含まれない設備と、既に返却済みの設備は二重返却にならないよう除外する。
+    const returnTargetIds = requestedTargetIds.filter(
+      (targetId) => currentTargetIds.has(targetId) && !returnedCardsBefore[targetId],
+    );
+
+    if (returnTargetIds.length === 0) {
+      return res.status(400).json({ error: "返却できる設備が選択されていません。" });
+    }
+
+    const returnTargetIdSet = new Set(returnTargetIds);
+    const remainingTargetCount = (targetRequest.targetMccbIds || []).filter(
+      (targetId) =>
+        !returnedCardsBefore[targetId] && !returnTargetIdSet.has(targetId),
+    ).length;
+
+    // 全設備の返却は依頼自体の終了なので、履歴が残る解約・作業完了へ誘導する。
+    if (remainingTargetCount === 0) {
+      return res.status(400).json({
+        error: "すべての設備は一部返却できません。解約・作業完了を実行してください。",
+      });
+    }
+
+    const affectedMccbIds = returnTargetIds
+      .map((targetId) => targetRequest.reservedCards?.[targetId]?.actualMccbId)
+      .filter(Boolean);
+    const beforeMccbList = store.readMccbsByIds(affectedMccbIds);
+    let currentMccbList = cloneMccbListForMutation(beforeMccbList);
+
+    returnTargetIds.forEach((targetId) => {
+      currentMccbList = releaseReservedCard(
+        currentMccbList,
+        targetRequest.reservedCards?.[targetId],
+        targetRequest.workerName,
+      );
+    });
+
+    const returnedTimestamp = getTimestamp();
+    const reservedCards = { ...(targetRequest.reservedCards || {}) };
+    const returnedCards = { ...returnedCardsBefore };
+    returnTargetIds.forEach((targetId) => {
+      // 予約から外して札を解放しつつ、いつ何を返したかは依頼と履歴に残す。
+      returnedCards[targetId] = {
+        ...(reservedCards[targetId] || {}),
+        returnedTimestamp,
+      };
+      delete reservedCards[targetId];
+    });
+
+    const updatedRequest = { ...targetRequest, reservedCards, returnedCards };
+    const requests = currentRequests.map((request) =>
+      request.id === targetRequest.id ? updatedRequest : request,
+    );
+    const returnedMccbNames = store
+      .readMccbsByIds(returnTargetIds)
+      .map((mccb) => mccb.name)
+      .filter(Boolean);
+    const logsBefore = store.readCollection("logs");
+    const logSettings = store.readCollection("logSettings");
+    const logs = createUpdatedLogs(
+      LOG_TYPES.OPERATION,
+      `👷 ${targetRequest.workerName || "作業者"}氏の停電依頼から ${returnTargetIds.length} 件の設備を返却し\n子札を解放しました。\n対象: ${returnedMccbNames.join("、") || "名称不明"}`,
+      logsBefore,
+      logSettings?.maxSize || DEFAULT_MAX_SIZE,
+    );
+    const changedMccbs = preservePowerStateForRequestChanges(
+      beforeMccbList,
+      getChangedMccbs(beforeMccbList, currentMccbList),
+    );
+
+    store.writeMccbs(changedMccbs);
+    store.writeCollection("requests", requests);
+    store.writeCollection("logs", logs);
+
+    res.json({
+      status: "success",
+      request: updatedRequest,
+      requests,
+      logs,
+      changedMccbs,
+      version: store.getVersion(),
+    });
+  } catch (error) {
+    console.error("停電作業依頼の設備一部返却失敗:", error);
+    res.status(500).json({ error: "停電作業依頼の設備一部返却に失敗しました" });
+  }
+});
+
 /** 発行中依頼の対象設備ごとの子札を一時返却・再貸出 */
 app.patch("/api/requests/:id/targets/:targetId/card", (req, res) => {
   try {
@@ -1338,33 +1472,13 @@ app.delete("/api/requests/:id", (req, res) => {
     let currentMccbList = cloneMccbListForMutation(beforeMccbList);
 
     // 完了時は依頼者本人が確保している札だけを返却し、別作業者の貸出状態を守る。
-    if (reqToDelete.reservedCards) {
-      Object.keys(reqToDelete.reservedCards).forEach((targetId) => {
-        const resInfo = reqToDelete.reservedCards[targetId];
-        if (resInfo?.actualMccbId && resInfo?.cardNo) {
-          currentMccbList = currentMccbList.map((mccb) => {
-            if (mccb.id === resInfo.actualMccbId && mccb.childCards) {
-              const cardIdx = mccb.childCards.findIndex(
-                (card) => card.id === resInfo.cardNo,
-              );
-              if (cardIdx !== -1) {
-                const card = mccb.childCards[cardIdx];
-                if (card.workerName === reqToDelete.workerName) {
-                  const updatedCards = [...mccb.childCards];
-                  updatedCards[cardIdx] = {
-                    ...card,
-                    isBorrowed: false,
-                    workerName: "",
-                  };
-                  return { ...mccb, childCards: updatedCards };
-                }
-              }
-            }
-            return mccb;
-          });
-        }
-      });
-    }
+    Object.values(reqToDelete.reservedCards || {}).forEach((resInfo) => {
+      currentMccbList = releaseReservedCard(
+        currentMccbList,
+        resInfo,
+        reqToDelete.workerName,
+      );
+    });
 
     const completedRequest = {
       ...reqToDelete,

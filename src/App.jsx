@@ -241,6 +241,7 @@ function AppContent() {
                 onDeleteDraftRequest={controller.deleteDraftRequest}
                 onUpdateDraftRequest={controller.updateDraftRequest}
                 onAddTargetsToRequest={controller.addTargetsToRequest}
+                onReturnRequestTargets={controller.returnRequestTargets}
                 onUpdateRequestTargetCard={controller.updateRequestTargetCard}
                 onChangeHistoryPage={controller.fetchRequestHistoryPage}
                 requestPrintMode={controller.requestPrintMode}

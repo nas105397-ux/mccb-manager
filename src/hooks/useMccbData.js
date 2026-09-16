@@ -91,6 +91,7 @@ export function useMccbData() {
     issueDraftRequest,
     deleteDraftRequest,
     addTargetsToRequest,
+    returnRequestTargets,
     updateRequestTargetCard,
     deleteRequest,
   } = useMccbRequests({
@@ -242,6 +243,7 @@ export function useMccbData() {
     issueDraftRequest,
     deleteDraftRequest,
     addTargetsToRequest,
+    returnRequestTargets,
     updateRequestTargetCard,
     deleteRequest,
     clearRequestHistory,

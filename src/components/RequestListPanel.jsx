@@ -26,6 +26,7 @@ export default function RequestListPanel({
   onDeleteDraftRequest = () => {},
   onUpdateDraftRequest = () => {},
   onAddTargetsToRequest = () => {},
+  onReturnRequestTargets = () => {},
   onUpdateRequestTargetCard = () => {},
   onChangeHistoryPage = () => {},
   requestPrintMode = REQUEST_PRINT_MODES.NONE,
@@ -34,6 +35,8 @@ export default function RequestListPanel({
   const [addPanelRequestId, setAddPanelRequestId] = useState(null);
   const [addSearchTerm, setAddSearchTerm] = useState("");
   const [selectedAddIds, setSelectedAddIds] = useState([]);
+  const [returnPanelRequestId, setReturnPanelRequestId] = useState(null);
+  const [selectedReturnIds, setSelectedReturnIds] = useState([]);
   const [listMessage, setListMessage] = useState(null);
   const { activeRequestViews, draftRequestViews, historyRequestViews, toggleExpand } =
     useRequestListController({
@@ -65,10 +68,32 @@ export default function RequestListPanel({
     setAddPanelRequestId((currentId) => (currentId === requestId ? null : requestId));
     setAddSearchTerm("");
     setSelectedAddIds([]);
+    // 追加と返却のパネルが同時に開くと対象を取り違えるため、片方だけ開く。
+    setReturnPanelRequestId(null);
+    setSelectedReturnIds([]);
   };
 
   const toggleAddTarget = (mccbId) => {
     setSelectedAddIds((prev) =>
+      prev.includes(mccbId)
+        ? prev.filter((id) => id !== mccbId)
+        : [...prev, mccbId],
+    );
+  };
+
+  const openReturnPanel = (requestId) => {
+    setListMessage(null);
+    setReturnPanelRequestId((currentId) =>
+      currentId === requestId ? null : requestId,
+    );
+    setSelectedReturnIds([]);
+    setAddPanelRequestId(null);
+    setAddSearchTerm("");
+    setSelectedAddIds([]);
+  };
+
+  const toggleReturnTarget = (mccbId) => {
+    setSelectedReturnIds((prev) =>
       prev.includes(mccbId)
         ? prev.filter((id) => id !== mccbId)
         : [...prev, mccbId],
@@ -88,6 +113,33 @@ export default function RequestListPanel({
     setListMessage(
       createStatusMessage(STATUS_MESSAGE_KEYS.REQUEST_TARGETS_ADDED),
     );
+  };
+
+  const handleReturnTargets = async (requestId) => {
+    if (selectedReturnIds.length === 0) {
+      alert("返却する設備を選択してください。");
+      return;
+    }
+
+    // 一時返却と違い札の確保を手放すため、実行前に現場影響を確認する。
+    const isConfirmed = window.confirm(
+      `選択した ${selectedReturnIds.length} 件の設備の札を返却します。\n返却した札は依頼から外れ、他の作業者が使用できるようになります。\n実行してよろしいですか？`,
+    );
+    if (!isConfirmed) return;
+
+    try {
+      await onReturnRequestTargets(requestId, selectedReturnIds);
+      setListMessage(
+        createStatusMessage(STATUS_MESSAGE_KEYS.REQUEST_TARGETS_RETURNED, {
+          returnedCount: selectedReturnIds.length,
+        }),
+      );
+      setReturnPanelRequestId(null);
+      setSelectedReturnIds([]);
+    } catch (error) {
+      console.error(error);
+      alert(error?.message || "設備の返却に失敗しました。");
+    }
   };
 
   const handleRequestTargetCardAction = (requestId, target, action) => {
@@ -181,6 +233,11 @@ export default function RequestListPanel({
           selectedAddIds={selectedAddIds}
           toggleAddTarget={toggleAddTarget}
           handleAddTargets={handleAddTargets}
+          returnPanelRequestId={returnPanelRequestId}
+          openReturnPanel={openReturnPanel}
+          selectedReturnIds={selectedReturnIds}
+          toggleReturnTarget={toggleReturnTarget}
+          handleReturnTargets={handleReturnTargets}
           handlePrintRequest={handlePrintRequest}
           starPrintRequestId={starPrintRequestId}
           isPrintDisabledBySetting={isPrintDisabledBySetting}

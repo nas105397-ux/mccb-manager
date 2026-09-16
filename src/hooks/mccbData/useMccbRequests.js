@@ -201,6 +201,50 @@ export function useMccbRequests({
     [applyChangedMccbs, applyLogs, applyVersion, runSyncTask],
   );
 
+  /** 発行中依頼の対象設備を一部返却（子札を解放し、依頼自体は継続） */
+  const returnRequestTargets = useCallback(
+    async (requestId, targetMccbIds) => {
+      let updatedRequest = null;
+      let failureMessage = null;
+
+      await runSyncTask(async () => {
+        const res = await fetch(
+          `/api/requests/${encodeURIComponent(requestId)}/targets/return`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ targetMccbIds }),
+          },
+        );
+
+        const result = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          // runSyncTask は例外を握りつぶすため、理由を呼び出し元へ持ち帰る。
+          failureMessage =
+            result?.error || `停電作業依頼の設備返却に失敗しました (${res.status})`;
+          throw new Error(failureMessage);
+        }
+
+        updatedRequest = result.request || null;
+        applyChangedMccbs(result.changedMccbs);
+        if (Array.isArray(result.requests)) {
+          setRequests(result.requests);
+        }
+        if (Array.isArray(result.logs)) applyLogs(result.logs);
+        applyVersion(result.version);
+      });
+
+      if (!updatedRequest) {
+        throw new Error(
+          failureMessage || "停電作業依頼の設備返却結果を取得できませんでした。",
+        );
+      }
+
+      return updatedRequest;
+    },
+    [applyChangedMccbs, applyLogs, applyVersion, runSyncTask],
+  );
+
   const updateRequestTargetCard = useCallback(
     (requestId, targetId, action) => {
       runSyncTask(async () => {
@@ -272,6 +316,7 @@ export function useMccbRequests({
     issueDraftRequest,
     deleteDraftRequest,
     addTargetsToRequest,
+    returnRequestTargets,
     updateRequestTargetCard,
     deleteRequest,
   };

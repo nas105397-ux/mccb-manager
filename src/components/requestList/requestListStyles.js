@@ -37,6 +37,8 @@ export const ACTIVE = {
     "bg-white hover:bg-emerald-50 text-emerald-700 border-emerald-200",
   printButton:
     "bg-white hover:bg-blue-50 text-blue-700 border-blue-200",
+  returnButton:
+    "bg-white hover:bg-amber-50 text-amber-700 border-amber-200",
   deleteButton:
     "bg-white hover:bg-red-50 text-red-700 border-red-200",
   addPanel:
@@ -50,6 +52,17 @@ export const ACTIVE = {
   addSubmit:
     "bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 px-3 py-1.5 rounded-lg text-xs font-black cursor-pointer whitespace-nowrap",
   addCancel:
+    "bg-white hover:bg-gray-50 text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer whitespace-nowrap",
+  returnPanel:
+    "mb-3 rounded-lg border border-amber-200 bg-amber-50/40 p-3 space-y-2",
+  returnNotice: "text-[11px] font-bold text-amber-800 leading-relaxed",
+  returnList:
+    "max-h-48 overflow-y-auto rounded-lg border border-amber-100 bg-white p-2 space-y-1.5",
+  returnItem:
+    "flex flex-wrap items-center gap-2 rounded border border-gray-100 bg-gray-50 p-2 text-xs font-bold text-gray-700 cursor-pointer hover:bg-white",
+  returnSubmit:
+    "bg-amber-600 hover:bg-amber-700 text-white border border-amber-700 px-3 py-1.5 rounded-lg text-xs font-black cursor-pointer whitespace-nowrap",
+  returnCancel:
     "bg-white hover:bg-gray-50 text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer whitespace-nowrap",
   editButton: "bg-white hover:bg-sky-50 text-sky-700 border-sky-200",
   editPanel:
@@ -71,14 +84,24 @@ export const ACTIVE = {
   targetGrid: "grid grid-cols-1 gap-2 transition-all duration-200",
   targetCard:
     "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-white p-2.5 rounded-lg border border-gray-200 text-xs font-bold shadow-sm",
+  targetCardReturned:
+    "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-gray-50 p-2.5 rounded-lg border border-dashed border-gray-300 text-xs font-bold",
   roomTag: "bg-gray-100 text-gray-500 text-[10px] px-1.5 py-0.5 rounded border",
   targetName: "text-gray-800 break-words",
+  returnedTargetName: "text-gray-500 break-words line-through decoration-gray-400",
   reserveBadge:
     "bg-amber-100 text-amber-800 border border-amber-200 text-[10px] px-1.5 py-0.5 rounded font-black shadow-sm ml-1",
   returnedBadge:
     "bg-sky-100 text-sky-800 border border-sky-200 text-[10px] px-1.5 py-0.5 rounded font-black shadow-sm ml-1",
   cardActionButton:
     "rounded border border-gray-200 bg-white px-2 py-1 font-black text-gray-600 shadow-sm hover:bg-gray-50 cursor-pointer whitespace-nowrap",
+  returnedTimestamp: "text-[10px] font-bold text-gray-400",
+  returnedFoldNote:
+    "text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded",
+  returnedTargetBadge:
+    "bg-emerald-100 text-emerald-800 border border-emerald-200 text-[10px] px-1.5 py-0.5 rounded font-black shadow-sm ml-1",
+  returnedStatus:
+    "bg-gray-100 text-gray-500 px-2 py-1 rounded text-xs font-black border border-gray-200 shrink-0",
   noReserveBadge:
     "bg-gray-100 text-gray-400 border border-gray-200 text-[10px] px-1.5 py-0.5 rounded font-bold ml-1",
   doneStatus:
@@ -119,4 +142,6 @@ export const HISTORY = {
   targetName: "text-gray-600 break-words",
   reserveBadge:
     "bg-white text-gray-400 border border-gray-200 text-[9px] px-1 rounded font-normal",
+  returnedBadge:
+    "bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] px-1 rounded font-bold",
 };

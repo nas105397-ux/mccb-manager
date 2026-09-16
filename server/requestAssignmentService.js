@@ -246,9 +246,13 @@ export function createRequestAssignmentService({ store }) {
 
   function buildRequestTargetAddition(targetRequest, targetMccbIds, dummyNames = {}) {
     // 既存依頼への追加時は、重複選択を除外して追加分だけを割当シミュレーションする。
-    const existingTargetIds = new Set(targetRequest.targetMccbIds || []);
+    // 一部返却済みの設備は札を手放しているため、再び追加して確保し直せるようにする。
+    const returnedCards = targetRequest.returnedCards || {};
+    const reservedTargetIds = new Set(
+      (targetRequest.targetMccbIds || []).filter((id) => !returnedCards[id]),
+    );
     const additionalTargetIds = [...new Set(targetMccbIds)].filter(
-      (id) => id && !existingTargetIds.has(id),
+      (id) => id && !reservedTargetIds.has(id),
     );
 
     if (additionalTargetIds.length === 0) {
@@ -263,6 +267,10 @@ export function createRequestAssignmentService({ store }) {
     const { beforeMccbList, currentMccbList, finalRequest } =
       buildRequestAssignment(previewRequest);
 
+    const listedTargetIds = new Set(targetRequest.targetMccbIds || []);
+    const nextReturnedCards = { ...returnedCards };
+    additionalTargetIds.forEach((id) => delete nextReturnedCards[id]);
+
     return {
       beforeMccbList,
       currentMccbList,
@@ -271,12 +279,14 @@ export function createRequestAssignmentService({ store }) {
         ...targetRequest,
         targetMccbIds: [
           ...(targetRequest.targetMccbIds || []),
-          ...additionalTargetIds,
+          // 返却済みからの復帰は一覧に残っているため、行が二重にならないよう除く。
+          ...additionalTargetIds.filter((id) => !listedTargetIds.has(id)),
         ],
         reservedCards: {
           ...(targetRequest.reservedCards || {}),
           ...(finalRequest.reservedCards || {}),
         },
+        returnedCards: nextReturnedCards,
         dummyNames: {
           ...(targetRequest.dummyNames || {}),
           ...dummyNames,

@@ -5,6 +5,7 @@ export const STATUS_MESSAGE_KEYS = {
   REQUEST_DRAFT_SAVED: "requestDraftSaved",
   REQUEST_LIST_RECEIPT_SENT: "requestListReceiptSent",
   REQUEST_TARGETS_ADDED: "requestTargetsAdded",
+  REQUEST_TARGETS_RETURNED: "requestTargetsReturned",
   REQUEST_TARGET_CARD_UPDATED: "requestTargetCardUpdated",
   DRAFT_REQUEST_ISSUED: "draftRequestIssued",
   DRAFT_REQUEST_UPDATED: "draftRequestUpdated",
@@ -32,6 +33,11 @@ const STATUS_MESSAGE_DEFINITIONS = {
   [STATUS_MESSAGE_KEYS.REQUEST_TARGETS_ADDED]: {
     type: "success",
     text: "選択した設備を依頼に追加しました。",
+  },
+  [STATUS_MESSAGE_KEYS.REQUEST_TARGETS_RETURNED]: {
+    type: "success",
+    text: ({ returnedCount }) =>
+      `選択した ${returnedCount} 件の設備を返却し、子札を解放しました。`,
   },
   [STATUS_MESSAGE_KEYS.REQUEST_TARGET_CARD_UPDATED]: {
     type: "success",

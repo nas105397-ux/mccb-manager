@@ -64,7 +64,10 @@ export default function HistoryRequestSection({
                   {isExpanded && (
                     <div className={HISTORY.targetGrid}>
                       {req.targets.map((target) => {
-                        const reserveInfo = target.reserveInfo;
+                        // 作業途中で一部返却した設備も、当時の対象として札と返却時刻を残す。
+                        const cardInfo = target.isReturned
+                          ? target.returnedInfo
+                          : target.reserveInfo;
                         return (
                           <div key={target.id} className={HISTORY.targetCard}>
                             <div className="flex flex-wrap items-center gap-1.5 min-w-0">
@@ -74,10 +77,18 @@ export default function HistoryRequestSection({
                               <span className={HISTORY.targetName}>
                                 {target.name}
                               </span>
-                              {reserveInfo?.cardNo && (
+                              {cardInfo?.cardNo && (
                                 <span className={HISTORY.reserveBadge}>
-                                  🔖 使用札: {reserveInfo.displayName} No.
-                                  {reserveInfo.cardNo}
+                                  🔖 使用札: {cardInfo.displayName} No.
+                                  {cardInfo.cardNo}
+                                </span>
+                              )}
+                              {target.isReturned && (
+                                <span className={HISTORY.returnedBadge}>
+                                  ✅ 一部返却
+                                  {target.returnedInfo?.returnedTimestamp
+                                    ? `: ${target.returnedInfo.returnedTimestamp}`
+                                    : ""}
                                 </span>
                               )}
                             </div>

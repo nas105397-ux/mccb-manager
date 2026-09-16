@@ -4,6 +4,8 @@ export default function FoldToggleRow({
   onClick,
   label,
   count,
+  note,
+  noteClassName,
   className,
   hintClassName,
 }) {
@@ -16,6 +18,7 @@ export default function FoldToggleRow({
       <span>
         {isExpanded ? "▼" : "▶"} {label} ({count}面)
       </span>
+      {note && <span className={noteClassName}>{note}</span>}
       {hintClassName && (
         <span className={hintClassName}>
           {isExpanded ? "[ クリックで折りたたむ ]" : "[ クリックで展開する ]"}
