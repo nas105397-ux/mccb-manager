@@ -8,11 +8,25 @@ import {
 import { formatWorkContent, formatWorkerName } from "../shared/mccbViewUtils";
 import StatusMessageRail from "./StatusMessageRail";
 
-// 送電/停電トグルボタンの配色。送電操作がブロックされている間はグレーアウトする。
-const POWER_BUTTON_STYLES = {
+// 左の現在状態パネルの配色。今どちらの状態にあるかを色でも示す。
+const POWER_STATUS_STYLES = {
+  powerOff: {
+    container: "bg-red-50 border-red-200",
+    label: "text-red-400",
+    text: "text-red-700",
+  },
+  powerOn: {
+    container: "bg-green-50 border-green-200",
+    label: "text-green-500",
+    text: "text-green-700",
+  },
+};
+
+// 右の操作ボタンの配色。状態ではなく「これから実行する操作」を表す。
+const POWER_ACTION_BUTTON_STYLES = {
   blocked: "bg-gray-300 text-gray-500 border-gray-400 cursor-not-allowed opacity-60",
-  powerOff: "bg-red-600 text-white border-red-700 hover:bg-red-700 cursor-pointer",
-  powerOn: "bg-green-600 text-white border-green-700 hover:bg-green-700 cursor-pointer",
+  toPowerOff: "bg-red-600 text-white border-red-700 hover:bg-red-700 cursor-pointer",
+  toPowerOn: "bg-green-600 text-white border-green-700 hover:bg-green-700 cursor-pointer",
 };
 
 // ==========================================
@@ -46,6 +60,10 @@ export default function ControlModal({
     handleBorrowCard,
     handleSaveMaster,
   } = useControlModalController({ mccb, onUpdate, onUpdatePower });
+
+  const powerStatusStyle = isPowerOff
+    ? POWER_STATUS_STYLES.powerOff
+    : POWER_STATUS_STYLES.powerOn;
 
   const temporarilyReturnedCardMap = useMemo(() => {
     const cardMap = new Map();
@@ -104,31 +122,47 @@ export default function ControlModal({
         {/* 📜 モーダルボディ */}
         <div className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-6 flex-1 text-sm text-gray-700">
 
-          {/* ⚡ SECTION 2: 停電・送電ステータス切り替えトグル */}
-          <div className="bg-gray-50 p-4 rounded-xl border flex flex-wrap items-center justify-between gap-3">
+          {/* ⚡ SECTION 2: 左に現在の状態、右に実行する操作を並べる */}
+          <div className="bg-gray-50 p-4 rounded-xl border space-y-3">
             <div>
               <p className="font-black text-gray-800">⚡ 設備停電ステータス</p>
               <p className="text-xs text-gray-400 mt-0.5">※依頼発行とは別に、主幹の開閉状態を直接操作ロックします</p>
-              {isSendingBlocked && (
-                <p className="text-xs text-orange-600 font-bold mt-1">
-                  ⚠️ 未返却の子札があるため、送電操作はできません
-                </p>
-              )}
             </div>
-            <button
-              onClick={handleTogglePower}
-              disabled={isSendingBlocked}
-              title={isSendingBlocked ? "未返却の子札があるため送電できません" : undefined}
-              className={`w-full sm:w-auto px-5 py-3 sm:py-2 rounded-xl text-xs font-black border ${
-                isSendingBlocked
-                  ? POWER_BUTTON_STYLES.blocked
-                  : isPowerOff
-                    ? POWER_BUTTON_STYLES.powerOff
-                    : POWER_BUTTON_STYLES.powerOn
-              }`}
-            >
-              {isPowerOff ? "🔴 現在：操作禁止（停電中）" : "🟢 現在：通常運用（送電中）"}
-            </button>
+
+            <div className="flex flex-col sm:flex-row sm:items-stretch gap-3">
+              <div
+                className={`flex-1 min-w-0 rounded-xl border p-3 ${powerStatusStyle.container}`}
+              >
+                <p className={`text-[10px] font-black tracking-widest ${powerStatusStyle.label}`}>
+                  現在の状態
+                </p>
+                <p className={`mt-1 text-sm font-black break-words ${powerStatusStyle.text}`}>
+                  {isPowerOff ? "🔴 停電中（操作禁止）" : "🟢 送電中（通常運用）"}
+                </p>
+              </div>
+
+              <div className="flex flex-col justify-center gap-1.5 sm:w-56 sm:shrink-0">
+                <button
+                  onClick={handleTogglePower}
+                  disabled={isSendingBlocked}
+                  title={isSendingBlocked ? "未返却の子札があるため送電できません" : undefined}
+                  className={`w-full px-5 py-3 rounded-xl text-sm font-black border ${
+                    isSendingBlocked
+                      ? POWER_ACTION_BUTTON_STYLES.blocked
+                      : isPowerOff
+                        ? POWER_ACTION_BUTTON_STYLES.toPowerOn
+                        : POWER_ACTION_BUTTON_STYLES.toPowerOff
+                  }`}
+                >
+                  {isPowerOff ? "🟢 送電にする" : "🔴 停電にする"}
+                </button>
+                {isSendingBlocked && (
+                  <p className="text-[11px] text-orange-600 font-bold leading-snug">
+                    ⚠️ 未返却の子札があるため、送電操作はできません
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* 🔖 SECTION 3: 子札マスタの個別管理エリア */}
