@@ -92,6 +92,8 @@ export function useAppController() {
     deleteDeviceGroup,
     createDatabaseBackup,
     restoreDatabaseBackup,
+    kioskSleepSettings,
+    saveKioskSleepSettings,
     updateMccbPower,
   } = useMccbData();
 
@@ -380,6 +382,8 @@ export function useAppController() {
     deleteDeviceGroup,
     createDatabaseBackup,
     restoreDatabaseBackup,
+    kioskSleepSettings,
+    saveKioskSleepSettings,
     // MCCB カードの依頼中表示と再描画判定に利用するID集合。
     activeMccbIds,
   };

@@ -5,6 +5,7 @@ export const VERSION_URL = `${API_URL}/version`;
 export const LOGS_PAGE_URL = "/api/logs";
 export const HISTORY_PAGE_URL = "/api/request-history";
 export const BACKUPS_URL = "/api/admin/backups";
+export const KIOSK_SLEEP_URL = "/api/admin/kiosk-sleep";
 // 常時稼働端末の負荷を抑えつつ他端末の変更を追従する同期間隔。
 export const POLL_INTERVAL = 5000;
 export const LOG_PAGE_SIZE = 50;

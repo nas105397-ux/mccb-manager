@@ -16,6 +16,7 @@ DISPLAY_SLEEP_MODE="${DISPLAY_SLEEP_MODE:-off}"
 IDLE_SLEEP_MINUTES="${IDLE_SLEEP_MINUTES:-15}"
 SLEEP_START_TIME="${SLEEP_START_TIME:-}"
 SLEEP_END_TIME="${SLEEP_END_TIME:-}"
+WAKE_GRACE_MINUTES="${WAKE_GRACE_MINUTES:-5}"
 
 if [ ! -d "$APP_DIR" ]; then
   echo "APP_DIR does not exist: $APP_DIR" >&2
@@ -257,6 +258,7 @@ Environment=DISPLAY_SLEEP_MODE=$DISPLAY_SLEEP_MODE
 Environment=IDLE_SLEEP_MINUTES=$IDLE_SLEEP_MINUTES
 Environment=SLEEP_START_TIME=$SLEEP_START_TIME
 Environment=SLEEP_END_TIME=$SLEEP_END_TIME
+Environment=WAKE_GRACE_MINUTES=$WAKE_GRACE_MINUTES
 Environment=ENABLE_GPU_TUNING=0
 Environment="CHROMIUM_FLAGS=--disable-gpu-vsync --ignore-certificate-errors --unsafely-treat-insecure-origin-as-secure=https://$MCCB_KIOSK_HOST"
 EnvironmentFile=-%h/.config/mccb-kiosk/kiosk.env

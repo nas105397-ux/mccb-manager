@@ -20,6 +20,7 @@ Environment=DISPLAY_SLEEP_MODE=both
 Environment=IDLE_SLEEP_MINUTES=30
 Environment=SLEEP_START_TIME=20:00
 Environment=SLEEP_END_TIME=06:00
+Environment=WAKE_GRACE_MINUTES=5
 Environment=ENABLE_GPU_TUNING=0
 Environment="CHROMIUM_FLAGS=--disable-gpu-vsync --ignore-certificate-errors --unsafely-treat-insecure-origin-as-secure=https://localhost"
 EnvironmentFile=-%h/.config/mccb-kiosk/kiosk.env

@@ -15,11 +15,17 @@ MAIN_SCALE="${MAIN_SCALE:-1}"
 DASHBOARD_SCALE="${DASHBOARD_SCALE:-1.5}"
 DISPLAY_WAIT_SECONDS="${DISPLAY_WAIT_SECONDS:-60}"
 XCURSOR_SIZE="${XCURSOR_SIZE:-24}"
+# 以下のスリープ設定はサーバー(管理画面)から配信される値で上書きされる。
+# ここでの指定は、サーバーへ接続できないときのフォールバックとして使う。
 DISPLAY_SLEEP_MODE="${DISPLAY_SLEEP_MODE:-off}"
 IDLE_SLEEP_MINUTES="${IDLE_SLEEP_MINUTES:-15}"
 SLEEP_START_TIME="${SLEEP_START_TIME:-}"
 SLEEP_END_TIME="${SLEEP_END_TIME:-}"
-SLEEP_CHECK_INTERVAL_SECONDS="${SLEEP_CHECK_INTERVAL_SECONDS:-60}"
+# 消灯時間帯に画面へ触れたあと、再消灯するまで点灯を維持する分数。
+WAKE_GRACE_MINUTES="${WAKE_GRACE_MINUTES:-5}"
+SLEEP_CHECK_INTERVAL_SECONDS="${SLEEP_CHECK_INTERVAL_SECONDS:-15}"
+SLEEP_POLICY_URL="${SLEEP_POLICY_URL:-${APP_URL}/api/kiosk/sleep-policy}"
+SLEEP_POLICY_FETCH_INTERVAL_SECONDS="${SLEEP_POLICY_FETCH_INTERVAL_SECONDS:-60}"
 CONFIGURE_DISPLAY_LAYOUT="${CONFIGURE_DISPLAY_LAYOUT:-1}"
 MAIN_OUTPUT="${MAIN_OUTPUT:-}"
 DASHBOARD_OUTPUT="${DASHBOARD_OUTPUT:-}"
@@ -27,18 +33,18 @@ DASHBOARD_OUTPUT="${DASHBOARD_OUTPUT:-}"
 export XCURSOR_SIZE
 
 case "$DISPLAY_SLEEP_MODE" in
-  off|idle|schedule|both)
+  off|idle|schedule|both|always)
     ;;
   *)
-    echo "Invalid DISPLAY_SLEEP_MODE: $DISPLAY_SLEEP_MODE. Use 'off', 'idle', 'schedule', or 'both'." >&2
+    echo "Invalid DISPLAY_SLEEP_MODE: $DISPLAY_SLEEP_MODE. Use 'off', 'idle', 'schedule', 'both', or 'always'." >&2
     exit 1
     ;;
 esac
 
+# 時刻未設定でも、サーバーから配信された時点で時間帯消灯が有効になる。
 if [ "$DISPLAY_SLEEP_MODE" = "schedule" ] || [ "$DISPLAY_SLEEP_MODE" = "both" ]; then
   if [ -z "$SLEEP_START_TIME" ] || [ -z "$SLEEP_END_TIME" ]; then
-    echo "SLEEP_START_TIME and SLEEP_END_TIME (HH:MM) are required for DISPLAY_SLEEP_MODE=$DISPLAY_SLEEP_MODE." >&2
-    exit 1
+    echo "警告: SLEEP_START_TIME / SLEEP_END_TIME (HH:MM) が未設定のため、サーバーから設定を取得するまで時間帯消灯は行いません。" >&2
   fi
 fi
 
@@ -174,7 +180,8 @@ configure_display_sleep() {
       xset dpms "$timeout" "$timeout" "$timeout" >/dev/null 2>&1 || true
       xset s "$timeout" >/dev/null 2>&1 || true
       ;;
-    schedule)
+    schedule|always)
+      # 消灯タイミングはこのスクリプトが制御するため、X 側の自動消灯は止めておく。
       xset +dpms >/dev/null 2>&1 || true
       xset dpms 0 0 0 >/dev/null 2>&1 || true
       xset s off >/dev/null 2>&1 || true
@@ -209,19 +216,117 @@ in_sleep_window() {
   fi
 }
 
-run_display_sleep_scheduler() {
-  local in_window_prev="0"
+# 現在のモードで「消灯しているべき時間帯」かどうかを判定する。
+in_display_off_window() {
+  case "$DISPLAY_SLEEP_MODE" in
+    always)
+      return 0
+      ;;
+    schedule|both)
+      if [ -z "$SLEEP_START_TIME" ] || [ -z "$SLEEP_END_TIME" ]; then
+        return 1
+      fi
+      in_sleep_window
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+# xset の報告するモニター状態。強制消灯後に "On" へ戻っていれば、画面が操作されたと判断できる。
+get_monitor_state() {
+  # set -e / pipefail でループごと落ちないよう、取得失敗時は空文字を返す。
+  xset q 2>/dev/null | sed -n 's/.*Monitor is \(.*\)$/\1/p' | head -n 1 || true
+}
+
+# サーバーから当日ぶんの実効ポリシーを取得する。期間設定の判定はサーバー側で解決済み。
+fetch_sleep_policy() {
+  if [ -z "$SLEEP_POLICY_URL" ] || ! command -v curl >/dev/null 2>&1; then
+    return 1
+  fi
+
+  local body
+  body="$(curl -fsSk --max-time 5 "$SLEEP_POLICY_URL" 2>/dev/null)" || return 1
+  [ -n "$body" ] || return 1
+
+  local key value mode="" idle="" start="" end="" grace=""
+  while IFS='=' read -r key value; do
+    case "$key" in
+      mode) mode="$value" ;;
+      idle_minutes) idle="$value" ;;
+      sleep_start) start="$value" ;;
+      sleep_end) end="$value" ;;
+      wake_grace_minutes) grace="$value" ;;
+    esac
+  done <<< "$body"
+
+  # 壊れた応答で運用中の設定を壊さないよう、全項目を検証してから反映する。
+  case "$mode" in
+    off|idle|schedule|both|always) ;;
+    *) return 1 ;;
+  esac
+  [[ "$idle" =~ ^[0-9]{1,4}$ ]] || return 1
+  [[ "$grace" =~ ^[0-9]{1,4}$ ]] || return 1
+  [[ "$start" =~ ^([01][0-9]|2[0-3]):[0-5][0-9]$ ]] || return 1
+  [[ "$end" =~ ^([01][0-9]|2[0-3]):[0-5][0-9]$ ]] || return 1
+
+  DISPLAY_SLEEP_MODE="$mode"
+  IDLE_SLEEP_MINUTES="$idle"
+  SLEEP_START_TIME="$start"
+  SLEEP_END_TIME="$end"
+  WAKE_GRACE_MINUTES="$grace"
+  return 0
+}
+
+# 画面消灯の唯一の制御点。設定の定期取得、時間帯判定、復帰後の点灯維持をここで行う。
+run_display_sleep_controller() {
+  local applied_signature=""
+  local forced_off="0"
+  local grace_until="0"
+  local last_fetch_at="0"
+  local now signature monitor_state
 
   while true; do
-    if in_sleep_window; then
-      xset dpms force off >/dev/null 2>&1 || true
-      in_window_prev="1"
+    now="$(date +%s)"
+
+    if [ "$((now - last_fetch_at))" -ge "$SLEEP_POLICY_FETCH_INTERVAL_SECONDS" ]; then
+      fetch_sleep_policy || true
+      last_fetch_at="$now"
+    fi
+
+    signature="${DISPLAY_SLEEP_MODE}/${IDLE_SLEEP_MINUTES}"
+    if [ "$signature" != "$applied_signature" ]; then
+      # モードや無操作時間が変わったときだけ xset の基本設定をやり直す。
+      configure_display_sleep
+      applied_signature="$signature"
+      # forced_off は引き継ぐ。消灯させた事実を失うと、点灯に戻すべき場面で戻せなくなる。
+      grace_until="0"
+    fi
+
+    if in_display_off_window; then
+      monitor_state="$(get_monitor_state)"
+      if [ "$forced_off" = "1" ] && [ "$monitor_state" = "On" ]; then
+        # 消灯中に画面へ触れて復帰した。指定分数が過ぎるまで再消灯しない。
+        grace_until="$((now + WAKE_GRACE_MINUTES * 60))"
+        forced_off="0"
+      fi
+
+      if [ "$now" -ge "$grace_until" ]; then
+        xset dpms force off >/dev/null 2>&1 || true
+        forced_off="1"
+      fi
     else
-      if [ "$in_window_prev" = "1" ]; then
+      if [ "$forced_off" = "1" ]; then
+        xset dpms force on >/dev/null 2>&1 || true
+      elif [ "$DISPLAY_SLEEP_MODE" = "off" ] && [ "$(get_monitor_state)" != "On" ]; then
+        # 常時点灯の設定なのに消灯している（サービス再起動直後など）ときは点灯へ戻す。
         xset dpms force on >/dev/null 2>&1 || true
       fi
-      in_window_prev="0"
+      forced_off="0"
+      grace_until="0"
     fi
+
     sleep "$SLEEP_CHECK_INTERVAL_SECONDS"
   done
 }
@@ -251,10 +356,9 @@ configure_display_layout
 
 configure_display_sleep
 
-if [ "$DISPLAY_SLEEP_MODE" = "schedule" ] || [ "$DISPLAY_SLEEP_MODE" = "both" ]; then
-  run_display_sleep_scheduler &
-  SCHEDULER_PID="$!"
-fi
+# モードはサーバー配信で随時変わるため、コントローラは常に起動しておく。
+run_display_sleep_controller &
+SCHEDULER_PID="$!"
 
 if [ "$ENABLE_FCITX" = "1" ] && command -v fcitx5 >/dev/null 2>&1; then
   export GTK_IM_MODULE="${GTK_IM_MODULE:-fcitx}"

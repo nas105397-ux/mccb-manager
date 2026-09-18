@@ -11,6 +11,7 @@ import RequestHistorySettingsPanel from "./admin/RequestHistorySettingsPanel";
 import PrintModePanel from "./admin/PrintModePanel";
 import DatabaseBackupPanel from "./admin/DatabaseBackupPanel";
 import PrinterConnectionPanel from "./admin/PrinterConnectionPanel";
+import KioskSleepSettingsPanel from "./admin/KioskSleepSettingsPanel";
 import LogHistoryTable from "./admin/LogHistoryTable";
 
 export default function AdminPanel({
@@ -45,6 +46,8 @@ export default function AdminPanel({
   onRestoreDatabaseBackup = () => {},
   requestPrintMode,
   onChangeRequestPrintMode = () => {},
+  kioskSleepSettings,
+  onSaveKioskSleepSettings = () => {},
 }) {
   const [selectedBackupFile, setSelectedBackupFile] = useState("");
   const {
@@ -184,6 +187,11 @@ export default function AdminPanel({
             setSelectedBackupFile={setSelectedBackupFile}
             onCreateDatabaseBackup={onCreateDatabaseBackup}
             onRestoreDatabaseBackup={onRestoreDatabaseBackup}
+          />
+
+          <KioskSleepSettingsPanel
+            kioskSleepSettings={kioskSleepSettings}
+            onSaveKioskSleepSettings={onSaveKioskSleepSettings}
           />
 
           <PrinterConnectionPanel

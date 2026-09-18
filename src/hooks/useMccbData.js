@@ -1,7 +1,14 @@
 // API通信、定期同期、楽観的更新をまとめ、画面間で共有するMCCBデータを管理する。
 // 実体はドメインごとの小さなフック（mccbData/ 以下）を合成するファサード。
 import { useCallback, useEffect } from "react";
-import { CORE_API_URL, VERSION_URL, BACKUPS_URL, POLL_INTERVAL } from "./mccbData/constants";
+import {
+  CORE_API_URL,
+  VERSION_URL,
+  BACKUPS_URL,
+  KIOSK_SLEEP_URL,
+  POLL_INTERVAL,
+} from "./mccbData/constants";
+import { normalizeKioskSleepSettings } from "../shared/kioskSleepSettings";
 import { parseServerData } from "./mccbData/utils";
 import { useSyncEngine } from "./mccbData/useSyncEngine";
 import { useMccbLogs } from "./mccbData/useMccbLogs";
@@ -10,6 +17,7 @@ import { useMccbCore } from "./mccbData/useMccbCore";
 import { useDeviceGroups } from "./mccbData/useDeviceGroups";
 import { useMccbRequests } from "./mccbData/useMccbRequests";
 import { useDatabaseBackups } from "./mccbData/useDatabaseBackups";
+import { useKioskSleepSettings } from "./mccbData/useKioskSleepSettings";
 
 export function useMccbData() {
   const { runSyncTask, applyVersion, getLastVersion, shouldSkipPoll } =
@@ -148,6 +156,13 @@ export function useMccbData() {
     restoreDatabaseBackup,
   } = useDatabaseBackups({ runSyncTask, applyVersion, applyLogs, applyServerData });
 
+  const {
+    kioskSleepSettings,
+    setKioskSleepSettings,
+    fetchKioskSleepSettings,
+    saveKioskSleepSettings,
+  } = useKioskSleepSettings({ runSyncTask, applyVersion, applyLogs });
+
   // --- 定期自動同期ポーリング設定 (useEffect) ---
   useEffect(() => {
     const fetchFullData = () =>
@@ -188,6 +203,13 @@ export function useMccbData() {
         setDatabaseBackups(Array.isArray(result.backups) ? result.backups : []);
       })
       .catch((err) => console.error("DBバックアップ一覧同期エラー:", err));
+    // キオスクのスリープ設定は端末側が直接ポーリングするため、管理画面では初期表示分だけ取得する。
+    fetch(KIOSK_SLEEP_URL)
+      .then((res) => res.json())
+      .then((result) => {
+        setKioskSleepSettings(normalizeKioskSleepSettings(result.kioskSleepSettings));
+      })
+      .catch((err) => console.error("キオスクスリープ設定同期エラー:", err));
     const timer = setInterval(fetchData, POLL_INTERVAL);
     return () => clearInterval(timer);
   }, [
@@ -196,6 +218,7 @@ export function useMccbData() {
     fetchLogsPageSnapshot,
     getLastVersion,
     setDatabaseBackups,
+    setKioskSleepSettings,
     shouldSkipPoll,
   ]);
 
@@ -216,6 +239,7 @@ export function useMccbData() {
     historyPageInfo,
     historySettings,
     databaseBackups,
+    kioskSleepSettings,
     addDeviceGroup,
     updateDeviceGroup,
     deleteDeviceGroup,
@@ -249,5 +273,7 @@ export function useMccbData() {
     clearRequestHistory,
     changeMaxHistorySize,
     fetchDatabaseBackups,
+    fetchKioskSleepSettings,
+    saveKioskSleepSettings,
   };
 }

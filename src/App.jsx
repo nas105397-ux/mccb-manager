@@ -66,6 +66,8 @@ function AppContent() {
       onRestoreDatabaseBackup={controller.restoreDatabaseBackup}
       requestPrintMode={controller.requestPrintMode}
       onChangeRequestPrintMode={controller.setRequestPrintMode}
+      kioskSleepSettings={controller.kioskSleepSettings}
+      onSaveKioskSleepSettings={controller.saveKioskSleepSettings}
     />
   );
 

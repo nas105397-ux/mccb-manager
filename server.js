@@ -20,6 +20,14 @@ import {
 } from "./src/shared/categoryColorUtils.js";
 import { countBorrowedCards } from "./src/shared/mccbViewUtils.js";
 import {
+  DEFAULT_KIOSK_SLEEP_SETTINGS,
+  describeKioskSleepPolicy,
+  formatKioskSleepPolicyText,
+  normalizeKioskSleepSettings,
+  pruneExpiredExceptions,
+  resolveKioskSleepPolicy,
+} from "./src/shared/kioskSleepSettings.js";
+import {
   cloneMccbListForMutation,
   createRequestAssignmentService,
   getChangedMccbs,
@@ -109,6 +117,7 @@ const DEFAULT_DATA = {
   deviceGroups: [],
   requestHistory: [],
   historySettings: { maxSize: DEFAULT_MAX_SIZE },
+  kioskSleepSettings: DEFAULT_KIOSK_SLEEP_SETTINGS,
 };
 
 // ==========================================
@@ -929,6 +938,75 @@ app.patch("/api/admin/request-history", (req, res) => {
   } catch (error) {
     console.error("依頼履歴管理更新失敗:", error);
     res.status(500).json({ error: "依頼履歴管理の更新に失敗しました" });
+  }
+});
+
+/** キオスク画面スリープ設定の取得 */
+app.get("/api/admin/kiosk-sleep", (req, res) => {
+  try {
+    const kioskSleepSettings = normalizeKioskSleepSettings(
+      store.readCollection("kioskSleepSettings"),
+    );
+    res.json({
+      status: "success",
+      kioskSleepSettings,
+      description: describeKioskSleepPolicy(kioskSleepSettings),
+      version: store.getVersion(),
+    });
+  } catch (error) {
+    console.error("キオスクスリープ設定取得失敗:", error);
+    res.status(500).json({ error: "キオスクスリープ設定の取得に失敗しました" });
+  }
+});
+
+/** キオスク画面スリープ設定の更新 */
+app.patch("/api/admin/kiosk-sleep", (req, res) => {
+  try {
+    const incoming = req.body?.kioskSleepSettings;
+    if (!incoming || typeof incoming !== "object") {
+      return res.status(400).json({ error: "キオスクスリープ設定が不正です。" });
+    }
+
+    const normalized = normalizeKioskSleepSettings(incoming);
+    const kioskSleepSettings = {
+      ...normalized,
+      exceptions: pruneExpiredExceptions(normalized.exceptions),
+      updatedAt: Date.now(),
+    };
+
+    const logSettings = store.readCollection("logSettings");
+    const logs = createUpdatedLogs(
+      LOG_TYPES.SYSTEM,
+      `キオスク画面スリープ設定が変更されました。(${describeKioskSleepPolicy(kioskSleepSettings)})`,
+      store.readCollection("logs"),
+      logSettings?.maxSize || DEFAULT_MAX_SIZE,
+    );
+
+    store.writeCollections({ kioskSleepSettings, logs });
+    res.json({
+      status: "success",
+      kioskSleepSettings,
+      description: describeKioskSleepPolicy(kioskSleepSettings),
+      logs,
+      version: store.getVersion(),
+    });
+  } catch (error) {
+    console.error("キオスクスリープ設定更新失敗:", error);
+    res.status(500).json({ error: "キオスクスリープ設定の更新に失敗しました" });
+  }
+});
+
+/** キオスク端末が定期取得する、当日ぶんの実効スリープポリシー */
+// 日付や例外期間の判定はサーバー側で解決し、kiosk 側スクリプトは key=value を読むだけにする。
+app.get("/api/kiosk/sleep-policy", (req, res) => {
+  try {
+    const policy = resolveKioskSleepPolicy(store.readCollection("kioskSleepSettings"));
+    res.type("text/plain; charset=utf-8");
+    res.set("Cache-Control", "no-store");
+    res.send(formatKioskSleepPolicyText(policy));
+  } catch (error) {
+    console.error("キオスクスリープポリシー配信失敗:", error);
+    res.status(500).type("text/plain").send("error=policy-unavailable");
   }
 });
 
