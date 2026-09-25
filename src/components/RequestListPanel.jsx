@@ -1,9 +1,10 @@
 // 発行中・仮発行・履歴の依頼一覧。設備追加や一時返却もここから操作する。
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRequestBarcodeScanner } from "../hooks/useRequestBarcodeScanner";
 import { useRequestListController } from "../hooks/useRequestListController";
 import { useRequestListPrintController } from "../hooks/useRequestListPrintController";
 import { REQUEST_PRINT_MODES } from "../shared/printSettings";
+import { createActiveDummyUsageMap } from "../shared/mccbViewUtils";
 import {
   createStatusMessage,
   STATUS_MESSAGE_KEYS,
@@ -35,6 +36,7 @@ export default function RequestListPanel({
   const [addPanelRequestId, setAddPanelRequestId] = useState(null);
   const [addSearchTerm, setAddSearchTerm] = useState("");
   const [selectedAddIds, setSelectedAddIds] = useState([]);
+  const [addDummyNames, setAddDummyNames] = useState({});
   const [returnPanelRequestId, setReturnPanelRequestId] = useState(null);
   const [selectedReturnIds, setSelectedReturnIds] = useState([]);
   const [listMessage, setListMessage] = useState(null);
@@ -45,6 +47,12 @@ export default function RequestListPanel({
       requestHistory,
       mccbList,
     });
+
+  // 設備追加でダミーを選ぶときも、依頼作成画面と同じ発行中の注記と代替名の引き継ぎを出す。
+  const activeDummyUsageMap = useMemo(
+    () => createActiveDummyUsageMap(requests, mccbList),
+    [requests, mccbList],
+  );
 
   const {
     printRequest,
@@ -68,17 +76,27 @@ export default function RequestListPanel({
     setAddPanelRequestId((currentId) => (currentId === requestId ? null : requestId));
     setAddSearchTerm("");
     setSelectedAddIds([]);
+    setAddDummyNames({});
     // 追加と返却のパネルが同時に開くと対象を取り違えるため、片方だけ開く。
     setReturnPanelRequestId(null);
     setSelectedReturnIds([]);
   };
 
-  const toggleAddTarget = (mccbId) => {
+  const toggleAddTarget = (mccbId, prefillDummyName = "") => {
     setSelectedAddIds((prev) =>
       prev.includes(mccbId)
         ? prev.filter((id) => id !== mccbId)
         : [...prev, mccbId],
     );
+    if (prefillDummyName) {
+      setAddDummyNames((prev) =>
+        prev[mccbId] ? prev : { ...prev, [mccbId]: prefillDummyName },
+      );
+    }
+  };
+
+  const setAddDummyName = (mccbId, value) => {
+    setAddDummyNames((prev) => ({ ...prev, [mccbId]: value }));
   };
 
   const openReturnPanel = (requestId) => {
@@ -90,6 +108,7 @@ export default function RequestListPanel({
     setAddPanelRequestId(null);
     setAddSearchTerm("");
     setSelectedAddIds([]);
+    setAddDummyNames({});
   };
 
   const toggleReturnTarget = (mccbId) => {
@@ -106,10 +125,17 @@ export default function RequestListPanel({
       return;
     }
 
-    onAddTargetsToRequest(requestId, selectedAddIds);
+    // 選択中の設備ぶんだけ代替名を送り、外した設備の入力は残さない。
+    const dummyNames = Object.fromEntries(
+      selectedAddIds
+        .filter((id) => addDummyNames[id])
+        .map((id) => [id, addDummyNames[id]]),
+    );
+    onAddTargetsToRequest(requestId, selectedAddIds, dummyNames);
     setAddPanelRequestId(null);
     setAddSearchTerm("");
     setSelectedAddIds([]);
+    setAddDummyNames({});
     setListMessage(
       createStatusMessage(STATUS_MESSAGE_KEYS.REQUEST_TARGETS_ADDED),
     );
@@ -232,6 +258,9 @@ export default function RequestListPanel({
           setAddSearchTerm={setAddSearchTerm}
           selectedAddIds={selectedAddIds}
           toggleAddTarget={toggleAddTarget}
+          addDummyNames={addDummyNames}
+          setAddDummyName={setAddDummyName}
+          activeDummyUsageMap={activeDummyUsageMap}
           handleAddTargets={handleAddTargets}
           returnPanelRequestId={returnPanelRequestId}
           openReturnPanel={openReturnPanel}

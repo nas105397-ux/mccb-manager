@@ -1,5 +1,6 @@
 // 停電依頼の作成画面。対象設備選択、プレビュー、仮発行/本発行を担当する。
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import DummyNameInput from "./DummyNameInput";
 import PrintPreviewForm from "./PrintPreviewForm";
 import StatusMessageRail from "./StatusMessageRail";
 import { useRequestFormController } from "../hooks/useRequestFormController";
@@ -21,9 +22,6 @@ const INPUT_CLASS =
 /** 検索入力クラス */
 const INPUT_SEARCH_CLASS =
   "border p-2 rounded text-xs w-full focus:outline-none mb-2 focus:border-blue-500";
-/** ダミー代替名入力クラス */
-const INPUT_DUMMY_CLASS =
-  "border p-1.5 rounded text-[11px] w-full bg-white focus:outline-none font-medium text-gray-700";
 /** 設備行：選択中クラス */
 const ROW_SELECTED_CLASS =
   "p-2 rounded border bg-blue-50/30 border-blue-200 text-blue-900";
@@ -39,33 +37,6 @@ const ROW_HEIGHT_COLLAPSED = 40;
 const ROW_HEIGHT_SELECTED = 40;
 const ROW_HEIGHT_SELECTED_DUMMY = 87;
 const ROW_GAP = 1; // 行間の余白（上下）
-
-function DummyNameInput({ mccbId, value, onChange }) {
-  const [draft, setDraft] = useState(() => value || "");
-
-  const commitValue = (nextValue) => {
-    if ((value || "") !== nextValue) {
-      onChange(mccbId, nextValue);
-    }
-  };
-
-  return (
-    <input
-      type="text"
-      value={draft}
-      onChange={(e) => {
-        const nextValue = e.target.value;
-        setDraft(nextValue);
-      }}
-      onBlur={() => commitValue(draft)}
-      placeholder="✏️ 代替する実際の設備名称を入力"
-      className={INPUT_DUMMY_CLASS}
-      onMouseDown={(e) => e.stopPropagation()}
-      onClick={(e) => e.stopPropagation()}
-      onKeyDown={(e) => e.stopPropagation()}
-    />
-  );
-}
 
 // ==========================================
 // RequestMccbRow: 1行単位の軽量コンポーネント（独立隔離）
@@ -151,6 +122,8 @@ export default function RequestFormPanel({
   requestPrintMode = REQUEST_PRINT_MODES.NONE,
 }) {
   const [previewRefreshNonce, setPreviewRefreshNonce] = useState(0);
+  // ブラウザ印刷は発行結果の割当を刷る。プレビュー取得後に他依頼が発行されてもずれないようにする。
+  const [issuedPreviewItems, setIssuedPreviewItems] = useState(null);
   const printPreviewStatusRef = useRef({
     isReady: false,
     isLoading: false,
@@ -183,7 +156,12 @@ export default function RequestFormPanel({
     onAddRequest,
     onAddDraftRequest,
     getPrintPreviewStatus: () => printPreviewStatusRef.current,
-    onAfterPrint: () => setPreviewRefreshNonce((prev) => prev + 1),
+    onBeforeBrowserPrint: (createdRequest) =>
+      setIssuedPreviewItems(createdRequest?.previewItems || null),
+    onAfterPrint: () => {
+      setIssuedPreviewItems(null);
+      setPreviewRefreshNonce((prev) => prev + 1);
+    },
     requestPrintMode,
   });
   const {
@@ -434,9 +412,9 @@ export default function RequestFormPanel({
         workContent={workContent}
         now={now}
         requestId={requestId}
-        selectedMccbsWithAssignedCards={selectedMccbsWithAssignedCards}
-        isPreviewLoading={isPreviewLoading}
-        previewError={previewError}
+        selectedMccbsWithAssignedCards={issuedPreviewItems || selectedMccbsWithAssignedCards}
+        isPreviewLoading={!issuedPreviewItems && isPreviewLoading}
+        previewError={issuedPreviewItems ? "" : previewError}
       />
     </div>
   );

@@ -48,7 +48,7 @@ export const ACTIVE = {
   addList:
     "max-h-48 overflow-y-auto rounded-lg border border-emerald-100 bg-white p-2 space-y-1.5",
   addItem:
-    "flex items-center gap-2 rounded border border-gray-100 bg-gray-50 p-2 text-xs font-bold text-gray-700 cursor-pointer hover:bg-white",
+    "flex flex-col gap-1.5 rounded border border-gray-100 bg-gray-50 p-2 text-xs font-bold text-gray-700 hover:bg-white",
   addSubmit:
     "bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 px-3 py-1.5 rounded-lg text-xs font-black cursor-pointer whitespace-nowrap",
   addCancel:

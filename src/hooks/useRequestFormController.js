@@ -42,6 +42,7 @@ export function useRequestFormController({
   onAddRequest,
   onAddDraftRequest,
   getPrintPreviewStatus,
+  onBeforeBrowserPrint,
   onAfterPrint,
   requestPrintMode = REQUEST_PRINT_MODES.NONE,
 }) {
@@ -121,12 +122,17 @@ export function useRequestFormController({
     return "";
   }, [dummyNames, getPrintPreviewStatus, selectedMccbIds]);
 
-  const printByBrowser = useCallback(async () => {
-    setFormMessage(createStatusMessage(STATUS_MESSAGE_KEYS.REQUEST_ISSUED));
-    await waitForNextPaint();
-    window.print();
-    onAfterPrint?.();
-  }, [onAfterPrint]);
+  const printByBrowser = useCallback(
+    async (createdRequest) => {
+      // 発行結果の割当を反映してから印刷ダイアログを開く。
+      onBeforeBrowserPrint?.(createdRequest);
+      setFormMessage(createStatusMessage(STATUS_MESSAGE_KEYS.REQUEST_ISSUED));
+      await waitForNextPaint();
+      window.print();
+      onAfterPrint?.();
+    },
+    [onAfterPrint, onBeforeBrowserPrint],
+  );
 
   const printByStarReceipt = useCallback(
     async (createdRequest) => {
@@ -191,7 +197,7 @@ export function useRequestFormController({
       setRequestId(generateRequestId());
 
       if (requestPrintMode === REQUEST_PRINT_MODES.BROWSER) {
-        await printByBrowser();
+        await printByBrowser(createdRequest);
       } else if (requestPrintMode === REQUEST_PRINT_MODES.STAR_RECEIPT) {
         await printByStarReceipt(createdRequest);
       } else {

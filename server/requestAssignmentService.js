@@ -51,6 +51,10 @@ export const preservePowerStateForRequestChanges = (beforeList, changedMccbs) =>
   }));
 };
 
+// 代替名は実設備の同定キーになるため、前後の空白差で別設備にならないよう揃える。
+const normalizeDummyName = (name) =>
+  typeof name === "string" ? name.trim() : "";
+
 const createUnavailableReservation = () => ({
   actualMccbId: null,
   cardNo: null,
@@ -162,11 +166,11 @@ function hasOtherDeviceOnDummy(
   currentRequests,
   pendingReservedCards,
 ) {
-  const requestedDevice = customDummyName || "";
+  const requestedDevice = normalizeDummyName(customDummyName);
   const isOtherDevice = (reservedCards) =>
     Object.entries(reservedCards || {}).some(([targetId, resInfo]) => {
       if (resInfo?.actualMccbId !== dummyId) return false;
-      const occupiedDevice = resInfo.customDummyName || targetId;
+      const occupiedDevice = normalizeDummyName(resInfo.customDummyName) || targetId;
       return occupiedDevice !== requestedDevice;
     });
 
@@ -245,15 +249,15 @@ export function createRequestAssignmentService({ store }) {
         continue;
       }
 
+      const customDummyName = isDummyMccb(originalMccb)
+        ? normalizeDummyName(newRequest.dummyNames?.[targetId]) || null
+        : null;
       const { finalMccb, availableIdx } = findAvailableCard(
         targetId,
         originalMccb,
         currentMccbList,
         currentRequests,
-        {
-          customDummyName: newRequest.dummyNames?.[targetId] || null,
-          pendingReservedCards: reservedCards,
-        },
+        { customDummyName, pendingReservedCards: reservedCards },
       );
 
       if (finalMccb && availableIdx !== -1) {
@@ -272,7 +276,7 @@ export function createRequestAssignmentService({ store }) {
           actualMccbId: finalMccb.id,
           cardNo: assignedCardNo,
           displayName: finalMccb.name,
-          customDummyName: newRequest.dummyNames?.[targetId] || null,
+          customDummyName,
         };
       } else {
         reservedCards[targetId] = createUnavailableReservation();
@@ -291,8 +295,11 @@ export function createRequestAssignmentService({ store }) {
     // 既存依頼への追加時は、重複選択を除外して追加分だけを割当シミュレーションする。
     // 一部返却済みの設備は札を手放しているため、再び追加して確保し直せるようにする。
     const returnedCards = targetRequest.returnedCards || {};
+    // 「空きなし」で終わった対象も札を持っていないので、返却済みと同じく確保し直せる。
     const reservedTargetIds = new Set(
-      (targetRequest.targetMccbIds || []).filter((id) => !returnedCards[id]),
+      (targetRequest.targetMccbIds || []).filter(
+        (id) => !returnedCards[id] && targetRequest.reservedCards?.[id]?.actualMccbId,
+      ),
     );
     const additionalTargetIds = [...new Set(targetMccbIds)].filter(
       (id) => id && !reservedTargetIds.has(id),

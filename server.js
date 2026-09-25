@@ -1070,6 +1070,8 @@ app.post("/api/requests", (req, res) => {
     res.json({
       status: "success",
       request: finalRequest,
+      // ブラウザ印刷が発行結果そのものを刷れるよう、確定した割当の表示項目も返す。
+      previewItems: requestAssignmentService.buildRequestPreviewItems(finalRequest, currentMccbList),
       requests,
       logs,
       changedMccbs,

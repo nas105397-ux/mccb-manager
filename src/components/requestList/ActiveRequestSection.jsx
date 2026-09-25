@@ -1,4 +1,10 @@
-import { formatWorkContent, formatWorkerName, matchesMccbSearch } from "../../shared/mccbViewUtils";
+import {
+  formatWorkContent,
+  formatWorkerName,
+  isDummyMccb,
+  matchesMccbSearch,
+} from "../../shared/mccbViewUtils";
+import DummyNameInput from "../DummyNameInput";
 import FoldToggleRow from "./FoldToggleRow";
 import { ACTIVE, UI } from "./requestListStyles";
 
@@ -21,6 +27,9 @@ export default function ActiveRequestSection({
   setAddSearchTerm,
   selectedAddIds,
   toggleAddTarget,
+  addDummyNames = {},
+  setAddDummyName = () => {},
+  activeDummyUsageMap = new Map(),
   handleAddTargets,
   returnPanelRequestId,
   openReturnPanel,
@@ -47,9 +56,11 @@ export default function ActiveRequestSection({
         const isReturnPanelOpen = returnPanelRequestId === req.id;
         const returnableTargets = req.activeTargets || [];
         const returnedCount = req.targets.length - returnableTargets.length;
-        // 返却済み設備は札を手放しているため、追加候補として選び直せるようにする。
+        // 返却済みと「空きなし」の設備は札を持っていないため、追加候補として選び直せるようにする。
         const currentTargetIds = new Set(
-          returnableTargets.map((target) => target.id),
+          returnableTargets
+            .filter((target) => target.reserveInfo?.actualMccbId)
+            .map((target) => target.id),
         );
         const addQuery = addSearchTerm.trim().toLowerCase();
         const addableMccbs = mccbList.filter((mccb) => {
@@ -137,18 +148,44 @@ export default function ActiveRequestSection({
                       追加できる設備がありません。
                     </div>
                   ) : (
-                    addableMccbs.map((mccb) => (
-                      <label key={mccb.id} className={ACTIVE.addItem}>
-                        <input
-                          type="checkbox"
-                          checked={selectedAddIds.includes(mccb.id)}
-                          onChange={() => toggleAddTarget(mccb.id)}
-                          className="rounded text-emerald-600 focus:ring-emerald-500"
-                        />
-                        <span className={ACTIVE.roomTag}>{mccb.room}</span>
-                        <span className="truncate">{mccb.name}</span>
-                      </label>
-                    ))
+                    addableMccbs.map((mccb) => {
+                      const isChecked = selectedAddIds.includes(mccb.id);
+                      const dummyUsage = activeDummyUsageMap.get(mccb.id);
+                      return (
+                        <div key={mccb.id} className={ACTIVE.addItem}>
+                          <label className="flex items-center gap-2 min-w-0 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() =>
+                                toggleAddTarget(
+                                  mccb.id,
+                                  isChecked ? "" : dummyUsage?.sharableName,
+                                )
+                              }
+                              className="rounded text-emerald-600 focus:ring-emerald-500"
+                            />
+                            <span className={ACTIVE.roomTag}>{mccb.room}</span>
+                            <span className="truncate">{mccb.name}</span>
+                            {dummyUsage && (
+                              <span className="text-[9px] bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded font-black shrink-0 max-w-[55%] truncate">
+                                🏷️ {dummyUsage.label} で発行中
+                              </span>
+                            )}
+                          </label>
+                          {isChecked && isDummyMccb(mccb) && (
+                            <div className="pl-6">
+                              <DummyNameInput
+                                key={mccb.id}
+                                mccbId={mccb.id}
+                                value={addDummyNames[mccb.id]}
+                                onChange={setAddDummyName}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
                   )}
                 </div>
 

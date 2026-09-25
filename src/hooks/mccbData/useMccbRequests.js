@@ -26,7 +26,10 @@ export function useMccbRequests({
         }
 
         const result = await res.json();
-        createdRequest = result.request || null;
+        // 印刷用の割当表示はサーバーの発行結果から受け取り、プレビューの古い割当を使わない。
+        createdRequest = result.request
+          ? { ...result.request, previewItems: result.previewItems || null }
+          : null;
         applyChangedMccbs(result.changedMccbs);
         if (Array.isArray(result.requests)) {
           setRequests(result.requests);

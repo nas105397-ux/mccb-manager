@@ -167,6 +167,60 @@ const issue = (mccbs, requests, request) => {
   assert.equal(`${together.DUMMY2.displayName} No.${together.DUMMY2.cardNo}`, "ダミー2 No.3");
 }
 
+// 代替名は前後の空白を無視して同じ実設備とみなし、保存時も揃える。
+{
+  const first = issue(createMccbs(), [], {
+    workerName: "甲",
+    targetMccbIds: ["DUMMY0"],
+    dummyNames: { DUMMY0: " 設備Z " },
+  });
+  assert.equal(first.reserved.DUMMY0.customDummyName, "設備Z");
+
+  const same = issue(first.mccbs, first.requests, {
+    workerName: "乙",
+    targetMccbIds: ["DUMMY0"],
+    dummyNames: { DUMMY0: "設備Z" },
+  });
+  assert.equal(same.reserved.DUMMY0.actualMccbId, "DUMMY0");
+  assert.equal(same.reserved.DUMMY0.cardNo, 2);
+}
+
+// 通常設備に代替名が紛れ込んでも保存せず、退避先の同定は元設備IDのままにする。
+{
+  const result = issue(createMccbs(), [], {
+    workerName: "甲",
+    targetMccbIds: ["B"],
+    dummyNames: { B: "紛れ込んだ名前" },
+  });
+  assert.equal(result.reserved.B.actualMccbId, "DUMMY0");
+  assert.equal(result.reserved.B.customDummyName, null);
+}
+
+// 「空きなし」で終わった対象は、札が空いた後に設備追加で確保し直せる。
+{
+  const mccbs = createMccbs(0);
+  const service = createService(mccbs, []);
+  const { finalRequest } = service.buildRequestAssignment({
+    id: "REQ-1",
+    workerName: "甲",
+    targetMccbIds: ["B", "C"],
+  });
+  assert.equal(finalRequest.reservedCards.B.actualMccbId, null);
+
+  // 設備B の札が返ってきた状態で、同じ依頼へ B を追加し直す。
+  const freed = mccbs.map((mccb) =>
+    mccb.id === "B" ? { ...mccb, childCards: cards(5) } : mccb,
+  );
+  const addition = createService(freed, [finalRequest]).buildRequestTargetAddition(
+    finalRequest,
+    ["B"],
+  );
+  assert.ok(addition, "空きなしの対象を追加候補として受け付ける");
+  assert.deepEqual(addition.additionalTargetIds, ["B"]);
+  assert.equal(addition.updatedRequest.reservedCards.B.actualMccbId, "B");
+  assert.deepEqual(addition.updatedRequest.targetMccbIds, ["B", "C"]);
+}
+
 // ダミーが絡まない通常割当は従来どおり自札を確保する。
 {
   const result = issue(createMccbs(), [], { workerName: "甲", targetMccbIds: ["C"] });
