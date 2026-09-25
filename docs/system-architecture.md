@@ -131,6 +131,8 @@ sequenceDiagram
 
 ## 停電依頼発行フロー
 
+札の確保ルールそのものは [子札割当ロジック](card-assignment-logic.md) にまとめています。
+
 ```mermaid
 sequenceDiagram
   participant User as 利用者
