@@ -28,6 +28,12 @@ export const createBorrowedCountMap = (mccbList = []) => {
   return map;
 };
 
+// ダミーを直接指定した依頼は入力された用途名が実体を表すので、補足表示はそれを優先する。
+export const resolveRequestSourceName = (originalMccb, cardInfo) =>
+  (isDummyMccb(originalMccb) && cardInfo?.customDummyName) ||
+  originalMccb?.name ||
+  "";
+
 export const createRequestNameOverlayMap = (requests = [], mccbList = []) => {
   // 依頼中だけ必要な代替設備名をマスター自体を書き換えずに保持する。
   const nameOverlayMap = new Map();
@@ -41,12 +47,12 @@ export const createRequestNameOverlayMap = (requests = [], mccbList = []) => {
 
       if (originalId !== reserveInfo.actualMccbId) {
         // ダミーへ振り替えた場合は、実札側に元設備名を補足する。
-        const originalMccb = mccbById.get(originalId);
-        if (originalMccb) {
-          nameOverlayMap.set(
-            reserveInfo.actualMccbId,
-            ` (${originalMccb.name})`,
-          );
+        const sourceName = resolveRequestSourceName(
+          mccbById.get(originalId),
+          reserveInfo,
+        );
+        if (sourceName) {
+          nameOverlayMap.set(reserveInfo.actualMccbId, ` (${sourceName})`);
         }
         return;
       }

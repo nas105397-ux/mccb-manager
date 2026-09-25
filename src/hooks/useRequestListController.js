@@ -1,6 +1,6 @@
 // 依頼一覧の展開状態と、対象設備ごとの表示名・札状態の組み立てを担当する。
 import { useCallback, useMemo, useState } from "react";
-import { isDummyMccb } from "../shared/mccbViewUtils";
+import { isDummyMccb, resolveRequestSourceName } from "../shared/mccbViewUtils";
 
 const getReservedCard = (actualMccb, reserveInfo) => {
   if (!reserveInfo?.cardNo) return null;
@@ -8,11 +8,11 @@ const getReservedCard = (actualMccb, reserveInfo) => {
 };
 
 const getDisplayName = ({ targetMccb, actualMccb, cardInfo, isAllocatedFromDummy }) => {
+  if (isAllocatedFromDummy) {
+    return `${actualMccb.name} (${resolveRequestSourceName(targetMccb, cardInfo)})`;
+  }
   if (isDummyMccb(targetMccb) && cardInfo?.customDummyName) {
     return `${targetMccb.name} (${cardInfo.customDummyName})`;
-  }
-  if (isAllocatedFromDummy) {
-    return `${actualMccb.name} (${targetMccb.name})`;
   }
   return targetMccb.name;
 };

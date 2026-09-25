@@ -8,6 +8,7 @@ import {
 } from "star-io10-web";
 import { loadStarPrinterConnection } from "./starPrinterConnection";
 import { getReceiptCardLabel, getRequestIssueDate } from "./receiptFormatting";
+import { resolveRequestSourceName } from "./mccbViewUtils";
 
 const ROLL_WIDTH_MM = 80.0;
 const PRINTABLE_AREA_WIDTH_MM = 72.0;
@@ -51,10 +52,10 @@ export const buildRequestReceiptTargets = (request, mccbList = []) => {
 
       let displayName =
         targetMccb?.name || reserveInfo?.displayName || "名称未設定";
-      if (isOriginalDummy && reserveInfo?.customDummyName) {
+      if (isAllocatedFromDummy && targetMccb) {
+        displayName = `${actualMccb.name} (${resolveRequestSourceName(targetMccb, reserveInfo)})`;
+      } else if (isOriginalDummy && reserveInfo?.customDummyName) {
         displayName = `${targetMccb.name} (${reserveInfo.customDummyName})`;
-      } else if (isAllocatedFromDummy && targetMccb) {
-        displayName = `${actualMccb.name} (${targetMccb.name})`;
       }
 
       return {

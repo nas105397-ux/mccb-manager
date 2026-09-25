@@ -153,8 +153,40 @@ function findExistingDummyAssignment(targetId, currentRequests, currentMccbList)
   return null;
 }
 
-function findAvailableCard(targetId, targetMccb, currentMccbList, currentRequests) {
+// ダミー親札は1台の実設備にしか掛けられないため、同じ実設備を指す予約だけ相乗りを許す。
+// 直接指定は代替名、退避割当は元設備IDがその実設備を表す。
+function hasOtherDeviceOnDummy(
+  dummyId,
+  customDummyName,
+  currentRequests,
+  pendingReservedCards,
+) {
+  const requestedDevice = customDummyName || "";
+  const isOtherDevice = (reservedCards) =>
+    Object.entries(reservedCards || {}).some(([targetId, resInfo]) => {
+      if (resInfo?.actualMccbId !== dummyId) return false;
+      const occupiedDevice =
+        targetId === dummyId ? resInfo.customDummyName || "" : targetId;
+      return occupiedDevice !== requestedDevice;
+    });
+
+  return (
+    currentRequests.some((request) => isOtherDevice(request.reservedCards)) ||
+    // 同一依頼内で先に退避割当されたダミーも、まだ requests には入っていないので見る。
+    isOtherDevice(pendingReservedCards)
+  );
+}
+
+function findAvailableCard(
+  targetId,
+  targetMccb,
+  currentMccbList,
+  currentRequests,
+  { customDummyName = null, pendingReservedCards = null } = {},
+) {
   const isOriginalDummy = isDummyMccb(targetMccb);
+  // 別設備に掛かっているダミー親札は流用できないので、指定ダミー自身は候補から外す。
+  let canUseOwnCards = true;
 
   if (!isOriginalDummy) {
     const existingDummy = findExistingDummyAssignment(
@@ -165,16 +197,23 @@ function findAvailableCard(targetId, targetMccb, currentMccbList, currentRequest
     if (existingDummy) {
       return existingDummy;
     }
+  } else {
+    canUseOwnCards = !hasOtherDeviceOnDummy(
+      targetId,
+      customDummyName,
+      currentRequests,
+      pendingReservedCards,
+    );
   }
 
-  const ownCardIdx = findFirstFreeChildCardIndex(targetMccb);
-  if (ownCardIdx !== -1) {
-    return { finalMccb: targetMccb, availableIdx: ownCardIdx };
-  }
-  if (isOriginalDummy) {
-    return { finalMccb: null, availableIdx: -1 };
+  if (canUseOwnCards) {
+    const ownCardIdx = findFirstFreeChildCardIndex(targetMccb);
+    if (ownCardIdx !== -1) {
+      return { finalMccb: targetMccb, availableIdx: ownCardIdx };
+    }
   }
 
+  // 指定ダミーが埋まっている場合も、通常設備と同じく次の空きダミーへ回す。
   for (const dummy of getAvailableDummyCandidates(targetMccb, currentMccbList)) {
     const idx = findFirstFreeChildCardIndex(dummy);
     if (idx !== -1) {
@@ -211,6 +250,10 @@ export function createRequestAssignmentService({ store }) {
         originalMccb,
         currentMccbList,
         currentRequests,
+        {
+          customDummyName: newRequest.dummyNames?.[targetId] || null,
+          pendingReservedCards: reservedCards,
+        },
       );
 
       if (finalMccb && availableIdx !== -1) {
@@ -316,11 +359,14 @@ export function createRequestAssignmentService({ store }) {
           !!actualMccb && !!originalMccb && actualMccb.id !== originalMccb.id;
         const cardNo = reserveInfo?.cardNo ?? 1;
 
+        // ダミー直接指定は入力された用途名が実体なので、振替先の補足にもそれを使う。
+        const sourceName =
+          (isOriginalDummy && reserveInfo?.customDummyName) || originalMccb?.name;
         let name = originalMccb?.name || reserveInfo?.displayName || NO_AVAILABLE_CARD_LABEL;
-        if (isOriginalDummy && reserveInfo?.customDummyName) {
+        if (isAllocatedFromDummy) {
+          name = `${actualMccb.name} (${sourceName})`;
+        } else if (isOriginalDummy && reserveInfo?.customDummyName) {
           name = `${originalMccb.name} (${reserveInfo.customDummyName})`;
-        } else if (isAllocatedFromDummy) {
-          name = `${actualMccb.name} (${originalMccb.name})`;
         }
 
         const cardLabel = isAllocatedFromDummy
