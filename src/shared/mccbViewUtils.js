@@ -70,6 +70,48 @@ export const createRequestNameOverlayMap = (requests = [], mccbList = []) => {
   return nameOverlayMap;
 };
 
+// 発行中の依頼がどのダミー札をどの設備に掛けているかを集計する（依頼発行画面の注記用）。
+export const createActiveDummyUsageMap = (requests = [], mccbList = []) => {
+  const mccbById = new Map(mccbList.map((mccb) => [mccb.id, mccb]));
+  const deviceNamesByDummy = new Map();
+  const sharableNameByDummy = new Map();
+
+  requests.forEach((request) => {
+    Object.entries(request.reservedCards || {}).forEach(([targetId, reserveInfo]) => {
+      const dummyId = reserveInfo?.actualMccbId;
+      if (!dummyId || !isDummyMccb(mccbById.get(dummyId))) return;
+
+      const originalMccb = mccbById.get(targetId);
+      // 元がダミーなら直接指定。別ダミーへ振り替えられていても実設備は入力された代替名。
+      const isDirectSelection = isDummyMccb(originalMccb);
+      const deviceName = isDirectSelection
+        ? reserveInfo.customDummyName || ""
+        : originalMccb?.name || "";
+
+      // 代替名が未入力でも札は使用中なので、設備名なしで登録して注記自体は残す。
+      const deviceNames = deviceNamesByDummy.get(dummyId) || [];
+      if (deviceName && !deviceNames.includes(deviceName)) {
+        deviceNames.push(deviceName);
+      }
+      deviceNamesByDummy.set(dummyId, deviceNames);
+      // 代替名を手入力した依頼だけは、同じ名称を引き継げば同じ親札の子札を確保できる。
+      if (isDirectSelection && deviceName && !sharableNameByDummy.has(dummyId)) {
+        sharableNameByDummy.set(dummyId, deviceName);
+      }
+    });
+  });
+
+  return new Map(
+    [...deviceNamesByDummy].map(([dummyId, deviceNames]) => [
+      dummyId,
+      {
+        label: deviceNames.join("、") || "名称未入力",
+        sharableName: sharableNameByDummy.get(dummyId) || "",
+      },
+    ]),
+  );
+};
+
 export const applyNameOverlaysToMccbs = (mccbList = [], nameOverlayMap) =>
   mccbList.map((mccb) => {
     // 補足がない要素は同じ参照を返し、React の不要な再描画を避ける。

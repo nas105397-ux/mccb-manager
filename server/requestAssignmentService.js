@@ -154,7 +154,8 @@ function findExistingDummyAssignment(targetId, currentRequests, currentMccbList)
 }
 
 // ダミー親札は1台の実設備にしか掛けられないため、同じ実設備を指す予約だけ相乗りを許す。
-// 直接指定は代替名、退避割当は元設備IDがその実設備を表す。
+// 代替名があれば（ダミー直接指定）それが実設備。別ダミーへ振り替えた予約も同じ扱いにする。
+// 代替名がなければ退避割当なので、元設備IDがその実設備を表す。
 function hasOtherDeviceOnDummy(
   dummyId,
   customDummyName,
@@ -165,8 +166,7 @@ function hasOtherDeviceOnDummy(
   const isOtherDevice = (reservedCards) =>
     Object.entries(reservedCards || {}).some(([targetId, resInfo]) => {
       if (resInfo?.actualMccbId !== dummyId) return false;
-      const occupiedDevice =
-        targetId === dummyId ? resInfo.customDummyName || "" : targetId;
+      const occupiedDevice = resInfo.customDummyName || targetId;
       return occupiedDevice !== requestedDevice;
     });
 

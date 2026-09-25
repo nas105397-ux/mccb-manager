@@ -60,6 +60,15 @@ const issue = (mccbs, requests, request) => {
   assert.equal(second.reserved.DUMMY0.cardNo, 1);
   // 振替先の補足は元ダミー名ではなく、入力された用途名を出す。
   assert.equal(second.previewItems[0].name, "ダミー1 (設備Z)");
+
+  // 振替先のダミー1を同じ代替名で選び直したら、その親札の子札を確保する。
+  const third = issue(second.mccbs, second.requests, {
+    workerName: "丙",
+    targetMccbIds: ["DUMMY1"],
+    dummyNames: { DUMMY1: "設備Z" },
+  });
+  assert.equal(third.reserved.DUMMY1.actualMccbId, "DUMMY1");
+  assert.equal(third.reserved.DUMMY1.cardNo, 2);
 }
 
 // 同じ実設備（代替名が一致）なら、指定ダミーの別子札をそのまま使う。
@@ -112,6 +121,50 @@ const issue = (mccbs, requests, request) => {
   });
   assert.equal(second.reserved.DUMMY0.actualMccbId, null);
   assert.equal(second.previewItems[0].name, "ダミー0");
+}
+
+// 同じダミー0へ3件重複させた後、振替先のダミー1・ダミー2も同じ代替名で選び直せる。
+{
+  const mccbs = createMccbs(6);
+  let requests = [];
+  let list = mccbs;
+  const step = (targetMccbIds, dummyNames, workerName) => {
+    const result = issue(list, requests, { workerName, targetMccbIds, dummyNames });
+    requests = result.requests;
+    // 札の確保状況を次の依頼へ引き継ぐ（未使用のダミーは元のまま残す）。
+    const merged = new Map(list.map((mccb) => [mccb.id, mccb]));
+    result.mccbs.forEach((mccb) => merged.set(mccb.id, mccb));
+    list = [...merged.values()];
+    return result.reserved;
+  };
+
+  assert.deepEqual(
+    [
+      step(["DUMMY0"], { DUMMY0: "設備X" }, "甲").DUMMY0,
+      step(["DUMMY0"], { DUMMY0: "設備Y" }, "乙").DUMMY0,
+      step(["DUMMY0"], { DUMMY0: "設備Z" }, "丙").DUMMY0,
+    ].map((info) => `${info.displayName} No.${info.cardNo}`),
+    ["ダミー0 No.1", "ダミー1 No.1", "ダミー2 No.1"],
+  );
+
+  // 発行画面の注記どおりに選び直したら、その親札の空き子札を確保する。
+  assert.deepEqual(
+    [
+      step(["DUMMY0"], { DUMMY0: "設備X" }, "丁").DUMMY0,
+      step(["DUMMY1"], { DUMMY1: "設備Y" }, "戊").DUMMY1,
+      step(["DUMMY2"], { DUMMY2: "設備Z" }, "己").DUMMY2,
+    ].map((info) => `${info.displayName} No.${info.cardNo}`),
+    ["ダミー0 No.2", "ダミー1 No.2", "ダミー2 No.2"],
+  );
+
+  // 同一依頼で複数のダミーを選んでも取り違えない。
+  const together = step(
+    ["DUMMY1", "DUMMY2"],
+    { DUMMY1: "設備Y", DUMMY2: "設備Z" },
+    "庚",
+  );
+  assert.equal(`${together.DUMMY1.displayName} No.${together.DUMMY1.cardNo}`, "ダミー1 No.3");
+  assert.equal(`${together.DUMMY2.displayName} No.${together.DUMMY2.cardNo}`, "ダミー2 No.3");
 }
 
 // ダミーが絡まない通常割当は従来どおり自札を確保する。

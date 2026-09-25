@@ -6,7 +6,10 @@ import { useRequestFormController } from "../hooks/useRequestFormController";
 import { usePrintPreviewController } from "../hooks/usePrintPreviewController";
 import { VariableSizeList as List } from "react-window";
 import { REQUEST_PRINT_MODES } from "../shared/printSettings";
-import { isDummyMccb } from "../shared/mccbViewUtils";
+import {
+  createActiveDummyUsageMap,
+  isDummyMccb,
+} from "../shared/mccbViewUtils";
 
 // ==========================================
 // 定数定義
@@ -68,26 +71,48 @@ function DummyNameInput({ mccbId, value, onChange }) {
 // RequestMccbRow: 1行単位の軽量コンポーネント（独立隔離）
 // ==========================================
 const RequestMccbRow = React.memo(
-  ({ mccb, isSelected, onToggle, dummyName, onDummyNameChange }) => {
+  ({
+    mccb,
+    isSelected,
+    onToggle,
+    dummyName,
+    onDummyNameChange,
+    dummyUsageLabel = "",
+    dummyUsageSharableName = "",
+  }) => {
     const isDummy = isDummyMccb(mccb);
 
     return (
       <div
-        title={mccb.name ? `禁止札名: ${mccb.name}` : "禁止札名: 未設定"}
+        title={
+          dummyUsageLabel
+            ? `禁止札名: ${mccb.name}／発行中: ${dummyUsageLabel}`
+            : mccb.name
+              ? `禁止札名: ${mccb.name}`
+              : "禁止札名: 未設定"
+        }
         className={isSelected ? ROW_SELECTED_CLASS : ROW_DEFAULT_CLASS}
       >
         <label className="flex items-center gap-2 cursor-pointer text-xs font-bold select-none">
           <input
             type="checkbox"
             checked={isSelected}
-            onChange={() => onToggle(mccb.id)}
+            onChange={() =>
+              onToggle(mccb.id, isSelected ? "" : dummyUsageSharableName)
+            }
             className="rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
           />
-          <div className="truncate flex-1">
-            <span className="text-[9px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-400 mr-1.5 border">
+          <div className="flex-1 min-w-0 flex items-center gap-1.5">
+            <span className="text-[9px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-400 border shrink-0">
               {mccb.room}
             </span>
-            {mccb.name}
+            <span className="truncate">{mccb.name}</span>
+            {dummyUsageLabel && (
+              // 使用中の設備名は札名より優先して見せたいので、truncate 側から外して残す。
+              <span className="text-[9px] bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded font-black shrink-0 max-w-[55%] truncate">
+                🏷️ {dummyUsageLabel} で発行中
+              </span>
+            )}
           </div>
         </label>
 
@@ -107,6 +132,8 @@ const RequestMccbRow = React.memo(
   (prev, next) =>
     prev.isSelected === next.isSelected &&
     prev.dummyName === next.dummyName &&
+    prev.dummyUsageLabel === next.dummyUsageLabel &&
+    prev.dummyUsageSharableName === next.dummyUsageSharableName &&
     prev.mccb.id === next.mccb.id &&
     prev.mccb.name === next.mccb.name &&
     prev.mccb.room === next.mccb.room,
@@ -119,6 +146,7 @@ export default function RequestFormPanel({
   mccbList,
   onAddRequest,
   onAddDraftRequest,
+  requests = [],
   deviceGroups = [],
   requestPrintMode = REQUEST_PRINT_MODES.NONE,
 }) {
@@ -173,6 +201,10 @@ export default function RequestFormPanel({
   const listRef = useRef(null);
   const previousSelectedSetRef = useRef(selectedMccbIdSet);
   const previousFilteredLengthRef = useRef(filteredMccbList.length);
+  const activeDummyUsageMap = useMemo(
+    () => createActiveDummyUsageMap(requests, mccbList),
+    [requests, mccbList],
+  );
   const filteredIndexById = useMemo(() => {
     const indexById = new Map();
     filteredMccbList.forEach((mccb, index) => {
@@ -345,6 +377,7 @@ export default function RequestFormPanel({
             >
               {({ index, style }) => {
                 const mccb = filteredMccbList[index];
+                const dummyUsage = activeDummyUsageMap.get(mccb?.id);
                 return (
                   <div style={style} key={mccb?.id || index}>
                     <div
@@ -359,6 +392,8 @@ export default function RequestFormPanel({
                         onToggle={handleToggleMccb}
                         dummyName={dummyNames[mccb.id]}
                         onDummyNameChange={handleDummyNameChange}
+                        dummyUsageLabel={dummyUsage?.label}
+                        dummyUsageSharableName={dummyUsage?.sharableName}
                       />
                     </div>
                   </div>

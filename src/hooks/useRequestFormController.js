@@ -72,11 +72,15 @@ export function useRequestFormController({
     [selectedMccbIds],
   );
 
-  const handleToggleMccb = useCallback((id) => {
+  const handleToggleMccb = useCallback((id, prefillDummyName = "") => {
     setFormMessage(null);
     setSelectedMccbIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
     );
+    if (prefillDummyName) {
+      // 発行中のダミーを選んだときは代替名を引き継ぎ、同じ親札の子札を確保できるようにする。
+      setDummyNames((prev) => (prev[id] ? prev : { ...prev, [id]: prefillDummyName }));
+    }
   }, []);
 
   const handleDummyNameChange = useCallback((id, value) => {
