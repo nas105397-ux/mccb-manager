@@ -7,7 +7,7 @@ export default function OperationGuideSidebar({ isOpen, onClose, guideType = "op
   const guide = GUIDE_CONTENT[guideType] || GUIDE_CONTENT.operation;
 
   return (
-    <aside className="fixed inset-y-4 right-4 z-40 flex w-[320px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-xl border border-blue-100 bg-white">
+    <aside className="fixed inset-y-4 right-4 z-40 flex w-[320px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-xl border border-blue-100 bg-white print:hidden">
       <div className="flex items-center justify-between gap-3 border-b border-blue-50 bg-blue-50 px-4 py-3">
         <div className="text-left">
           <p className="text-[11px] font-black text-blue-500 tracking-wide">

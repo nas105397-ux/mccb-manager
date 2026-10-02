@@ -20,7 +20,10 @@ import {
 function AppContent() {
   // 処理ロジックは useAppController に集約し、ここではUIレンダリングに専念する
   const controller = useAppController();
-  const [openGuidePath, setOpenGuidePath] = useState(null);
+  // 操作説明は既定で表示する。画面の狭い端末では内容を覆ってしまうため閉じた状態で始める。
+  const [isGuideShown, setIsGuideShown] = useState(
+    () => window.innerWidth >= 1024,
+  );
   const isOperationScreen = controller.activeTab === "/";
   const isFixedOperationScreen = isOperationScreen;
   const guideType = useMemo(() => {
@@ -31,7 +34,7 @@ function AppContent() {
     return null;
   }, [controller.activeTab, controller.isAdmin]);
   const isGuideAvailable = Boolean(guideType);
-  const isGuideOpen = openGuidePath === controller.activeTab;
+  const isGuideOpen = isGuideAvailable && isGuideShown;
 
   const adminPanel = (
     <AdminPanel
@@ -116,13 +119,7 @@ function AppContent() {
             {isGuideAvailable && (
               <button
                 type="button"
-                onClick={() =>
-                  setOpenGuidePath((currentPath) =>
-                    currentPath === controller.activeTab
-                      ? null
-                      : controller.activeTab,
-                  )
-                }
+                onClick={() => setIsGuideShown((shown) => !shown)}
                 className={`px-3 py-2 sm:px-4 rounded-lg text-xs font-black border transition-all cursor-pointer shadow-sm flex items-center gap-1 ${
                   isGuideOpen
                     ? "bg-blue-600 text-white border-blue-600"
@@ -262,7 +259,7 @@ function AppContent() {
       {isGuideAvailable && (
         <OperationGuideSidebar
           isOpen={isGuideOpen}
-          onClose={() => setOpenGuidePath(null)}
+          onClose={() => setIsGuideShown(false)}
           guideType={guideType}
         />
       )}
