@@ -242,6 +242,7 @@ function AppContent() {
                 onIssueDraftRequest={controller.issueDraftRequest}
                 onDeleteDraftRequest={controller.deleteDraftRequest}
                 onUpdateDraftRequest={controller.updateDraftRequest}
+                onUpdateRequest={controller.updateRequest}
                 onAddTargetsToRequest={controller.addTargetsToRequest}
                 onReturnRequestTargets={controller.returnRequestTargets}
                 onUpdateRequestTargetCard={controller.updateRequestTargetCard}

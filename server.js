@@ -33,6 +33,7 @@ import {
   getChangedMccbs,
   hasBorrowedChildCard,
   preservePowerStateForRequestChanges,
+  renameReservedCardWorker,
 } from "./server/requestAssignmentService.js";
 
 const app = express();
@@ -1256,6 +1257,75 @@ app.delete("/api/draft-requests/:id", (req, res) => {
   } catch (error) {
     console.error("仮発行依頼削除失敗:", error);
     res.status(500).json({ error: "仮発行依頼の削除に失敗しました" });
+  }
+});
+
+/** 発行中依頼の編集（作業者・作業内容） */
+// 対象設備の増減は札の確保と解放を伴うため、設備追加と一部返却のAPIに任せる。
+app.patch("/api/requests/:id", (req, res) => {
+  try {
+    const currentRequests = store.readCollection("requests") || [];
+    const targetRequest = currentRequests.find(
+      (request) => request.id === req.params.id,
+    );
+
+    if (!targetRequest) {
+      return res.status(404).json({ error: "対象の依頼が見つかりません。" });
+    }
+
+    const { workerName, workContent } = req.body || {};
+    if (typeof workerName !== "string" || !workerName.trim()) {
+      return res.status(400).json({ error: "作業者名を入力してください。" });
+    }
+
+    const affectedMccbIds = Object.values(targetRequest.reservedCards || {})
+      .map((resInfo) => resInfo?.actualMccbId)
+      .filter(Boolean);
+    const beforeMccbList = store.readMccbsByIds(affectedMccbIds);
+    const currentMccbList = renameReservedCardWorker(
+      beforeMccbList,
+      targetRequest.reservedCards,
+      targetRequest.workerName,
+      workerName,
+    );
+
+    const updatedRequest = {
+      ...targetRequest,
+      workerName,
+      workContent:
+        typeof workContent === "string" ? workContent : targetRequest.workContent,
+    };
+    const requests = currentRequests.map((request) =>
+      request.id === targetRequest.id ? updatedRequest : request,
+    );
+    const logsBefore = store.readCollection("logs");
+    const logSettings = store.readCollection("logSettings");
+    const logs = createUpdatedLogs(
+      LOG_TYPES.OPERATION,
+      `📝 ${workerName}氏の停電依頼を編集しました。`,
+      logsBefore,
+      logSettings?.maxSize || DEFAULT_MAX_SIZE,
+    );
+    const changedMccbs = preservePowerStateForRequestChanges(
+      beforeMccbList,
+      getChangedMccbs(beforeMccbList, currentMccbList),
+    );
+
+    store.writeMccbs(changedMccbs);
+    store.writeCollection("requests", requests);
+    store.writeCollection("logs", logs);
+
+    res.json({
+      status: "success",
+      request: updatedRequest,
+      requests,
+      logs,
+      changedMccbs,
+      version: store.getVersion(),
+    });
+  } catch (error) {
+    console.error("停電作業依頼編集失敗:", error);
+    res.status(500).json({ error: "停電作業依頼の編集に失敗しました" });
   }
 });
 

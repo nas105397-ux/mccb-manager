@@ -7,6 +7,7 @@ export const STATUS_MESSAGE_KEYS = {
   REQUEST_TARGETS_ADDED: "requestTargetsAdded",
   REQUEST_TARGETS_RETURNED: "requestTargetsReturned",
   REQUEST_TARGET_CARD_UPDATED: "requestTargetCardUpdated",
+  REQUEST_UPDATED: "requestUpdated",
   DRAFT_REQUEST_ISSUED: "draftRequestIssued",
   DRAFT_REQUEST_UPDATED: "draftRequestUpdated",
   MASTER_UPDATED: "masterUpdated",
@@ -43,6 +44,10 @@ const STATUS_MESSAGE_DEFINITIONS = {
     type: "success",
     text: ({ targetName, actionLabel }) =>
       `${targetName} の子札を${actionLabel}しました。`,
+  },
+  [STATUS_MESSAGE_KEYS.REQUEST_UPDATED]: {
+    type: "success",
+    text: "発行中の依頼を編集しました。",
   },
   [STATUS_MESSAGE_KEYS.DRAFT_REQUEST_ISSUED]: {
     type: "success",

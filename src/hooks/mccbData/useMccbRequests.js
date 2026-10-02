@@ -174,6 +174,40 @@ export function useMccbRequests({
     [applyLogs, applyVersion, runSyncTask],
   );
 
+  /** 発行中依頼の作業者・作業内容を編集（確保済みの札の作業者名も追従する） */
+  const updateRequest = useCallback(
+    async (requestId, updates) => {
+      let failureMessage = "停電作業依頼の編集結果を取得できませんでした。";
+
+      await runSyncTask(async () => {
+        const res = await fetch(`/api/requests/${encodeURIComponent(requestId)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updates),
+        });
+
+        const result = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          // runSyncTask は例外を握りつぶすため、理由を呼び出し元へ持ち帰る。
+          failureMessage =
+            result?.error || `停電作業依頼の編集に失敗しました (${res.status})`;
+          throw new Error(failureMessage);
+        }
+
+        failureMessage = null;
+        applyChangedMccbs(result.changedMccbs);
+        if (Array.isArray(result.requests)) {
+          setRequests(result.requests);
+        }
+        if (Array.isArray(result.logs)) applyLogs(result.logs);
+        applyVersion(result.version);
+      });
+
+      if (failureMessage) throw new Error(failureMessage);
+    },
+    [applyChangedMccbs, applyLogs, applyVersion, runSyncTask],
+  );
+
   const addTargetsToRequest = useCallback(
     (requestId, targetMccbIds, dummyNames = {}) => {
       runSyncTask(async () => {
@@ -318,6 +352,7 @@ export function useMccbRequests({
     updateDraftRequest,
     issueDraftRequest,
     deleteDraftRequest,
+    updateRequest,
     addTargetsToRequest,
     returnRequestTargets,
     updateRequestTargetCard,

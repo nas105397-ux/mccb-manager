@@ -51,6 +51,19 @@ export const preservePowerStateForRequestChanges = (beforeList, changedMccbs) =>
   }));
 };
 
+// 子札の持ち主は作業者名で判定しているため、依頼の作業者名を変えるときは確保済みの札も揃える。
+// 一時返却中の札と、別作業者が手動貸出した札は触らない。
+export const renameReservedCardWorker = (mccbList, reservedCards, oldName, newName) => {
+  const next = cloneMccbListForMutation(mccbList);
+  Object.values(reservedCards || {}).forEach((resInfo) => {
+    const card = next
+      .find((mccb) => mccb.id === resInfo?.actualMccbId)
+      ?.childCards.find((item) => item.id === resInfo.cardNo);
+    if (card?.isBorrowed && card.workerName === oldName) card.workerName = newName;
+  });
+  return next;
+};
+
 // 代替名は実設備の同定キーになるため、前後の空白差で別設備にならないよう揃える。
 const normalizeDummyName = (name) =>
   typeof name === "string" ? name.trim() : "";

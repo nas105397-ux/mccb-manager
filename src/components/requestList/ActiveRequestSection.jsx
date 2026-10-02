@@ -6,6 +6,7 @@ import {
 } from "../../shared/mccbViewUtils";
 import DummyNameInput from "../DummyNameInput";
 import FoldToggleRow from "./FoldToggleRow";
+import RequestEditPanel from "./RequestEditPanel";
 import { ACTIVE, UI } from "./requestListStyles";
 
 const getReturnedCardLabel = (returnedInfo) =>
@@ -16,7 +17,7 @@ const getReturnedCardLabel = (returnedInfo) =>
 const getReserveCardLabel = (reserveInfo) =>
   `${reserveInfo.displayName} No.${reserveInfo.cardNo}`;
 
-// 進行中の停電作業依頼一覧。設備追加・一部返却・印刷・解約と、対象設備の一時返却/再貸出を扱う。
+// 進行中の停電作業依頼一覧。編集・設備追加・一部返却・印刷・解約と、対象設備の一時返却/再貸出を扱う。
 export default function ActiveRequestSection({
   activeRequestViews,
   mccbList,
@@ -36,6 +37,9 @@ export default function ActiveRequestSection({
   selectedReturnIds,
   toggleReturnTarget,
   handleReturnTargets,
+  editPanelRequestId,
+  openEditPanel = () => {},
+  handleUpdateRequest = () => {},
   handlePrintRequest,
   starPrintRequestId,
   isPrintDisabledBySetting,
@@ -97,6 +101,13 @@ export default function ActiveRequestSection({
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
+                  onClick={() => openEditPanel(req.id)}
+                  className={`${ACTIVE.actionButtonBase} ${ACTIVE.editButton}`}
+                >
+                  編集
+                </button>
+                <button
+                  type="button"
                   onClick={() => openAddPanel(req.id)}
                   className={`${ACTIVE.actionButtonBase} ${ACTIVE.addButton}`}
                 >
@@ -131,6 +142,17 @@ export default function ActiveRequestSection({
                 </button>
               </div>
             </div>
+
+            {editPanelRequestId === req.id && (
+              <RequestEditPanel
+                req={req}
+                mccbList={mccbList}
+                initialSelectedIds={returnableTargets.map((target) => target.id)}
+                lockInitialDummyNames
+                onSave={(updates) => handleUpdateRequest(req, updates)}
+                onCancel={() => openEditPanel(req.id)}
+              />
+            )}
 
             {isAddPanelOpen && (
               <div className={ACTIVE.addPanel}>

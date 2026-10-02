@@ -131,6 +131,8 @@ export const HISTORY = {
   heading: "text-base font-black text-gray-700 mt-1.5 text-left leading-snug",
   workerSuffix: "text-xs font-bold text-gray-500",
   content: "text-xs text-gray-400 mt-0.5 font-bold",
+  copyButton:
+    "inline-flex min-h-9 items-center justify-center rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-black text-blue-700 shadow-sm hover:bg-blue-50 cursor-pointer whitespace-nowrap",
   status:
     "bg-gray-50 border border-gray-200 text-gray-400 text-[10px] font-black tracking-wide px-2 py-1 rounded shadow-inner",
   foldRow:

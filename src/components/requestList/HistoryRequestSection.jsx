@@ -2,12 +2,13 @@ import { formatWorkContent, formatWorkerName } from "../../shared/mccbViewUtils"
 import FoldToggleRow from "./FoldToggleRow";
 import { HISTORY, UI } from "./requestListStyles";
 
-// 作業完了・解約の履歴一覧。ページ送りと、当時の対象設備の表示を扱う。
+// 作業完了・解約の履歴一覧。ページ送りと、当時の対象設備の表示、内容をコピーした再発行を扱う。
 export default function HistoryRequestSection({
   historyRequestViews,
   historyPageInfo,
   toggleExpand,
   onChangeHistoryPage,
+  onCopyRequest = () => {},
 }) {
   return (
     <div className="pt-1">
@@ -48,7 +49,16 @@ export default function HistoryRequestSection({
                       📌 {formatWorkContent(req.workContent)}
                     </h4>
                   </div>
-                  <span className={HISTORY.status}>✓ 対応済</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onCopyRequest(req)}
+                      className={HISTORY.copyButton}
+                    >
+                      コピーして発行
+                    </button>
+                    <span className={HISTORY.status}>✓ 対応済</span>
+                  </div>
                 </div>
 
                 {/* 過去設備詳細トグル */}

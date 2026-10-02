@@ -1,6 +1,9 @@
 // ダミー札の相乗り判定と振替の自己チェック。`node server/requestAssignmentService.test.mjs` で実行する。
 import assert from "node:assert/strict";
-import { createRequestAssignmentService } from "./requestAssignmentService.js";
+import {
+  createRequestAssignmentService,
+  renameReservedCardWorker,
+} from "./requestAssignmentService.js";
 
 const cards = (count, borrowed = 0) =>
   Array.from({ length: count }, (_, index) => ({
@@ -226,6 +229,17 @@ const issue = (mccbs, requests, request) => {
   const result = issue(createMccbs(), [], { workerName: "甲", targetMccbIds: ["C"] });
   assert.equal(result.reserved.C.actualMccbId, "C");
   assert.equal(result.reserved.C.cardNo, 1);
+}
+
+// 作業者名の変更は依頼が確保した札だけを改名し、別作業者の貸出札は触らない。
+{
+  const result = issue(createMccbs(), [], { workerName: "甲", targetMccbIds: ["B", "C"] });
+  const renamed = renameReservedCardWorker(result.mccbs, result.reserved, "甲", "乙");
+  const cardOf = (id, no) =>
+    renamed.find((mccb) => mccb.id === id).childCards.find((card) => card.id === no);
+  assert.equal(cardOf("C", 1).workerName, "乙");
+  assert.equal(cardOf("DUMMY0", 1).workerName, "乙");
+  assert.equal(cardOf("B", 1).workerName, "既存");
 }
 
 console.log("ok: ダミー相乗り判定と振替");

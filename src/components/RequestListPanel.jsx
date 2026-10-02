@@ -1,5 +1,6 @@
 // 発行中・仮発行・履歴の依頼一覧。設備追加や一時返却もここから操作する。
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useRequestBarcodeScanner } from "../hooks/useRequestBarcodeScanner";
 import { useRequestListController } from "../hooks/useRequestListController";
 import { useRequestListPrintController } from "../hooks/useRequestListPrintController";
@@ -26,6 +27,7 @@ export default function RequestListPanel({
   onIssueDraftRequest = () => {},
   onDeleteDraftRequest = () => {},
   onUpdateDraftRequest = () => {},
+  onUpdateRequest = () => {},
   onAddTargetsToRequest = () => {},
   onReturnRequestTargets = () => {},
   onUpdateRequestTargetCard = () => {},
@@ -39,6 +41,8 @@ export default function RequestListPanel({
   const [addDummyNames, setAddDummyNames] = useState({});
   const [returnPanelRequestId, setReturnPanelRequestId] = useState(null);
   const [selectedReturnIds, setSelectedReturnIds] = useState([]);
+  const [editPanelRequestId, setEditPanelRequestId] = useState(null);
+  const navigate = useNavigate();
   const [listMessage, setListMessage] = useState(null);
   const { activeRequestViews, draftRequestViews, historyRequestViews, toggleExpand } =
     useRequestListController({
@@ -80,6 +84,7 @@ export default function RequestListPanel({
     // 追加と返却のパネルが同時に開くと対象を取り違えるため、片方だけ開く。
     setReturnPanelRequestId(null);
     setSelectedReturnIds([]);
+    setEditPanelRequestId(null);
   };
 
   const toggleAddTarget = (mccbId, prefillDummyName = "") => {
@@ -109,6 +114,16 @@ export default function RequestListPanel({
     setAddSearchTerm("");
     setSelectedAddIds([]);
     setAddDummyNames({});
+    setEditPanelRequestId(null);
+  };
+
+  const openEditPanel = (requestId) => {
+    setListMessage(null);
+    setEditPanelRequestId((currentId) =>
+      currentId === requestId ? null : requestId,
+    );
+    setAddPanelRequestId(null);
+    setReturnPanelRequestId(null);
   };
 
   const toggleReturnTarget = (mccbId) => {
@@ -177,6 +192,66 @@ export default function RequestListPanel({
         actionLabel: label,
       }),
     );
+  };
+
+  const handleUpdateRequest = async (req, updates) => {
+    // 設備の増減は既存の設備追加・一部返却へ流し、札の確保と解放の規則を揃える。
+    const currentIds = req.activeTargets.map((target) => target.id);
+    const addedIds = updates.targetMccbIds.filter((id) => !currentIds.includes(id));
+    const removedIds = currentIds.filter(
+      (id) => !updates.targetMccbIds.includes(id),
+    );
+
+    if (
+      removedIds.length > 0 &&
+      !window.confirm(
+        `選択を外した ${removedIds.length} 件の設備の札を返却します。\n返却した札は依頼から外れ、他の作業者が使用できるようになります。\n実行してよろしいですか？`,
+      )
+    ) {
+      return;
+    }
+
+    try {
+      // 札の持ち主は作業者名で判定するため、改名を先に済ませてから設備を増減する。
+      await onUpdateRequest(req.id, {
+        workerName: updates.workerName,
+        workContent: updates.workContent,
+      });
+      if (addedIds.length > 0) {
+        onAddTargetsToRequest(
+          req.id,
+          addedIds,
+          Object.fromEntries(
+            addedIds
+              .filter((id) => updates.dummyNames[id])
+              .map((id) => [id, updates.dummyNames[id]]),
+          ),
+        );
+      }
+      if (removedIds.length > 0) {
+        await onReturnRequestTargets(req.id, removedIds);
+      }
+      setEditPanelRequestId(null);
+      setListMessage(createStatusMessage(STATUS_MESSAGE_KEYS.REQUEST_UPDATED));
+    } catch (error) {
+      console.error(error);
+      alert(error?.message || "停電作業依頼の編集に失敗しました。");
+    }
+  };
+
+  // 履歴の内容を依頼作成フォームへ引き継ぐ。札は発行時点の空きで割り当て直す。
+  const handleCopyRequest = (req) => {
+    navigate("/request", {
+      state: {
+        copyRequest: {
+          workerName: req.workerName || "",
+          workContent: req.workContent || "",
+          // 削除済みの設備は targets に含まれないため、現存する設備だけが引き継がれる。
+          targetMccbIds: req.targets.map((target) => target.id),
+          dummyNames: req.dummyNames || {},
+        },
+      },
+    });
   };
 
   const handleUpdateDraft = async (draftId, updates) => {
@@ -267,6 +342,9 @@ export default function RequestListPanel({
           selectedReturnIds={selectedReturnIds}
           toggleReturnTarget={toggleReturnTarget}
           handleReturnTargets={handleReturnTargets}
+          editPanelRequestId={editPanelRequestId}
+          openEditPanel={openEditPanel}
+          handleUpdateRequest={handleUpdateRequest}
           handlePrintRequest={handlePrintRequest}
           starPrintRequestId={starPrintRequestId}
           isPrintDisabledBySetting={isPrintDisabledBySetting}
@@ -292,6 +370,7 @@ export default function RequestListPanel({
           historyPageInfo={historyPageInfo}
           toggleExpand={toggleExpand}
           onChangeHistoryPage={onChangeHistoryPage}
+          onCopyRequest={handleCopyRequest}
         />
       )}
     </div>

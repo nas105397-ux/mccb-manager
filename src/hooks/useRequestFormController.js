@@ -1,5 +1,6 @@
 // 停電依頼作成フォームの入力、設備選択、印刷方式ごとの発行処理を管理する。
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { REQUEST_PRINT_MODES } from "../shared/printSettings";
 import {
   createStatusMessage,
@@ -46,13 +47,18 @@ export function useRequestFormController({
   onAfterPrint,
   requestPrintMode = REQUEST_PRINT_MODES.NONE,
 }) {
+  // 履歴の「コピーして発行」から来たときは、その依頼内容を初期値にする。
+  const copyRequest = useLocation().state?.copyRequest;
+
   // 入力フォーム状態
-  const [workerName, setWorkerName] = useState("");
-  const [workContent, setWorkContent] = useState("");
-  const [selectedMccbIds, setSelectedMccbIds] = useState([]);
+  const [workerName, setWorkerName] = useState(copyRequest?.workerName || "");
+  const [workContent, setWorkContent] = useState(copyRequest?.workContent || "");
+  const [selectedMccbIds, setSelectedMccbIds] = useState(
+    copyRequest?.targetMccbIds || [],
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
-  const [dummyNames, setDummyNames] = useState({});
+  const [dummyNames, setDummyNames] = useState(copyRequest?.dummyNames || {});
   const [isIssuingRequest, setIsIssuingRequest] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [formMessage, setFormMessage] = useState(null);
