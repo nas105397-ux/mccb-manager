@@ -33,24 +33,12 @@ export const ACTIVE = {
   content: "text-xs text-gray-500 mt-1 font-bold",
   actionButtonBase:
     "inline-flex min-h-9 items-center justify-center rounded-lg border px-3 py-1.5 text-xs font-black shadow-sm transition-all cursor-pointer whitespace-nowrap",
-  addButton:
-    "bg-white hover:bg-emerald-50 text-emerald-700 border-emerald-200",
   printButton:
     "bg-white hover:bg-blue-50 text-blue-700 border-blue-200",
   returnButton:
     "bg-white hover:bg-amber-50 text-amber-700 border-amber-200",
   deleteButton:
     "bg-white hover:bg-red-50 text-red-700 border-red-200",
-  addPanel:
-    "mb-3 rounded-lg border border-emerald-200 bg-emerald-50/40 p-3 space-y-2",
-  addSearch:
-    "w-full rounded-lg border border-emerald-200 bg-white p-2 text-xs font-bold text-gray-700 focus:outline-none focus:ring-1 focus:ring-emerald-500",
-  addList:
-    "max-h-48 overflow-y-auto rounded-lg border border-emerald-100 bg-white p-2 space-y-1.5",
-  addItem:
-    "flex flex-col gap-1.5 rounded border border-gray-100 bg-gray-50 p-2 text-xs font-bold text-gray-700 hover:bg-white",
-  addSubmit:
-    "bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 px-3 py-1.5 rounded-lg text-xs font-black cursor-pointer whitespace-nowrap",
   addCancel:
     "bg-white hover:bg-gray-50 text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer whitespace-nowrap",
   returnPanel:

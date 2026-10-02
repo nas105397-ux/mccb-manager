@@ -1,4 +1,4 @@
-// 発行中・仮発行・履歴の依頼一覧。設備追加や一時返却もここから操作する。
+// 発行中・仮発行・履歴の依頼一覧。編集や一時返却もここから操作する。
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useRequestBarcodeScanner } from "../hooks/useRequestBarcodeScanner";
@@ -35,10 +35,6 @@ export default function RequestListPanel({
   requestPrintMode = REQUEST_PRINT_MODES.NONE,
 }) {
   const [activeView, setActiveView] = useState("active");
-  const [addPanelRequestId, setAddPanelRequestId] = useState(null);
-  const [addSearchTerm, setAddSearchTerm] = useState("");
-  const [selectedAddIds, setSelectedAddIds] = useState([]);
-  const [addDummyNames, setAddDummyNames] = useState({});
   const [returnPanelRequestId, setReturnPanelRequestId] = useState(null);
   const [selectedReturnIds, setSelectedReturnIds] = useState([]);
   const [editPanelRequestId, setEditPanelRequestId] = useState(null);
@@ -52,7 +48,7 @@ export default function RequestListPanel({
       mccbList,
     });
 
-  // 設備追加でダミーを選ぶときも、依頼作成画面と同じ発行中の注記と代替名の引き継ぎを出す。
+  // 編集でダミーを選ぶときも、依頼作成画面と同じ発行中の注記と代替名の引き継ぎを出す。
   const activeDummyUsageMap = useMemo(
     () => createActiveDummyUsageMap(requests, mccbList),
     [requests, mccbList],
@@ -75,45 +71,13 @@ export default function RequestListPanel({
     onCompleteRequest: onDeleteRequest,
   });
 
-  const openAddPanel = (requestId) => {
-    setListMessage(null);
-    setAddPanelRequestId((currentId) => (currentId === requestId ? null : requestId));
-    setAddSearchTerm("");
-    setSelectedAddIds([]);
-    setAddDummyNames({});
-    // 追加と返却のパネルが同時に開くと対象を取り違えるため、片方だけ開く。
-    setReturnPanelRequestId(null);
-    setSelectedReturnIds([]);
-    setEditPanelRequestId(null);
-  };
-
-  const toggleAddTarget = (mccbId, prefillDummyName = "") => {
-    setSelectedAddIds((prev) =>
-      prev.includes(mccbId)
-        ? prev.filter((id) => id !== mccbId)
-        : [...prev, mccbId],
-    );
-    if (prefillDummyName) {
-      setAddDummyNames((prev) =>
-        prev[mccbId] ? prev : { ...prev, [mccbId]: prefillDummyName },
-      );
-    }
-  };
-
-  const setAddDummyName = (mccbId, value) => {
-    setAddDummyNames((prev) => ({ ...prev, [mccbId]: value }));
-  };
-
   const openReturnPanel = (requestId) => {
     setListMessage(null);
     setReturnPanelRequestId((currentId) =>
       currentId === requestId ? null : requestId,
     );
     setSelectedReturnIds([]);
-    setAddPanelRequestId(null);
-    setAddSearchTerm("");
-    setSelectedAddIds([]);
-    setAddDummyNames({});
+    // 編集と返却のパネルが同時に開くと対象を取り違えるため、片方だけ開く。
     setEditPanelRequestId(null);
   };
 
@@ -122,8 +86,8 @@ export default function RequestListPanel({
     setEditPanelRequestId((currentId) =>
       currentId === requestId ? null : requestId,
     );
-    setAddPanelRequestId(null);
     setReturnPanelRequestId(null);
+    setSelectedReturnIds([]);
   };
 
   const toggleReturnTarget = (mccbId) => {
@@ -131,28 +95,6 @@ export default function RequestListPanel({
       prev.includes(mccbId)
         ? prev.filter((id) => id !== mccbId)
         : [...prev, mccbId],
-    );
-  };
-
-  const handleAddTargets = (requestId) => {
-    if (selectedAddIds.length === 0) {
-      alert("追加する設備を選択してください。");
-      return;
-    }
-
-    // 選択中の設備ぶんだけ代替名を送り、外した設備の入力は残さない。
-    const dummyNames = Object.fromEntries(
-      selectedAddIds
-        .filter((id) => addDummyNames[id])
-        .map((id) => [id, addDummyNames[id]]),
-    );
-    onAddTargetsToRequest(requestId, selectedAddIds, dummyNames);
-    setAddPanelRequestId(null);
-    setAddSearchTerm("");
-    setSelectedAddIds([]);
-    setAddDummyNames({});
-    setListMessage(
-      createStatusMessage(STATUS_MESSAGE_KEYS.REQUEST_TARGETS_ADDED),
     );
   };
 
@@ -197,7 +139,11 @@ export default function RequestListPanel({
   const handleUpdateRequest = async (req, updates) => {
     // 設備の増減は既存の設備追加・一部返却へ流し、札の確保と解放の規則を揃える。
     const currentIds = req.activeTargets.map((target) => target.id);
-    const addedIds = updates.targetMccbIds.filter((id) => !currentIds.includes(id));
+    // 「空きなし」のまま残っている設備は札を持っていないため、保存のたびに確保し直す。
+    const reservedIds = req.activeTargets
+      .filter((target) => target.reserveInfo?.actualMccbId)
+      .map((target) => target.id);
+    const addedIds = updates.targetMccbIds.filter((id) => !reservedIds.includes(id));
     const removedIds = currentIds.filter(
       (id) => !updates.targetMccbIds.includes(id),
     );
@@ -327,16 +273,7 @@ export default function RequestListPanel({
           activeRequestViews={activeRequestViews}
           mccbList={mccbList}
           toggleExpand={toggleExpand}
-          addPanelRequestId={addPanelRequestId}
-          openAddPanel={openAddPanel}
-          addSearchTerm={addSearchTerm}
-          setAddSearchTerm={setAddSearchTerm}
-          selectedAddIds={selectedAddIds}
-          toggleAddTarget={toggleAddTarget}
-          addDummyNames={addDummyNames}
-          setAddDummyName={setAddDummyName}
           activeDummyUsageMap={activeDummyUsageMap}
-          handleAddTargets={handleAddTargets}
           returnPanelRequestId={returnPanelRequestId}
           openReturnPanel={openReturnPanel}
           selectedReturnIds={selectedReturnIds}

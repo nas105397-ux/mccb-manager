@@ -4,7 +4,6 @@ export const STATUS_MESSAGE_KEYS = {
   REQUEST_RECEIPT_SENT: "requestReceiptSent",
   REQUEST_DRAFT_SAVED: "requestDraftSaved",
   REQUEST_LIST_RECEIPT_SENT: "requestListReceiptSent",
-  REQUEST_TARGETS_ADDED: "requestTargetsAdded",
   REQUEST_TARGETS_RETURNED: "requestTargetsReturned",
   REQUEST_TARGET_CARD_UPDATED: "requestTargetCardUpdated",
   REQUEST_UPDATED: "requestUpdated",
@@ -30,10 +29,6 @@ const STATUS_MESSAGE_DEFINITIONS = {
   [STATUS_MESSAGE_KEYS.REQUEST_LIST_RECEIPT_SENT]: {
     type: "success",
     text: "スター精密プリンターへ依頼表を送信しました。",
-  },
-  [STATUS_MESSAGE_KEYS.REQUEST_TARGETS_ADDED]: {
-    type: "success",
-    text: "選択した設備を依頼に追加しました。",
   },
   [STATUS_MESSAGE_KEYS.REQUEST_TARGETS_RETURNED]: {
     type: "success",

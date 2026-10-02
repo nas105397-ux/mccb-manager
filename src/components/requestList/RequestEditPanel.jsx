@@ -9,6 +9,7 @@ export default function RequestEditPanel({
   initialSelectedIds = [],
   // 発行中の依頼は札を確保済みで代替名を変えても割当に反映されないため、既存分の入力を固定する。
   lockInitialDummyNames = false,
+  activeDummyUsageMap = new Map(),
   onSave,
   onCancel,
 }) {
@@ -18,12 +19,18 @@ export default function RequestEditPanel({
   const [selectedIds, setSelectedIds] = useState(initialSelectedIds);
   const [dummyNames, setDummyNames] = useState(req.dummyNames || {});
 
-  const toggleTarget = (mccbId) => {
+  const toggleTarget = (mccbId, prefillDummyName = "") => {
     setSelectedIds((prev) =>
       prev.includes(mccbId)
         ? prev.filter((id) => id !== mccbId)
         : [...prev, mccbId],
     );
+    if (prefillDummyName) {
+      // 発行中のダミーを選んだときは代替名を引き継ぎ、同じ親札の子札を確保できるようにする。
+      setDummyNames((prev) =>
+        prev[mccbId] ? prev : { ...prev, [mccbId]: prefillDummyName },
+      );
+    }
   };
 
   const handleSave = () => {
@@ -94,17 +101,28 @@ export default function RequestEditPanel({
           ) : (
             filteredMccbs.map((mccb) => {
               const isSelected = selectedIds.includes(mccb.id);
+              const dummyUsage = activeDummyUsageMap.get(mccb.id);
               return (
                 <div key={mccb.id} className={ACTIVE.editItem}>
                   <label className="flex items-center gap-2 cursor-pointer flex-1">
                     <input
                       type="checkbox"
                       checked={isSelected}
-                      onChange={() => toggleTarget(mccb.id)}
+                      onChange={() =>
+                        toggleTarget(
+                          mccb.id,
+                          isSelected ? "" : dummyUsage?.sharableName,
+                        )
+                      }
                       className="rounded text-sky-600 focus:ring-sky-500"
                     />
                     <span className={ACTIVE.roomTag}>{mccb.room}</span>
                     <span className="truncate">{mccb.name}</span>
+                    {dummyUsage && (
+                      <span className="text-[9px] bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded font-black shrink-0 max-w-[55%] truncate">
+                        🏷️ {dummyUsage.label} で発行中
+                      </span>
+                    )}
                   </label>
 
                   {isSelected && isDummyMccb(mccb) && (

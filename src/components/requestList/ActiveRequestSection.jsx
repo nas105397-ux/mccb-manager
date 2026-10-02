@@ -1,10 +1,4 @@
-import {
-  formatWorkContent,
-  formatWorkerName,
-  isDummyMccb,
-  matchesMccbSearch,
-} from "../../shared/mccbViewUtils";
-import DummyNameInput from "../DummyNameInput";
+import { formatWorkContent, formatWorkerName } from "../../shared/mccbViewUtils";
 import FoldToggleRow from "./FoldToggleRow";
 import RequestEditPanel from "./RequestEditPanel";
 import { ACTIVE, UI } from "./requestListStyles";
@@ -17,21 +11,12 @@ const getReturnedCardLabel = (returnedInfo) =>
 const getReserveCardLabel = (reserveInfo) =>
   `${reserveInfo.displayName} No.${reserveInfo.cardNo}`;
 
-// 進行中の停電作業依頼一覧。編集・設備追加・一部返却・印刷・解約と、対象設備の一時返却/再貸出を扱う。
+// 進行中の停電作業依頼一覧。編集・一部返却・印刷・解約と、対象設備の一時返却/再貸出を扱う。
 export default function ActiveRequestSection({
   activeRequestViews,
   mccbList,
   toggleExpand,
-  addPanelRequestId,
-  openAddPanel,
-  addSearchTerm,
-  setAddSearchTerm,
-  selectedAddIds,
-  toggleAddTarget,
-  addDummyNames = {},
-  setAddDummyName = () => {},
   activeDummyUsageMap = new Map(),
-  handleAddTargets,
   returnPanelRequestId,
   openReturnPanel,
   selectedReturnIds,
@@ -56,22 +41,9 @@ export default function ActiveRequestSection({
     <div className="space-y-4">
       {activeRequestViews.map((req) => {
         const isExpanded = req.isExpanded;
-        const isAddPanelOpen = addPanelRequestId === req.id;
         const isReturnPanelOpen = returnPanelRequestId === req.id;
         const returnableTargets = req.activeTargets || [];
         const returnedCount = req.targets.length - returnableTargets.length;
-        // 返却済みと「空きなし」の設備は札を持っていないため、追加候補として選び直せるようにする。
-        const currentTargetIds = new Set(
-          returnableTargets
-            .filter((target) => target.reserveInfo?.actualMccbId)
-            .map((target) => target.id),
-        );
-        const addQuery = addSearchTerm.trim().toLowerCase();
-        const addableMccbs = mccbList.filter((mccb) => {
-          if (currentTargetIds.has(mccb.id)) return false;
-          if (!addQuery) return true;
-          return matchesMccbSearch(mccb, addQuery);
-        });
         // 最後の1面まで返すと依頼が空になるため、その場合は解約・作業完了へ寄せる。
         const canReturnTargets = returnableTargets.length > 1;
 
@@ -105,13 +77,6 @@ export default function ActiveRequestSection({
                   className={`${ACTIVE.actionButtonBase} ${ACTIVE.editButton}`}
                 >
                   編集
-                </button>
-                <button
-                  type="button"
-                  onClick={() => openAddPanel(req.id)}
-                  className={`${ACTIVE.actionButtonBase} ${ACTIVE.addButton}`}
-                >
-                  停電設備を追加
                 </button>
                 {canReturnTargets && (
                   <button
@@ -149,85 +114,10 @@ export default function ActiveRequestSection({
                 mccbList={mccbList}
                 initialSelectedIds={returnableTargets.map((target) => target.id)}
                 lockInitialDummyNames
+                activeDummyUsageMap={activeDummyUsageMap}
                 onSave={(updates) => handleUpdateRequest(req, updates)}
                 onCancel={() => openEditPanel(req.id)}
               />
-            )}
-
-            {isAddPanelOpen && (
-              <div className={ACTIVE.addPanel}>
-                <input
-                  type="text"
-                  value={addSearchTerm}
-                  onChange={(event) => setAddSearchTerm(event.target.value)}
-                  placeholder="設備名・電気室で検索..."
-                  className={ACTIVE.addSearch}
-                />
-
-                <div className={ACTIVE.addList}>
-                  {addableMccbs.length === 0 ? (
-                    <div className="py-6 text-center text-xs font-bold text-gray-400">
-                      追加できる設備がありません。
-                    </div>
-                  ) : (
-                    addableMccbs.map((mccb) => {
-                      const isChecked = selectedAddIds.includes(mccb.id);
-                      const dummyUsage = activeDummyUsageMap.get(mccb.id);
-                      return (
-                        <div key={mccb.id} className={ACTIVE.addItem}>
-                          <label className="flex items-center gap-2 min-w-0 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() =>
-                                toggleAddTarget(
-                                  mccb.id,
-                                  isChecked ? "" : dummyUsage?.sharableName,
-                                )
-                              }
-                              className="rounded text-emerald-600 focus:ring-emerald-500"
-                            />
-                            <span className={ACTIVE.roomTag}>{mccb.room}</span>
-                            <span className="truncate">{mccb.name}</span>
-                            {dummyUsage && (
-                              <span className="text-[9px] bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded font-black shrink-0 max-w-[55%] truncate">
-                                🏷️ {dummyUsage.label} で発行中
-                              </span>
-                            )}
-                          </label>
-                          {isChecked && isDummyMccb(mccb) && (
-                            <div className="pl-6">
-                              <DummyNameInput
-                                key={mccb.id}
-                                mccbId={mccb.id}
-                                value={addDummyNames[mccb.id]}
-                                onChange={setAddDummyName}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-
-                <div className="flex flex-wrap justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => openAddPanel(req.id)}
-                    className={ACTIVE.addCancel}
-                  >
-                    キャンセル
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleAddTargets(req.id)}
-                    className={ACTIVE.addSubmit}
-                  >
-                    選択設備を追加 ({selectedAddIds.length})
-                  </button>
-                </div>
-              </div>
             )}
 
             {isReturnPanelOpen && (
