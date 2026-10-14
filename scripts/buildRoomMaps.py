@@ -18,16 +18,32 @@ STYLE = """<style>
 .strand-band{opacity:.15}
 .strand-label{font:bold 12px sans-serif;text-anchor:middle;dominant-baseline:central}
 .legend{font:12px sans-serif;fill:#334155}
+.door-gap{stroke:#fff;stroke-width:6}
+.door-leaf{fill:none;stroke:#334155;stroke-width:2}
 .door{font:bold 18px sans-serif;fill:#64748b;text-anchor:middle}
 </style>"""
 
 
-def P(pid, x, y, w, h, label, sections=None, dashed=False, stack=None, faces=None):
+def P(pid, x, y, w, h, label, sections=None, dashed=False, stack=None, faces=None, caption=None):
     # sections: 上→下(stack) / 左→右 の順。名前 / (名前, 幅比) / (名前, 幅比, 表示名)。
     # stack: 区切りを縦に積むか。省略時は盤の長辺方向。
     # faces: 盤をA・B等に2分割する(区切りと直交方向)。区切り名は "A-01" のようになる。
     return dict(id=pid, x=x, y=y, w=w, h=h, label=label, sections=sections or [], dashed=dashed,
-                stack=h > w if stack is None else stack, faces=faces)
+                stack=h > w if stack is None else stack, faces=faces,
+                # caption: 区切りがある盤の盤名位置 "left"(縦書き) / "top"。省略時は縦長なら left
+                caption=caption or ("left" if h > w else "top"))
+
+
+def D(hx, hy, along, swing, w):
+    # 片開き扉。(hx, hy)=吊元、along=壁に沿って戸先へ向かう向き、swing=開く側、w=扉幅
+    return (hx, hy, along, swing, w)
+
+
+def double_door(x1, y1, x2, y2, swing):
+    # 両開き扉。(x1,y1)〜(x2,y2) の開口の両端を吊元にする
+    w = (abs(x2 - x1) + abs(y2 - y1)) / 2
+    ax, ay = (x2 - x1) / (2 * w), (y2 - y1) / (2 * w)
+    return [D(x1, y1, (ax, ay), swing, w), D(x2, y2, (-ax, -ay), swing, w)]
 
 
 # ストランド色の初期値(アプリの区分初期色 DEFAULT_CATEGORY_COLOR_KEYS と同じ)。
@@ -71,23 +87,33 @@ LEGEND_2F = ["① (P-No15) TDSパワーユニット", "② (P-No1) TDSコント�
 
 FLOORS = {
     "1F": {
-        "size": (960, 1320),
+        "size": (960, 1350),
         "rooms": [
             ("1階電気室", [(80, 65), (462, 65), (462, 1275), (80, 1275)]),
             ("1階高圧電気室", [(462, 65), (915, 65), (915, 1275), (462, 1275)]),
         ],
-        "doors": [(265, 1265, "入口")],
+        "doors": [
+            D(80, 180, (0, -1), (-1, 0), 40),
+            D(915, 120, (0, 1), (1, 0), 36),
+            D(462, 140, (0, 1), (1, 0), 42),  # 間仕切り上側
+            *double_door(462, 1090, 462, 1234, (1, 0)),
+            *double_door(190, 1275, 314, 1275, (0, 1)),
+            D(340, 1275, (1, 0), (0, 1), 44),
+            D(682, 1275, (1, 0), (0, 1), 40),
+        ],
+        "labels": [(252, 1262, "搬入口"), (362, 1262, "入口")],
         "panels": [
             P("STDP01", 125, 305, 137, 150, "T/Dプラズマ\nヒーター電源盤", dashed=True),
             P("MOS-01", 290, 305, 55, 85, "O/S油圧\n制御盤", dashed=True),
             P("EMS", 160, 505, 58, 175, "EMS", dashed=True),
-            P("1MCC01", 182, 680, 28, 170, "1MCC01", ["-06", "-05", "-04", "-03", "-02", "-01"]),
-            P("1MCC03", 182, 870, 28, 105, "1MCC03", ["-03", "-02", "-01"]),
-            P("2MCC01", 182, 985, 28, 130, "2MCC01", ["-03", "-02", "-01"]),
+            P("1MC01", 182, 680, 28, 170, "1MC01", ["-06", "-05", "-04", "-03", "-02", "-01"]),
+            P("1MC03", 182, 870, 28, 105, "1MC03", ["-03", "-02", "-01"]),
+            P("2MC01", 182, 985, 28, 130, "2MC01", ["-03", "-02", "-01"]),
             P("2VC", 345, 410, 60, 195, "INV 2VC", ["-01", "-02", "-03", "-04", "-05"], faces=("A", "B")),
             P("2VF01", 345, 635, 37, 85, "2VF01", ["-1", "-2", "-3"]),
             P("2VF02", 338, 740, 44, 230, "V/F 2VF02", ["-1", "-2", "-3", "-4", "-5", "-6", "-7"]),
-            P("1MCC02", 338, 975, 27, 75, "1MCC02", ["-01", "-02"]),
+            P("1MC02", 338, 975, 27, 75, "1MC02", ["-01", "-02"]),
+            P("6stEMS", 338, 1055, 27, 60, "6stEMS"),
             P("1CF", 412, 215, 43, 155, "UPS・バッテリー分電盤", ["1CF01", "1CF02", "1CF03"]),
             P("3LP201", 465, 545, 25, 155, "照明用分電盤", dashed=True),
             P("1LC05", 525, 220, 75, 112, "1LC05", ["C", "B", "A"]),
@@ -95,7 +121,7 @@ FLOORS = {
             P("1LC02", 705, 220, 75, 115, "1LC02", ["A", "B", "C"]),
             P("1LC04", 705, 338, 75, 115, "1LC04", ["A", "B", "C"]),
             P("1LC01", 705, 456, 75, 115, "1LC01", ["A", "B", "C"]),
-            P("1BT", 550, 455, 55, 45, "バッテリー", ["01", "02"], stack=True),
+            P("1BT", 550, 455, 55, 45, "バッテリー", ["01", "02"], stack=True, caption="left"),
             P("1FF04", 545, 505, 25, 55, "1FF04"),
             P("1FPB01", 545, 560, 55, 145, "1FPB01", ["C", "B", "A"]),
             P("1CB", 705, 585, 115, 200, "3.3kV Comb Str",
@@ -106,12 +132,18 @@ FLOORS = {
         ],
     },
     "2F": {
-        "size": (920, 1280),
+        "size": (920, 1330),
         "rooms": [
             # 左上の前室は除外
             ("2階電気室", [(160, 40), (865, 40), (865, 1235), (40, 1235), (40, 165), (160, 165)]),
         ],
-        "doors": [(280, 1225, "入口")],
+        "doors": [
+            D(160, 110, (0, -1), (1, 0), 36),  # 前室から
+            D(865, 90, (0, 1), (1, 0), 40),  # 階段室へ
+            *double_door(145, 1235, 270, 1235, (0, 1)),
+            D(291, 1235, (1, 0), (0, 1), 44),
+        ],
+        "labels": [(207, 1222, "搬入口"), (313, 1222, "入口")],
         "panels": [
             P("TB-CCER01", 335, 55, 80, 20, "TB-CCER01"),
             P("1-ITVH", 455, 55, 90, 35, "ITV制御盤"),
@@ -165,7 +197,6 @@ def text(cls, x, y, s, rotate=False, fit=None, max_size=13):
 
 def render_panel(p):
     x, y, w, h = p["x"], p["y"], p["w"], p["h"]
-    vertical = h > w
     cls = "panel-group dashed" if p["dashed"] else "panel-group"
     out = [f'<g id="{p["id"]}" class="{cls}"><title>{esc(p["label"].replace(chr(10), " "))}</title>',
            f'<rect class="panel" x="{x}" y="{y}" width="{w}" height="{h}"/>']
@@ -188,7 +219,8 @@ def render_panel(p):
                 pos += size
         # 区切りがある盤は盤名を外側に出す(縦長は左側に縦書き、横長は上側)
         caption = p["label"].replace("\n", " ")
-        out.append(text("caption", x - 5, y + h / 2, caption, rotate=True) if vertical
+        out.append(text("caption", x - 5, y + h / 2, caption, rotate=True, fit=h + 4, max_size=11)
+                   if p["caption"] == "left"
                    else text("caption", x + w / 2, y - 4, caption))
     else:
         rotate = h > w * 2.5
@@ -197,6 +229,15 @@ def render_panel(p):
         out += [text("panel-label", x + w / 2, cy + i * 16, s, rotate, h if rotate else w) for i, s in enumerate(lines)]
     out.append("</g>")
     return "".join(out)
+
+
+def render_door(hx, hy, along, swing, w):
+    # 壁の開口を白で抜き、扉板(直線)と軌跡(円弧)を描く
+    jx, jy = hx + along[0] * w, hy + along[1] * w
+    lx, ly = hx + swing[0] * w, hy + swing[1] * w
+    sweep = 1 if swing[0] * along[1] - swing[1] * along[0] > 0 else 0
+    return (f'<line class="door-gap" x1="{hx:g}" y1="{hy:g}" x2="{jx:g}" y2="{jy:g}"/>'
+            f'<path class="door-leaf" d="M{hx:g},{hy:g} L{lx:g},{ly:g} A{w:g},{w:g} 0 0 {sweep} {jx:g},{jy:g}"/>')
 
 
 def build(name, f):
@@ -209,8 +250,9 @@ def build(name, f):
         y0 = min(py for _, py in pts)
         parts.append(text("room-label", x0 + 14 + (120 if name == "2F" else 0), y0 + 36, room))
     parts += f.get("under", list)()
-    for x, y, s in f["doors"]:
-        parts.append(text("door", x, y, f"▲{s}"))
+    parts += [render_door(*d) for d in f["doors"]]
+    for x, y, s in f["labels"]:
+        parts.append(text("door", x, y, s))
     parts += [render_panel(p) for p in f["panels"]]
     if "legend" in f:
         lx, ly, rows = f["legend"]

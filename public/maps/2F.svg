@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 1280">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 1330">
 <style>
 .wall{fill:#f8fafc;stroke:#334155;stroke-width:4}
 .room-label{font:bold 26px sans-serif;fill:#94a3b8}
@@ -11,6 +11,8 @@
 .strand-band{opacity:.15}
 .strand-label{font:bold 12px sans-serif;text-anchor:middle;dominant-baseline:central}
 .legend{font:12px sans-serif;fill:#334155}
+.door-gap{stroke:#fff;stroke-width:6}
+.door-leaf{fill:none;stroke:#334155;stroke-width:2}
 .door{font:bold 18px sans-serif;fill:#64748b;text-anchor:middle}
 </style>
 <polygon class="wall" data-room="2階電気室" points="160,40 865,40 865,1235 40,1235 40,165 160,165"/>
@@ -33,7 +35,13 @@
 <rect class="strand-band" data-category="6スト" x="418" y="838" width="358" height="70" fill="#16a34a"/>
 <rect class="strand-badge" data-category="6スト" x="430" y="910" width="80" height="20" rx="4" fill="#16a34a" stroke="#111827"/>
 <text class="strand-label" data-category="6スト" x="470" y="920" fill="#ffffff">No.6 STR</text>
-<text class="door" x="280" y="1225">▲入口</text>
+<line class="door-gap" x1="160" y1="110" x2="160" y2="74"/><path class="door-leaf" d="M160,110 L196,110 A36,36 0 0 0 160,74"/>
+<line class="door-gap" x1="865" y1="90" x2="865" y2="130"/><path class="door-leaf" d="M865,90 L905,90 A40,40 0 0 1 865,130"/>
+<line class="door-gap" x1="145" y1="1235" x2="207.5" y2="1235"/><path class="door-leaf" d="M145,1235 L145,1297.5 A62.5,62.5 0 0 0 207.5,1235"/>
+<line class="door-gap" x1="270" y1="1235" x2="207.5" y2="1235"/><path class="door-leaf" d="M270,1235 L270,1297.5 A62.5,62.5 0 0 1 207.5,1235"/>
+<line class="door-gap" x1="291" y1="1235" x2="335" y2="1235"/><path class="door-leaf" d="M291,1235 L291,1279 A44,44 0 0 0 335,1235"/>
+<text class="door" x="207" y="1222">搬入口</text>
+<text class="door" x="313" y="1222">入口</text>
 <g id="TB-CCER01" class="panel-group"><title>TB-CCER01</title><rect class="panel" x="335" y="55" width="80" height="20"/><text class="panel-label" x="375" y="65" style="font-size:13.0px">TB-CCER01</text></g>
 <g id="1-ITVH" class="panel-group"><title>ITV制御盤</title><rect class="panel" x="455" y="55" width="90" height="35"/><text class="panel-label" x="500" y="72.5" style="font-size:13.0px">ITV制御盤</text></g>
 <g id="1CV" class="panel-group"><title>本体用共通CONV</title><rect class="panel" x="98" y="245" width="200" height="45"/><rect class="section" data-section="01" x="98" y="245" width="80" height="45"/><text class="section-label" x="138" y="267.5" style="font-size:13.0px">01</text><rect class="section" data-section="02" x="178" y="245" width="40" height="45"/><text class="section-label" x="198" y="267.5" style="font-size:13.0px">02</text><rect class="section" data-section="03" x="218" y="245" width="40" height="45"/><text class="section-label" x="238" y="267.5" style="font-size:13.0px">03</text><rect class="section" data-section="04" x="258" y="245" width="40" height="45"/><text class="section-label" x="278" y="267.5" style="font-size:13.0px">04</text><text class="caption" x="198" y="241">本体用共通CONV</text></g>
