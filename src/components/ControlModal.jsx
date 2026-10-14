@@ -144,18 +144,22 @@ export default function ControlModal({
         {/* 📜 モーダルボディ */}
         <div className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-6 flex-1 text-sm text-gray-700">
 
-          <button ref={locationButtonRef} type="button" onClick={() => setIsMapOpen(true)} className="w-full flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 p-3 font-bold text-blue-800 hover:bg-blue-100">
-            📍 場所を探す
-            {mccb.location?.panelId && (
-              <span className="text-xs font-normal">({formatMccbLocation(mccb.location)})</span>
-            )}
-          </button>
-
           {/* ⚡ SECTION 2: 左に現在の状態、右に実行する操作を並べる */}
           <div className="bg-gray-50 p-4 rounded-xl border space-y-3">
-            <div>
-              <p className="font-black text-gray-800">⚡ 設備停電ステータス</p>
-              <p className="text-xs text-gray-400 mt-0.5">※依頼発行とは別に、主幹の開閉状態を直接操作ロックします</p>
+            {/* 停電操作ボタンと離し、誤タップを防ぐため見出し行に置く */}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-black text-gray-800 text-left">⚡ 設備停電ステータス</p>
+              <button
+                ref={locationButtonRef}
+                type="button"
+                onClick={() => setIsMapOpen(true)}
+                className="flex items-center gap-x-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-800 hover:bg-blue-100"
+              >
+                📍 場所を探す
+                {mccb.location?.panelId && (
+                  <span className="font-normal">({formatMccbLocation(mccb.location)})</span>
+                )}
+              </button>
             </div>
 
             <div className="flex flex-col sm:flex-row sm:items-stretch gap-3">
@@ -170,12 +174,12 @@ export default function ControlModal({
                 </p>
               </div>
 
-              <div className="flex flex-col justify-center gap-1.5 sm:w-56 sm:shrink-0">
+              <div className="flex flex-col gap-1.5 sm:w-56 sm:shrink-0">
                 <button
                   onClick={handleTogglePower}
                   disabled={isSendingBlocked}
                   title={isSendingBlocked ? "未返却の子札があるため送電できません" : undefined}
-                  className={`w-full px-5 py-3 rounded-xl text-sm font-black border ${
+                  className={`w-full flex-1 px-5 py-4 rounded-xl text-base font-black border ${
                     isSendingBlocked
                       ? POWER_ACTION_BUTTON_STYLES.blocked
                       : isPowerOff
