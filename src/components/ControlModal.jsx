@@ -1,12 +1,17 @@
 // MCCB 個別操作モーダル。停電/送電、子札貸出、管理者向けマスタ編集を扱う。
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useControlModalController } from "../hooks/useControlModalController";
 import {
   createStatusMessage,
   STATUS_MESSAGE_KEYS,
 } from "../shared/statusMessages";
-import { formatWorkContent, formatWorkerName } from "../shared/mccbViewUtils";
+import {
+  formatMccbLocation,
+  formatWorkContent,
+  formatWorkerName,
+} from "../shared/mccbViewUtils";
 import StatusMessageRail from "./StatusMessageRail";
+import RoomMapModal from "./RoomMapModal";
 
 // 左の現在状態パネルの配色。今どちらの状態にあるかを色でも示す。
 const POWER_STATUS_STYLES = {
@@ -43,7 +48,10 @@ export default function ControlModal({
   isAdmin,
   rooms,
   categories,
+  categoryColors,
 }) {
+  const [isMapOpen, setIsMapOpen] = useState(false);
+  const locationButtonRef = useRef(null);
   const {
     isPowerOff,
     room,
@@ -84,6 +92,20 @@ export default function ControlModal({
   }, [mccb.childCards, mccb.id, requests]);
 
   // --- 画面レンダリング ---
+  if (isMapOpen) {
+    return (
+      <RoomMapModal
+        mccb={mccb}
+        isAdmin={isAdmin}
+        onUpdate={onUpdate}
+        categoryColors={categoryColors}
+        onClose={() => {
+          setIsMapOpen(false);
+          requestAnimationFrame(() => locationButtonRef.current?.focus());
+        }}
+      />
+    );
+  }
   return (
     <div
       onClick={onClose}
@@ -121,6 +143,13 @@ export default function ControlModal({
 
         {/* 📜 モーダルボディ */}
         <div className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-6 flex-1 text-sm text-gray-700">
+
+          <button ref={locationButtonRef} type="button" onClick={() => setIsMapOpen(true)} className="w-full flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 p-3 font-bold text-blue-800 hover:bg-blue-100">
+            📍 場所を探す
+            {mccb.location?.panelId && (
+              <span className="text-xs font-normal">({formatMccbLocation(mccb.location)})</span>
+            )}
+          </button>
 
           {/* ⚡ SECTION 2: 左に現在の状態、右に実行する操作を並べる */}
           <div className="bg-gray-50 p-4 rounded-xl border space-y-3">

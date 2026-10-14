@@ -207,6 +207,7 @@ function AppContent() {
                     isAdmin={controller.isAdmin}
                     rooms={controller.rooms}
                     categories={controller.categories}
+                    categoryColors={controller.categoryColors}
                   />
                 )}
               </div>

@@ -118,3 +118,9 @@ export const applyNameOverlaysToMccbs = (mccbList = [], nameOverlayMap) =>
     const suffix = nameOverlayMap.get(mccb.id);
     return suffix ? { ...mccb, name: `${mccb.name}${suffix}` } : mccb;
   });
+
+// 電気室マップで登録した場所(location: { floor, panelId, section })を表示用に整形する。
+export const formatMccbLocation = (location) =>
+  location?.panelId
+    ? `${location.floor} ${location.panelId}${location.section ? ` ${location.section}` : ""}`
+    : "";

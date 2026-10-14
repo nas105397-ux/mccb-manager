@@ -1,51 +1,72 @@
 // 区分ごとの表示色プリセットと、未設定時の正規化処理。
+// hex/textHex はクラスを使えないSVG(電気室マップ)用。
 export const CATEGORY_COLOR_PRESETS = {
   white: {
+    hex: "#ffffff",
+    textHex: "#111827",
     label: "白",
     badgeClass: "bg-white text-gray-900 border-gray-300 shadow-sm",
     swatchClass: "bg-white border-gray-300",
   },
   black: {
+    hex: "#000000",
+    textHex: "#ffffff",
     label: "黒",
     badgeClass: "bg-black text-white border-black",
     swatchClass: "bg-black border-black",
   },
   red: {
+    hex: "#dc2626",
+    textHex: "#ffffff",
     label: "赤",
     badgeClass: "bg-red-600 text-white border-red-600",
     swatchClass: "bg-red-600 border-red-600",
   },
   blue: {
+    hex: "#2563eb",
+    textHex: "#ffffff",
     label: "青",
     badgeClass: "bg-blue-600 text-white border-blue-600",
     swatchClass: "bg-blue-600 border-blue-600",
   },
   yellow: {
+    hex: "#facc15",
+    textHex: "#111827",
     label: "黄",
     badgeClass: "bg-yellow-400 text-gray-900 border-yellow-400",
     swatchClass: "bg-yellow-400 border-yellow-400",
   },
   green: {
+    hex: "#16a34a",
+    textHex: "#ffffff",
     label: "緑",
     badgeClass: "bg-green-600 text-white border-green-600",
     swatchClass: "bg-green-600 border-green-600",
   },
   gray: {
+    hex: "#e5e7eb",
+    textHex: "#374151",
     label: "灰",
     badgeClass: "bg-gray-100 text-gray-700 border-gray-300",
     swatchClass: "bg-gray-200 border-gray-300",
   },
   purple: {
+    hex: "#9333ea",
+    textHex: "#ffffff",
     label: "紫",
     badgeClass: "bg-purple-600 text-white border-purple-600",
     swatchClass: "bg-purple-600 border-purple-600",
   },
   orange: {
+    hex: "#f97316",
+    textHex: "#ffffff",
     label: "橙",
     badgeClass: "bg-orange-500 text-white border-orange-500",
     swatchClass: "bg-orange-500 border-orange-500",
   },
   teal: {
+    hex: "#0d9488",
+    textHex: "#ffffff",
     label: "青緑",
     badgeClass: "bg-teal-600 text-white border-teal-600",
     swatchClass: "bg-teal-600 border-teal-600",

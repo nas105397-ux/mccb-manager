@@ -224,6 +224,16 @@ function createMccbChangeLog(before, after) {
     changeDetails.push(`設備名: ${before.name} → ${after.name}`);
   }
 
+  const formatLocation = (location) =>
+    location?.panelId
+      ? [location.floor, location.panelId, location.section].filter(Boolean).join(" ")
+      : "未登録";
+  if (formatLocation(before.location) !== formatLocation(after.location)) {
+    changeDetails.push(
+      `場所: ${formatLocation(before.location)} → ${formatLocation(after.location)}`,
+    );
+  }
+
   if (before.isFavorite !== after.isFavorite) {
     changeDetails.push(
       `お気に入り${after.isFavorite ? "登録しました。" : "解除しました。"}`,
